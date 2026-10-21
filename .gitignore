@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+__pycache__/
+*.pyc
+staticfiles/
+crivo.sqlite3
+node_modules/
+ferramentas/java/out/
+ferramentas/java/out-teste/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

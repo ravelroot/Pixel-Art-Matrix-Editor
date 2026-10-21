@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR" data-tema="claro">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <base href="./">
+    <title>Crivo</title>
+    <meta name="description" content="Crivo: editor de pixel art baseado em matrizes, com camadas, animação, histórico ilimitado e exportação para jogos.">
+    <meta name="color-scheme" content="light dark">
+    <link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="css/crivo.css">
+    <script type="module" src="js/main.js"></script>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topo">
+        <div class="marca">
+          <span id="logo" class="logo" aria-hidden="true"></span>
+          <span class="marca-nome">Crivo</span>
+        </div>
+        <nav id="menus" class="menus" aria-label="Menu principal"></nav>
+        <input id="nome-projeto" class="nome-projeto" type="text" maxlength="120" aria-label="Nome do projeto" spellcheck="false">
+        <div class="topo-acoes">
+          <button id="desfazer" type="button" class="botao-icone" aria-label="Desfazer"></button>
+          <button id="refazer" type="button" class="botao-icone" aria-label="Refazer"></button>
+          <button id="salvar" type="button" class="botao-icone" title="Salvar (Ctrl+S)" aria-label="Salvar"></button>
+          <button id="tema" type="button" class="botao-icone" aria-label="Alternar tema"></button>
+        </div>
+      </header>
+      <nav id="ferramentas" class="ferramentas" aria-label="Ferramentas"></nav>
+      <div class="barra-opcoes">
+        <div id="opcoes" class="opcoes" aria-label="Opções da ferramenta"></div>
+      </div>
+      <main class="area">
+        <div id="visao" class="visao" aria-label="Visualização"></div>
+        <canvas id="visor" aria-label="Matriz de pixels. Use as ferramentas da barra lateral para desenhar."></canvas>
+      </main>
+      <aside class="lateral" aria-label="Cores, paletas e camadas">
+        <section class="painel">
+          <h2>Cor</h2>
+          <div id="painel-cor"></div>
+        </section>
+        <section class="painel">
+          <h2>Paleta</h2>
+          <div id="painel-paleta"></div>
+        </section>
+        <section class="painel">
+          <h2>Tons</h2>
+          <div id="painel-tons"></div>
+        </section>
+        <section class="painel painel-camadas">
+          <h2>Camadas</h2>
+          <div id="painel-camadas"></div>
+        </section>
+      </aside>
+      <section id="linha-tempo" class="linha-tempo" aria-label="Linha do tempo"></section>
+      <footer class="status">
+        <span id="status-posicao" class="mono">–</span>
+        <span id="status-cor" class="mono status-cor"></span>
+        <span id="status-tamanho"></span>
+        <span id="status-zoom" class="mono"></span>
+        <span id="status-historico"></span>
+        <span id="status-armazenamento" class="status-armazenamento"></span>
+      </footer>
+    </div>
+    <div id="avisos" class="avisos" aria-live="polite"></div>
+  </body>
+</html>

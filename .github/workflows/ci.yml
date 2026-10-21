@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - ".github/atividade.txt"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  javascript:
+    name: Editor (JavaScript)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Testes do núcleo do editor
+        run: npm test
+
+  django:
+    name: API (Django + PostgreSQL)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: crivo
+          POSTGRES_USER: crivo
+          POSTGRES_PASSWORD: crivo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U crivo"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      CRIVO_DB_ENGINE: postgresql
+      CRIVO_DB_HOST: localhost
+      CRIVO_DB_NAME: crivo
+      CRIVO_DB_USER: crivo
+      CRIVO_DB_PASSWORD: crivo
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Verificar migrações
+        run: python manage.py makemigrations --check --dry-run
+      - name: Testes da API
+        run: python manage.py test editor -v 2
+
+  java:
+    name: Ferramenta (Java)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Testes da linha de comando
+        run: bash ferramentas/java/testar.sh
+      - name: Gerar as folhas dos exemplos
+        run: |
+          for arquivo in exemplos/*.crivo; do
+            bash ferramentas/java/crivo.sh folha "$arquivo" "saida/$(basename "$arquivo" .crivo).png" --escala 4 --espaco 2
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exemplos-png
+          path: saida/
+          retention-days: 7
+
+  docker:
+    name: Imagem Docker
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Construir a imagem
+        run: docker build -t crivo:ci .

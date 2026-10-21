@@ -1,0 +1,15 @@
+.git
+.github
+.env
+.venv
+venv
+__pycache__
+*.pyc
+node_modules
+staticfiles
+crivo.sqlite3
+docs
+exemplos
+ferramentas
+tests
+*.pdf

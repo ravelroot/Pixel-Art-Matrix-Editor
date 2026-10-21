@@ -1,0 +1,20 @@
+{
+  "name": "crivo",
+  "version": "1.0.0",
+  "description": "Editor de pixel art baseado em matrizes, com camadas, quadros, histórico ilimitado e exportação para jogos.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "author": "Erik Pimenta",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ravelroot/Pixel-Art-Matrix-Editor.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test tests/js/*.test.js",
+    "servir": "node scripts/servir.js"
+  }
+}

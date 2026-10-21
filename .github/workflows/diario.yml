@@ -1,0 +1,92 @@
+name: Atividade diária
+
+on:
+  schedule:
+    - cron: "37 12 * * *"
+    - cron: "52 13 * * *"
+    - cron: "23 15 * * *"
+    - cron: "41 17 * * *"
+    - cron: "56 18 * * *"
+    - cron: "43 19 * * *"
+    - cron: "19 21 * * *"
+    - cron: "34 22 * * *"
+    - cron: "27 23 * * *"
+  workflow_dispatch:
+    inputs:
+      turno:
+        description: Turno a registrar (data de hoje, em Brasília)
+        type: choice
+        options:
+          - 1º turno
+          - 2º turno
+          - 3º turno
+        default: 1º turno
+
+permissions:
+  contents: write
+
+concurrency:
+  group: atividade-diaria
+  cancel-in-progress: false
+
+jobs:
+  registrar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github
+          sparse-checkout-cone-mode: true
+          filter: blob:none
+
+      - name: Registrar atividade
+        env:
+          GIT_NAME: ${{ secrets.GIT_NAME }}
+          GIT_EMAIL: ${{ secrets.GIT_EMAIL }}
+          AGENDA: ${{ github.event.schedule }}
+          TURNO_MANUAL: ${{ inputs.turno }}
+        run: |
+          if [ -z "$GIT_NAME" ] || [ -z "$GIT_EMAIL" ]; then
+            echo "Defina os secrets GIT_NAME e GIT_EMAIL no repositório."
+            exit 1
+          fi
+          export TZ=America/Sao_Paulo
+          case "$AGENDA" in
+            "37 12 * * *"|"52 13 * * *"|"23 15 * * *") TURNO="1º turno" ;;
+            "41 17 * * *"|"56 18 * * *"|"43 19 * * *") TURNO="2º turno" ;;
+            "19 21 * * *"|"34 22 * * *"|"27 23 * * *") TURNO="3º turno" ;;
+            *) TURNO="${TURNO_MANUAL:-1º turno}" ;;
+          esac
+          if [ -n "$AGENDA" ]; then
+            MINUTO=$(echo "$AGENDA" | cut -d' ' -f1)
+            HORA=$(echo "$AGENDA" | cut -d' ' -f2)
+            AGORA=$(date -u +%s)
+            PREVISTO=$(date -u -d "$(date -u +%Y-%m-%d) $HORA:$MINUTO" +%s)
+            if [ "$PREVISTO" -gt "$AGORA" ]; then PREVISTO=$((PREVISTO - 86400)); fi
+            HOJE=$(date -d "@$PREVISTO" +%Y-%m-%d)
+            echo "Agendado para $(date -d "@$PREVISTO" '+%d/%m/%Y %H:%M') (Brasília); atraso de $(( (AGORA - PREVISTO) / 60 )) min."
+          else
+            HOJE=$(date +%Y-%m-%d)
+          fi
+          ARQUIVO=.github/atividade.txt
+          git config user.name "$GIT_NAME"
+          git config user.email "$GIT_EMAIL"
+          git pull --rebase --quiet origin main
+          if grep -q "^$HOJE $TURNO " "$ARQUIVO" 2>/dev/null; then
+            echo "A atividade de $HOJE ($TURNO) já foi registrada."
+            exit 0
+          fi
+          echo "$HOJE $TURNO $(date +%H:%M) (Brasília)" >> "$ARQUIVO"
+          tail -n 90 "$ARQUIVO" > "$ARQUIVO.tmp" && mv "$ARQUIVO.tmp" "$ARQUIVO"
+          git add "$ARQUIVO"
+          git commit -m "Atividade de $(date -d "$HOJE" +%d/%m/%Y) ($TURNO)"
+          for tentativa in 1 2 3; do
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep $((tentativa * 15))
+            git pull --rebase origin main
+          done
+          echo "Não foi possível enviar o commit depois de 3 tentativas."
+          exit 1

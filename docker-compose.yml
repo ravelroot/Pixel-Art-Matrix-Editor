@@ -1,0 +1,44 @@
+name: crivo
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${CRIVO_DB_NAME:-crivo}
+      POSTGRES_USER: ${CRIVO_DB_USER:-crivo}
+      POSTGRES_PASSWORD: ${CRIVO_DB_PASSWORD:?Defina CRIVO_DB_PASSWORD no arquivo .env}
+    volumes:
+      - dados-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      CRIVO_DEBUG: "false"
+      CRIVO_SECRET_KEY: ${CRIVO_SECRET_KEY:?Defina CRIVO_SECRET_KEY no arquivo .env}
+      CRIVO_ALLOWED_HOSTS: ${CRIVO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      CRIVO_CSRF_TRUSTED_ORIGINS: ${CRIVO_CSRF_TRUSTED_ORIGINS:-}
+      CRIVO_HTTPS: ${CRIVO_HTTPS:-false}
+      CRIVO_API_TOKEN: ${CRIVO_API_TOKEN:-}
+      CRIVO_MAX_REVISOES: ${CRIVO_MAX_REVISOES:-20}
+      CRIVO_WORKERS: ${CRIVO_WORKERS:-2}
+      CRIVO_DB_ENGINE: postgresql
+      CRIVO_DB_HOST: postgres
+      CRIVO_DB_PORT: "5432"
+      CRIVO_DB_NAME: ${CRIVO_DB_NAME:-crivo}
+      CRIVO_DB_USER: ${CRIVO_DB_USER:-crivo}
+      CRIVO_DB_PASSWORD: ${CRIVO_DB_PASSWORD}
+    ports:
+      - "${CRIVO_PORT:-8080}:8000"
+
+volumes:
+  dados-postgres:
