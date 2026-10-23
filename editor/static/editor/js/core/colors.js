@@ -206,3 +206,33 @@ export function luminance(c) {
   const [r, g, b] = unpack(c);
   return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
 }
+
+// HSV with h in [0, 360) and s, v in [0, 1]. Used by the color picker (saturation/value square + hue strip).
+export function rgbToHsv(r, g, b) {
+  r /= 255;
+  g /= 255;
+  b /= 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  let h = 0;
+  if (d) {
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+    else if (max === g) h = ((b - r) / d + 2) * 60;
+    else h = ((r - g) / d + 4) * 60;
+  }
+  return [h, max ? d / max : 0, max];
+}
+
+export function hsvToRgb(h, s, v) {
+  h = (((h % 360) + 360) % 360) / 60;
+  s = clamp(s, 0, 1);
+  v = clamp(v, 0, 1);
+  const i = Math.floor(h);
+  const f = h - i;
+  const p = v * (1 - s);
+  const q = v * (1 - s * f);
+  const t = v * (1 - s * (1 - f));
+  const [r, g, b] = [[v, t, p], [q, v, p], [p, v, t], [p, q, v], [t, p, v], [v, p, q]][i % 6];
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}

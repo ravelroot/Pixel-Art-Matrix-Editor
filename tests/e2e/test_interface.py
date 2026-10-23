@@ -221,6 +221,93 @@ class EditorTests:
         self.page.mouse.click(*self.point(25, 25))
         self.assertEqual(self.page.evaluate("() => window.crivo.editor.history.past.length"), steps, "a click without dragging with the gradient paints nothing")
 
+    def selection_box(self):
+        return self.page.evaluate("() => { const s = window.crivo.editor.selection; return s && [s.x, s.y, s.width, s.height, Boolean(s.mask)]; }")
+
+    def test_lasso_selection_delete_and_invert(self):
+        self.tool("f", "bucket")
+        self.page.mouse.click(*self.point(0, 0))
+        background = self.pixel(0, 0)
+        self.tool("a", "lasso")
+        m = self.page.mouse
+        m.move(*self.point(2, 2))
+        m.down()
+        for p in [(12, 2), (2, 12), (2, 2)]:
+            m.move(*self.point(*p), steps=6)
+        m.up()
+        self.assertEqual(self.selection_box(), [2, 2, 11, 11, True], "the lasso makes a non-rectangular selection")
+        steps = self.page.evaluate("() => window.crivo.editor.history.past.length")
+        self.page.keyboard.press("Delete")
+        self.assertEqual(self.pixel(3, 3), 0, "inside the lasso is erased")
+        self.assertEqual(self.pixel(11, 11), background, "the corner of the box outside the lasso stays")
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.history.past.length"), steps + 1)
+        self.page.keyboard.press("Control+z")
+        self.assertEqual(self.pixel(3, 3), background)
+        self.page.keyboard.press("Control+Shift+I")
+        self.assertEqual(self.selection_box(), [0, 0, 32, 32, True])
+        self.page.keyboard.press("Delete")
+        self.assertEqual(self.pixel(20, 20), 0, "the inverted selection erases outside the lasso")
+        self.assertEqual(self.pixel(3, 3), background)
+        self.page.keyboard.press("Control+d")
+        self.assertIsNone(self.selection_box())
+        self.page.keyboard.press("Control+Shift+D")
+        self.assertEqual(self.selection_box(), [0, 0, 32, 32, True], "Reselect brings the last selection back")
+
+    def test_magic_wand_modes_and_selection_menu(self):
+        self.tool("b", "pencil")
+        self.drag((2, 5), (8, 5))
+        self.drag((20, 20), (20, 20), steps=1)
+        self.tool("w", "magicWand")
+        self.page.mouse.click(*self.point(4, 5))
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.selection"), {"x": 2, "y": 5, "width": 7, "height": 1}, "a rectangular result keeps the plain shape")
+        self.page.keyboard.down("Shift")
+        self.page.mouse.click(*self.point(20, 20))
+        self.page.keyboard.up("Shift")
+        self.assertEqual(self.selection_box(), [2, 5, 19, 16, True], "Shift adds to the selection")
+        self.page.keyboard.down("Alt")
+        self.page.mouse.click(*self.point(4, 5))
+        self.page.keyboard.up("Alt")
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.selection"), {"x": 20, "y": 20, "width": 1, "height": 1}, "Alt subtracts")
+        self.page.evaluate("() => window.crivo.editor.setState('contiguous', false)")
+        self.page.mouse.click(*self.point(4, 5))
+        self.assertEqual(self.selection_box(), [2, 5, 19, 16, True], "not contiguous: every pixel of the color")
+        self.page.keyboard.press("Delete")
+        self.assertEqual([self.pixel(4, 5), self.pixel(20, 20)], [0, 0])
+        self.page.keyboard.press("Control+z")
+        self.page.mouse.click(*self.point(4, 5))
+        self.menu("Seleção", "Expandir seleção…")
+        self.page.locator("dialog input[type=number]").fill("1")
+        self.page.get_by_role("button", name="Expandir", exact=True).click()
+        self.assertEqual(self.selection_box(), [1, 4, 21, 18, True])
+        self.menu("Seleção", "Inverter seleção")
+        self.assertEqual(self.selection_box(), [0, 0, 32, 32, True])
+
+    def test_polygon_curve_and_ink_modes(self):
+        primary = self.page.evaluate("() => window.crivo.editor.state.primaryColor >>> 0")
+        self.tool("Shift+O", "polygon")
+        self.page.evaluate("() => window.crivo.editor.setState('filled', true)")
+        steps = self.page.evaluate("() => window.crivo.editor.history.past.length")
+        self.page.mouse.click(*self.point(2, 2))
+        self.page.mouse.click(*self.point(10, 2))
+        self.page.mouse.dblclick(*self.point(10, 10))
+        self.assertEqual(self.pixel(8, 4), primary, "the polygon is filled")
+        self.assertEqual(self.pixel(3, 9), 0, "outside the triangle stays empty")
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.history.past.length"), steps + 1, "one undo step")
+        self.tool("Shift+L", "curve")
+        self.drag((0, 20), (12, 20))
+        self.assertEqual(self.pixel(6, 20), 0, "the curve waits for the bends")
+        self.drag((6, 20), (6, 14))
+        self.page.keyboard.press("Enter")
+        self.assertEqual([self.pixel(0, 20), self.pixel(12, 20)], [primary, primary], "the curve keeps its endpoints")
+        self.assertNotEqual(self.pixel(6, 20), primary, "and bends away from the straight line")
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.history.nextUndo"), "Curva")
+        self.page.evaluate("() => { const e = window.crivo.editor; e.setColor('primary', 0xff00ff00); e.setState('inkMode', 'behind'); }")
+        self.tool("b", "pencil")
+        self.assertEqual(self.page.locator("#options select[aria-label='Modo de tinta']").input_value(), "behind")
+        self.drag((2, 2), (12, 2))
+        self.assertEqual(self.pixel(4, 2), primary, "Atrás does not cover painted pixels")
+        self.assertEqual(self.pixel(12, 2), 0xFF00FF00, "and paints where it is transparent")
+
     def test_invalid_browser_preferences_are_ignored(self):
         self.page.evaluate("() => { localStorage.setItem('crivo.gradientMatrix', '16'); localStorage.setItem('crivo.tool', '\"<img>\"'); localStorage.setItem('crivo.size', '999'); }")
         self.page.reload()
@@ -244,6 +331,219 @@ class EditorTests:
         self.assertEqual(state, ["bucket", "both", "dark"])
         stored = self.page.evaluate("() => [localStorage.getItem('crivo.ferramenta'), JSON.parse(localStorage.getItem('crivo.ramp'))]")
         self.assertEqual(stored, [None, {"steps": 5, "intensity": 60, "shift": 10}])
+
+    # files & workspace (2.1) ------------------------------------------------------------------------------
+    def tab_count(self):
+        return self.page.locator("#doc-tabs .doc-tab").count()
+
+    def test_tabs_open_a_second_document_switch_and_close(self):
+        self.tool("b", "pencil")
+        self.drag((3, 3), (3, 3), steps=1)
+        color = self.pixel(3, 3)
+        self.assertNotEqual(color, 0)
+        self.menu("Arquivo", "Novo projeto…")
+        self.page.get_by_role("button", name="Criar").click()
+        self.assertEqual(self.tab_count(), 2, "a new project opens in a second tab")
+        self.assertEqual(self.pixel(3, 3), 0)
+        self.page.locator("#viewport").hover()
+        self.page.keyboard.press("Control+Tab")
+        self.assertEqual(self.pixel(3, 3), color, "Ctrl+Tab brings the first document back")
+        self.assertEqual(self.page.evaluate("() => [window.crivo.editor.history.past.length, window.crivo.editor.modified]"), [1, True], "with its own history")
+        self.page.locator("#doc-tabs .doc-tab-name").nth(1).click()
+        self.assertEqual(self.pixel(3, 3), 0)
+        self.page.locator("#doc-tabs .doc-tab-close").nth(1).click()
+        self.assertEqual(self.tab_count(), 1, "an unmodified tab closes without asking")
+        self.assertEqual(self.pixel(3, 3), color)
+        self.page.locator("#doc-tabs .doc-tab-close").first.click()
+        self.page.get_by_role("button", name="Fechar sem salvar").click()
+        self.assertEqual(self.pixel(3, 3), 0, "closing the last modified tab asks first and leaves a blank project")
+        self.page.locator("#viewport").hover()
+        self.page.keyboard.press("F7")
+        self.assertTrue(self.page.locator("#minimap").is_visible(), "F7 shows the preview window")
+        before = self.page.evaluate("() => [window.crivo.viewport.panX, window.crivo.viewport.panY]")
+        box = self.page.locator("#minimap canvas").bounding_box()
+        self.page.mouse.click(box["x"] + 2, box["y"] + 2)
+        self.assertNotEqual(self.page.evaluate("() => [window.crivo.viewport.panX, window.crivo.viewport.panY]"), before, "clicking the preview pans the view")
+        self.page.keyboard.press("F7")
+        self.assertFalse(self.page.locator("#minimap").is_visible())
+
+    def test_export_aseprite_apng_and_reopen(self):
+        self.tool("b", "pencil")
+        self.drag((5, 5), (8, 5))
+        color = self.pixel(6, 5)
+        with self.page.expect_download() as download:
+            self.menu("Arquivo", "Exportar como .aseprite")
+        self.assertTrue(download.value.suggested_filename.endswith(".aseprite"))
+        path = download.value.path()
+        data = Path(path).read_bytes()
+        self.assertEqual(data[4:6], b"\xe0\xa5", "Aseprite magic number")
+        with self.page.expect_file_chooser() as chooser:
+            self.menu("Arquivo", "Abrir arquivo…")
+        chooser.value.set_files(path)
+        self.page.wait_for_function("() => document.querySelectorAll('#doc-tabs .doc-tab').length === 2")
+        self.assertEqual(self.pixel(6, 5), color, "the exported .aseprite opens back in a new tab")
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.modified"), False)
+        self.menu("Arquivo", "Exportar PNG animado (APNG)…")
+        with self.page.expect_download() as download:
+            self.page.get_by_role("button", name="Baixar").click()
+        png = Path(download.value.path()).read_bytes()
+        self.assertEqual(png[:8], b"\x89PNG\r\n\x1a\n")
+        self.assertIn(b"acTL", png)
+        # Dropping a .crivo file on the canvas opens it in another tab.
+        self.page.evaluate(
+            """() => {
+                const data = { format: 'crivo', version: 2, name: 'Solto', width: 4, height: 4, fps: 8, layers: [{ id: 'c1', name: 'C' }], frames: [{ id: 'q1' }], cells: [] };
+                const dt = new DataTransfer();
+                dt.items.add(new File([JSON.stringify(data)], 'solto.crivo', { type: 'application/json' }));
+                document.querySelector('.area').dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
+            }"""
+        )
+        self.page.wait_for_function("() => window.crivo.editor.doc.name === 'Solto'")
+        self.assertEqual(self.tab_count(), 3)
+
+    # color (2.1) ------------------------------------------------------------------------------------------
+    def test_color_brightness_dialog_previews_and_cancel_restores(self):
+        self.tool("b", "pencil")
+        self.drag((4, 4), (4, 4), steps=1)
+        original = self.pixel(4, 4)
+        self.page.get_by_role("button", name="Cor", exact=True).click()
+        self.page.get_by_role("menuitem", name="Brilho e contraste…").click()
+        self.page.get_by_role("slider", name="Brilho").fill("60")
+        self.page.wait_for_function("([o]) => (window.crivo.editor.activeCell()[4 * 32 + 4] >>> 0) !== o", arg=[original])
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.history.past.length"), 1, "the preview is not an undo step")
+        self.page.get_by_role("button", name="Cancelar").click()
+        self.assertEqual(self.pixel(4, 4), original, "Cancel restores the cel")
+        self.page.get_by_role("button", name="Cor", exact=True).click()
+        self.page.get_by_role("menuitem", name="Brilho e contraste…").click()
+        self.page.get_by_role("slider", name="Brilho").fill("60")
+        self.page.get_by_role("button", name="OK").click()
+        brighter = self.pixel(4, 4)
+        self.assertNotEqual(brighter, original)
+        self.assertEqual(brighter >> 24, original >> 24, "alpha kept")
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.history.nextUndo"), "Brilho e contraste")
+        self.page.keyboard.press("Control+z")
+        self.assertEqual(self.pixel(4, 4), original)
+
+    def test_color_indexed_mode_snaps_colors_and_palette_edit_remaps(self):
+        palette = self.page.evaluate("() => window.crivo.app.palette.current.colors.map((c) => c >>> 0)")
+        self.page.evaluate("() => window.crivo.editor.setColor('primary', 0xff1020f0)")  # #f02010: not in the palette
+        self.tool("b", "pencil")
+        self.drag((2, 2), (2, 2), steps=1)
+        self.assertNotIn(self.pixel(2, 2), palette)
+        self.page.get_by_role("button", name="Cor", exact=True).click()
+        self.page.get_by_role("menuitemcheckbox", name="Modo de cor: Indexado…").click()
+        self.page.get_by_role("button", name="Converter").click()
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.doc.colorMode"), "indexed")
+        self.assertIn(self.pixel(2, 2), palette, "the pixel went to the nearest palette color")
+        self.assertIn(self.page.evaluate("() => window.crivo.editor.state.primaryColor"), palette, "the drawing color snaps too")
+        self.page.evaluate("() => window.crivo.editor.setColor('primary', 0xff00ff00)")
+        self.assertIn(self.page.evaluate("() => window.crivo.editor.state.primaryColor"), palette)
+        # Editing the entry of that color in the palette editor recolors the pixel (a preset is copied first).
+        index = palette.index(self.pixel(2, 2))
+        self.page.get_by_role("button", name="Editar paleta", exact=True).click()
+        dialog = self.page.locator("dialog[open]")
+        dialog.locator(".palette-editor-grid .swatch").nth(index).click()
+        hex_field = dialog.get_by_label("Código hexadecimal")
+        hex_field.fill("#00ff00")
+        hex_field.press("Enter")
+        dialog.get_by_role("button", name="Salvar").click()
+        self.page.wait_for_function("() => (window.crivo.editor.activeCell()[2 * 32 + 2] >>> 0) === 0xff00ff00")
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.history.nextUndo"), "Editar paleta")
+        self.page.keyboard.press("Control+z")
+        self.assertEqual(self.pixel(2, 2), palette[index])
+        self.page.keyboard.press("Control+z")
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.doc.colorMode || 'rgba'"), "rgba", "undo goes back to RGBA")
+        self.assertEqual(self.pixel(2, 2), 0xFF1020F0)
+
+    # layers & animation (2.1) -----------------------------------------------------------------------------
+    def layers_state(self):
+        return self.page.evaluate(
+            "() => { const d = window.crivo.editor.doc; return d.layers.map((c) => [c.name, c.kind, c.parent ? d.layer(c.parent).name : null, c.blendMode, c.reference]); }"
+        )
+
+    def composite_pixel(self, x, y):
+        return self.page.evaluate("([x, y]) => { const e = window.crivo.editor; return e.doc.composite(e.state.frame)[y * e.doc.width + x] >>> 0; }", [x, y])
+
+    def test_layer_group_blend_mode_and_reference_layer(self):
+        self.tool("b", "pencil")
+        self.drag((4, 4), (4, 4), steps=1)
+        base = self.pixel(4, 4)
+        self.menu("Camada", "Novo grupo")
+        self.page.locator("#viewport").hover()
+        self.page.keyboard.press("Shift+N")
+        self.page.get_by_role("button", name="Descer camada").click()
+        self.assertEqual([c[:3] for c in self.layers_state()], [["Camada 1", "image", None], ["Camada 2", "image", "Grupo 1"], ["Grupo 1", "group", None]])
+        self.page.evaluate("() => window.crivo.editor.setColor('primary', 0xff3366cc)")
+        self.drag((4, 4), (5, 4), steps=2)
+        child = self.pixel(4, 4)
+        self.assertEqual(self.composite_pixel(4, 4), child, "a normal group at 100% passes its children through")
+        self.page.locator(".layer-list .layer.group .name").dblclick()
+        dialog = self.page.locator("dialog[open]")
+        dialog.locator("select[name=blendMode]").select_option("multiply")
+        dialog.get_by_role("button", name="Aplicar").click()
+        self.assertEqual(self.layers_state()[2][3], "multiply")
+        mixed = self.composite_pixel(4, 4)
+        self.assertNotIn(mixed, (base, child), "the group blends its children with multiply")
+        self.assertEqual(self.composite_pixel(5, 4), child, "over transparent the child shows as is")
+        self.assertIn("Multiplicar", self.page.locator(".layer-list .layer.group").inner_text())
+        self.page.locator(".layer-list .layer", has_text="Camada 2").click()
+        self.page.get_by_role("button", name="Camada", exact=True).click()
+        self.page.get_by_role("menuitemcheckbox", name="Camada de referência").click()
+        self.assertTrue(self.layers_state()[1][4])
+        self.assertEqual(self.composite_pixel(4, 4), base, "reference layers stay out of the composite used by exports")
+        self.page.keyboard.press("Control+z")
+        self.page.keyboard.press("Control+z")
+        self.assertEqual(self.layers_state()[2][3], "normal", "undo restores the blend mode")
+
+    def test_tags_playback_linked_frames_and_tilemap(self):
+        self.page.locator("#viewport").hover()
+        self.page.keyboard.press("Alt+n")
+        self.page.keyboard.press("Alt+n")
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.doc.frames.length"), 3)
+        self.menu("Quadro", "Nova tag…")
+        dialog = self.page.locator("dialog[open]")
+        dialog.get_by_label("Do quadro").fill("2")
+        dialog.get_by_label("Até o quadro").fill("3")
+        dialog.get_by_label("Direção").select_option("pingpong")
+        dialog.get_by_role("button", name="Criar tag").click()
+        tags = self.page.evaluate("() => { const d = window.crivo.editor.doc; return d.tags.map((t) => [t.name, d.frameIndex(t.from), d.frameIndex(t.to), t.direction]); }")
+        self.assertEqual(tags, [["Tag 1", 1, 2, "pingpong"]])
+        self.assertEqual(self.page.locator(".frame-list .frame-tag").count(), 2)
+        visited = self.page.evaluate(
+            """() => new Promise((resolve) => {
+                const e = window.crivo.editor;
+                e.setState('frame', 1);
+                e.selectFrame(1);
+                e.doc.fps = 30;
+                const seen = [];
+                e.on('frame', () => seen.push(e.state.frame));
+                e.play();
+                setTimeout(() => { e.stop(); resolve(seen); }, 400);
+            })"""
+        )
+        self.assertTrue(set(visited[:-1]) <= {1, 2} and len(visited) > 3, visited)
+        self.menu("Quadro", "Novo quadro vinculado")
+        self.tool("b", "pencil")
+        self.drag((2, 2), (2, 2), steps=1)
+        linked = self.page.evaluate("() => { const d = window.crivo.editor.doc; const c = d.layers[0].id; return [d.frames.length, d.cell(d.frames[1].id, c)[2 * 32 + 2] === d.cell(d.frames[2].id, c)[2 * 32 + 2], d.isLinked(d.frames[1].id, c)]; }")
+        self.assertEqual(linked, [4, True, True])
+        self.assertGreaterEqual(self.page.locator(".frame-list .link-mark").count(), 2)
+        # Tilemap layer: pixel mode creates a tile, tile mode places it elsewhere.
+        self.menu("Camada", "Nova camada de tiles…")
+        dialog = self.page.locator("dialog[open]")
+        dialog.get_by_label("Largura do tile").fill("4")
+        dialog.get_by_label("Altura do tile").fill("4")
+        dialog.get_by_role("button", name="Criar").click()
+        self.drag((1, 1), (1, 1), steps=1)
+        color = self.pixel(1, 1)
+        self.assertNotEqual(color, 0)
+        self.assertEqual(self.page.locator(".tile-grid .tile").count(), 2)
+        self.page.get_by_role("button", name="Modo pixel").click()
+        self.drag((9, 1), (9, 1), steps=1)
+        self.assertEqual(self.pixel(9, 1), color, "tile mode placed tile 1 on the third cell")
+        self.page.keyboard.press("Control+z")
+        self.assertEqual(self.pixel(9, 1), 0)
+        self.assertEqual(self.pixel(1, 1), color)
 
 
 class ServerInterfaceTest(EditorTests, unittest.TestCase):
@@ -283,7 +583,7 @@ class ServerInterfaceTest(EditorTests, unittest.TestCase):
 
     def test_loads_the_new_version_and_every_tool(self):
         self.assertEqual(self.page.evaluate("() => window.crivo.version"), VERSION)
-        self.assertEqual(self.page.locator("#tools .tool").count(), 13)
+        self.assertEqual(self.page.locator("#tools .tool").count(), 23)
         headers = self.page.request.get(self.url).headers
         self.assertIn("default-src 'self'", headers["content-security-policy"])
 
@@ -317,7 +617,7 @@ class SingleFileTest(EditorTests, unittest.TestCase):
     def test_opens_from_disk_without_a_server_and_with_an_inline_csp(self):
         self.assertEqual(self.page.evaluate("() => location.protocol"), "file:")
         self.assertEqual(self.page.evaluate("() => window.crivo.version"), VERSION)
-        self.assertEqual(self.page.locator("#tools .tool").count(), 13)
+        self.assertEqual(self.page.locator("#tools .tool").count(), 23)
         policy = self.page.get_attribute('meta[http-equiv="Content-Security-Policy"]', "content")
         self.assertIn("default-src 'none'", policy)
         self.assertIn("connect-src 'none'", policy, "without a server, the page does not talk to the network")
@@ -343,6 +643,10 @@ class SingleFileTest(EditorTests, unittest.TestCase):
         self.assertEqual(self.page.locator(".project-list .project").count(), 1, "the project stayed saved in the browser")
         self.page.locator(".project-list .project").get_by_role("button", name="Abrir").click()
         self.page.wait_for_function("() => !document.querySelector('.project-list')")
+        # The dialog closes first and the project loads from IndexedDB right after: wait for its pixels.
+        self.page.wait_for_function(
+            "([x, y, c]) => { const e = window.crivo.editor; return e.project.local && e.activeCell()[y * e.doc.width + x] >>> 0 === c; }", arg=[3, 1, color]
+        )
         self.assertEqual(self.pixel(3, 1), color)
 
         with self.page.expect_download() as download:
@@ -356,7 +660,7 @@ class SingleFileTest(EditorTests, unittest.TestCase):
         self.page.keyboard.press("Delete")
         self.assertEqual(self.pixel(3, 1), 0)
         with self.page.expect_file_chooser() as chooser:
-            self.menu("Arquivo", "Abrir arquivo .crivo…")
+            self.menu("Arquivo", "Abrir arquivo…")
         chooser.value.set_files(path)
         confirm = self.page.get_by_role("button", name="Abrir mesmo assim")
         if confirm.count():

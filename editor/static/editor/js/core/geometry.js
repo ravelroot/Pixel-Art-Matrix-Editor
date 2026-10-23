@@ -190,3 +190,61 @@ export function pixelPerfect(points) {
   }
   return output;
 }
+
+// Closed polygon through the given [x, y] vertices (pixel coordinates). Filled: every pixel whose center is
+// inside (even-odd rule) plus the edges, so thin or self-crossing shapes keep their outline.
+export function polygon(points, filled, point) {
+  if (!points.length) return;
+  const n = points.length;
+  for (let k = 0; k < n; k++) {
+    const [ax, ay] = points[k];
+    const [bx, by] = points[(k + 1) % n];
+    line(ax, ay, bx, by, point);
+  }
+  if (!filled || n < 3) return;
+  let ya = Infinity;
+  let yb = -Infinity;
+  for (const [, y] of points) {
+    ya = Math.min(ya, y);
+    yb = Math.max(yb, y);
+  }
+  for (let y = ya; y <= yb; y++) {
+    const cy = y + 0.5;
+    const xs = [];
+    for (let k = 0; k < n; k++) {
+      const [ax, ay] = points[k];
+      const [bx, by] = points[(k + 1) % n];
+      const y0 = ay + 0.5;
+      const y1 = by + 0.5;
+      if (y0 === y1 || cy < Math.min(y0, y1) || cy >= Math.max(y0, y1)) continue;
+      xs.push(ax + 0.5 + ((cy - y0) * (bx - ax)) / (y1 - y0));
+    }
+    xs.sort((a, b) => a - b);
+    for (let k = 0; k + 1 < xs.length; k += 2) {
+      for (let x = Math.ceil(xs[k] - 0.5); x + 0.5 <= xs[k + 1]; x++) point(x, y);
+    }
+  }
+}
+
+// Cubic Bézier from p0 to p3 with control points c1 and c2 ([x, y] each), as a connected 1 px path.
+export function bezier(p0, c1, c2, p3, point) {
+  const length = Math.hypot(c1[0] - p0[0], c1[1] - p0[1]) + Math.hypot(c2[0] - c1[0], c2[1] - c1[1]) + Math.hypot(p3[0] - c2[0], p3[1] - c2[1]);
+  const steps = Math.max(1, Math.ceil(length));
+  let last = null;
+  const seen = new Set();
+  const emit = (x, y) => {
+    const key = `${x},${y}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    point(x, y);
+  };
+  for (let k = 0; k <= steps; k++) {
+    const t = k / steps;
+    const u = 1 - t;
+    const x = Math.round(u * u * u * p0[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * p3[0]);
+    const y = Math.round(u * u * u * p0[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * p3[1]);
+    if (last) line(last[0], last[1], x, y, emit);
+    else emit(x, y);
+    last = [x, y];
+  }
+}

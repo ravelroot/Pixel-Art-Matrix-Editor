@@ -342,3 +342,53 @@ export function sheetMetadata(name, layout, frames, fps) {
     })),
   };
 }
+
+// Sprite sheet metadata in the JSON layout Aseprite writes (--format json-hash / json-array), so engines and
+// tools that read Aseprite sheets (Phaser, Godot importers, PixiJS, LÖVE libraries) can load Crivo sheets.
+export function asepriteSheetMetadata(doc, layout, { image, scale = 1, format = 'hash', name = doc.name, version = '2.1.0' } = {}) {
+  const rgbaHex = (hex, fallback) => {
+    const h = String(hex || fallback).replace('#', '').toLowerCase();
+    return '#' + (h.length === 8 ? h : h.slice(0, 6) + 'ff');
+  };
+  const frames = layout.positions.map((p, i) => ({
+    filename: `${name} ${i}.aseprite`,
+    frame: { x: p.x, y: p.y, w: p.width, h: p.height },
+    rotated: false,
+    trimmed: false,
+    spriteSourceSize: { x: 0, y: 0, w: p.width, h: p.height },
+    sourceSize: { w: p.width, h: p.height },
+    duration: doc.frames[i]?.duration || Math.round(1000 / (doc.fps || 8)),
+  }));
+  const layerName = new Map(doc.layers.map((l) => [l.id, l.name]));
+  const meta = {
+    app: 'https://github.com/ravelroot/Pixel-Art-Matrix-Editor',
+    version,
+    image: image ?? `${name}.png`,
+    format: 'RGBA8888',
+    size: { w: layout.width, h: layout.height },
+    scale: String(scale),
+    frameTags: (doc.tags || []).map((t) => ({
+      name: t.name,
+      from: Math.max(0, doc.frameIndex(t.from)),
+      to: Math.max(0, doc.frameIndex(t.to)),
+      direction: t.direction || 'forward',
+      color: rgbaHex(t.color, '#000000'),
+    })),
+    layers: doc.layers
+      .filter((l) => !l.reference)
+      .map((l) => ({
+        name: l.name,
+        ...(l.parent && layerName.has(l.parent) ? { group: layerName.get(l.parent) } : {}),
+        opacity: Math.round(((l.opacity ?? 100) * 255) / 100),
+        blendMode: l.blendMode || 'normal',
+      })),
+    slices: (doc.slices || []).map((s) => {
+      const key = { frame: 0, bounds: { x: s.x, y: s.y, w: s.width, h: s.height } };
+      if (s.center) key.center = { x: s.center.x, y: s.center.y, w: s.center.width, h: s.center.height };
+      if (s.pivot) key.pivot = { x: s.pivot.x, y: s.pivot.y };
+      return { name: s.name, color: rgbaHex(s.color, '#0000ff'), keys: [key] };
+    }),
+  };
+  if (format === 'array') return { frames, meta };
+  return { frames: Object.fromEntries(frames.map(({ filename, ...f }) => [filename, f])), meta };
+}

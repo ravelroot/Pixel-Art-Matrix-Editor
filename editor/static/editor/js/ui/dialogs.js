@@ -1,8 +1,10 @@
 import { PixelDocument, MAX_SIDE } from '../core/document.js';
 import { hexToColor } from '../core/colors.js';
-import { DATA_FORMATS, buildMatrices, generateData, sheetLayout, paste, flattenBackground, sheetMetadata } from '../core/export.js';
+import { DATA_FORMATS, buildMatrices, generateData, sheetLayout, paste, flattenBackground, sheetMetadata, asepriteSheetMetadata } from '../core/export.js';
 import { fileNameFor } from '../core/format.js';
 import { encodeGIF } from '../core/gif.js';
+import { encodeAPNG, encodePNG } from '../core/apng.js';
+import { createZip } from '../core/zip.js';
 import { scaleNearest } from '../core/export.js';
 import { scaleDetection } from '../core/geometry.js';
 import { PRESET_PALETTES } from '../core/palettes.js';
@@ -42,7 +44,8 @@ function readSide(input) {
   return n;
 }
 
-export async function newDialog(editor) {
+// open(doc): where the new document goes (features/files.js opens it in a new tab).
+export async function newDialog(editor, open = (d) => editor.load(d)) {
   const name = el('input', { type: 'text', value: 'Sem título', maxlength: 120 });
   const l = numberField('Largura', 32, { max: MAX_SIDE });
   const a = numberField('Altura', 32, { max: MAX_SIDE });
@@ -74,7 +77,7 @@ export async function newDialog(editor) {
   });
   if (!doc) return;
   editor.setState('palette', palette.select.value);
-  editor.load(doc);
+  open(doc);
 }
 
 export async function resizeDialog(editor) {
@@ -147,7 +150,11 @@ function preview(canvas, maximum = 320) {
 
 export async function exportImageDialog(editor, initialFormat = 'png') {
   const { doc } = editor;
-  const format = selectField('Formato', [['png', 'PNG (mantém a transparência)'], ['jpeg', 'JPEG'], ['gif', 'GIF animado (todos os quadros)']], initialFormat);
+  const format = selectField(
+    'Formato',
+    [['png', 'PNG (mantém a transparência)'], ['jpeg', 'JPEG'], ['gif', 'GIF animado (todos os quadros)'], ['apng', 'PNG animado – APNG (todos os quadros)'], ['zip', 'Sequência de PNG em .zip (um arquivo por quadro)']],
+    initialFormat,
+  );
   const scale = numberField('Escala', Math.max(1, Math.min(16, Math.floor(512 / Math.max(doc.width, doc.height)))), { min: 1, max: 64 });
   const frame = selectField('Quadro', doc.frames.map((_, i) => [String(i), `Quadro ${i + 1}`]), String(editor.state.frame));
   const background = el('input', { type: 'color', value: '#ffffff', 'aria-label': 'Cor de fundo do JPEG' });
@@ -158,13 +165,17 @@ export async function exportImageDialog(editor, initialFormat = 'png') {
   const frameBlock = doc.frames.length > 1 ? frame.label : null;
   const update = () => {
     const s = Math.max(1, Math.min(64, Math.round(+scale.input.value) || 1));
-    const gif = format.select.value === 'gif';
+    const gif = ['gif', 'apng', 'zip'].includes(format.select.value);
     jpegBlock.hidden = format.select.value !== 'jpeg';
     if (frameBlock) frameBlock.hidden = gif;
     const duration = doc.frames.reduce((t, q) => t + (q.duration || 1000 / doc.fps), 0);
     info.textContent =
       `Resultado: ${doc.width * s} × ${doc.height * s} pixels${s === 1 ? ' (tamanho real, pixel art pura)' : ` (cada pixel vira um bloco de ${s}×${s})`}` +
-      (gif ? ` · ${doc.frames.length} quadro(s), ${(duration / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} s por volta, repetindo sem parar.` : '.');
+      (format.select.value === 'zip'
+        ? ` · ${doc.frames.length} arquivo(s) PNG dentro do .zip.`
+        : gif
+          ? ` · ${doc.frames.length} quadro(s), ${(duration / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} s por volta, repetindo sem parar.`
+          : '.');
     let px = doc.composite(+frame.select.value);
     if (format.select.value === 'jpeg') px = flattenBackground(px, hexToColor(background.value));
     area.replaceChildren(preview(pixelsToCanvas(px, doc.width, doc.height, Math.min(s, 8))));
@@ -182,6 +193,26 @@ export async function exportImageDialog(editor, initialFormat = 'png') {
         send: true,
         action: async () => {
           const s = Math.max(1, Math.min(64, Math.round(+scale.input.value) || 1));
+          if (format.select.value === 'apng' || format.select.value === 'zip') {
+            if (doc.width * s > 8192 || doc.height * s > 8192) {
+              notify('A imagem pode ter no máximo 8192 pixels de lado. Diminua a escala.', 'warning');
+              return false;
+            }
+            const frames = doc.frames.map((_, i) => scaleNearest(doc.composite(i), doc.width, doc.height, s));
+            const suffix = s > 1 ? `-x${s}` : '';
+            if (format.select.value === 'apng') {
+              const delays = doc.frames.map((q) => q.duration || 1000 / doc.fps);
+              const png = await encodeAPNG(frames, doc.width * s, doc.height * s, { delays });
+              downloadBlob(new Blob([png], { type: 'image/apng' }), fileNameFor(doc.name + suffix, 'png'));
+              return true;
+            }
+            const base = fileNameFor(doc.name + suffix, 'png').replace(/\.png$/, '');
+            const digits = String(frames.length).length;
+            const files = [];
+            for (let i = 0; i < frames.length; i++) files.push({ name: `${base}-${String(i + 1).padStart(digits, '0')}.png`, data: await encodePNG(frames[i], doc.width * s, doc.height * s) });
+            downloadBlob(new Blob([createZip(files)], { type: 'application/zip' }), base + '.zip');
+            return true;
+          }
           if (format.select.value === 'gif') {
             if (doc.width * s > 4096 || doc.height * s > 4096) {
               notify('O GIF pode ter no máximo 4096 pixels de lado. Diminua a escala.', 'warning');
@@ -226,6 +257,8 @@ export async function spriteSheetDialog(editor) {
   const scale = numberField('Escala', 1, { min: 1, max: 32 });
   const spacing = numberField('Espaço entre quadros', 0, { min: 0, max: 64 });
   const json = checkboxField('Baixar também o JSON com a posição de cada quadro', true);
+  const jsonFormat = selectField('Formato do JSON', [['crivo', 'Crivo'], ['aseprite-hash', 'Aseprite (hash)'], ['aseprite-array', 'Aseprite (array)']], 'crivo');
+  json.input.addEventListener('change', () => (jsonFormat.label.hidden = !json.input.checked));
   const info = el('p', { class: 'hint wide' });
   const area = el('div', { class: 'preview-area wide' });
   const options = () => ({
@@ -246,7 +279,7 @@ export async function spriteSheetDialog(editor) {
   await openDialog({
     title: 'Exportar sprite sheet',
     className: 'wide',
-    body: el('div', { class: 'form-grid' }, layoutField.label, columns.label, scale.label, spacing.label, el('div', { class: 'wide' }, json.label), info, area),
+    body: el('div', { class: 'form-grid' }, layoutField.label, columns.label, scale.label, spacing.label, el('div', { class: 'wide' }, json.label), jsonFormat.label, info, area),
     actions: [
       { label: 'Fechar', value: null },
       {
@@ -258,7 +291,11 @@ export async function spriteSheetDialog(editor) {
           const { layout, canvas } = buildSheet(doc, o);
           const base = fileNameFor(doc.name + '-sprites', 'png').replace(/\.png$/, '');
           downloadBlob(await canvasToBlob(canvas), base + '.png');
-          if (json.input.checked) downloadText(JSON.stringify(sheetMetadata(base, layout, doc.frames, doc.fps), null, 2) + '\n', base + '.json', 'application/json');
+          if (json.input.checked) {
+            const f = jsonFormat.select.value;
+            const meta = f === 'crivo' ? sheetMetadata(base, layout, doc.frames, doc.fps) : asepriteSheetMetadata(doc, layout, { image: base + '.png', scale: o.scale, format: f === 'aseprite-array' ? 'array' : 'hash', name: base });
+            downloadText(JSON.stringify(meta, null, 2) + '\n', base + '.json', 'application/json');
+          }
           return true;
         },
       },
@@ -326,8 +363,9 @@ export async function exportDataDialog(editor, currentPalette) {
   });
 }
 
-export async function importImageDialog(editor) {
-  const file = await pickFile('image/png,image/jpeg,image/gif,image/webp,image/bmp');
+// file: an image already chosen (drag and drop); open(doc): where a new document goes (a new tab).
+export async function importImageDialog(editor, { file = null, open = (d) => editor.load(d) } = {}) {
+  file = file ?? (await pickFile('image/png,image/jpeg,image/gif,image/webp,image/bmp'));
   if (!file) return;
   let img;
   try {
@@ -380,7 +418,7 @@ export async function importImageDialog(editor) {
   if (r.dest === 'project') {
     const d = new PixelDocument(r.width, r.height, { name });
     d.cell(d.frames[0].id, d.layers[0].id).set(r.pixels);
-    editor.load(d);
+    open(d);
   } else if (r.dest === 'layer') {
     editor.editStructure('Importar imagem', (d) => {
       const c = d.addLayer(name);
@@ -407,7 +445,7 @@ export async function importImageDialog(editor) {
       }
     }
     if (!d.frames.length) d.addFrame();
-    editor.load(d);
+    open(d);
     notify(`${d.frames.length} quadro(s) importados.`, 'success');
   }
 }
@@ -524,6 +562,16 @@ export const SHORTCUTS = [
   ['Setas (mover pixels)', 'Mover a seleção 1 px (Shift: 8 px)'],
   ['Ctrl + A', 'Selecionar tudo'],
   ['Ctrl + D ou Esc', 'Desmarcar'],
+  ['Shift / Alt / Shift + Alt (seleção)', 'Somar, subtrair ou fazer a interseção com a seleção atual'],
+  ['Ctrl + Shift + D', 'Reselecionar'],
+  ['Ctrl + Shift + I', 'Inverter a seleção'],
+  ['Ctrl + B', 'Usar a seleção como pincel'],
+  ['Enter, duplo clique ou Esc', 'Fechar ou cancelar polígono, laço poligonal e curva'],
+  ['Shift + N', 'Nova camada'],
+  ['Alt + N', 'Novo quadro'],
+  ['F2', 'Propriedades da camada'],
+  ['Ctrl + U', 'Matiz, saturação e luminosidade'],
+  ['Ctrl + M', 'Curva de cores'],
   ['Ctrl + C, X e V', 'Copiar, recortar e colar'],
   ['Delete', 'Apagar a seleção (ou limpar a camada)'],
   ['T', 'Modo ladrilho'],
@@ -544,7 +592,9 @@ export const SHORTCUTS = [
   ['Ctrl + Z', 'Desfazer'],
   ['Ctrl + Y ou Ctrl + Shift + Z', 'Refazer'],
   ['Ctrl + S', 'Salvar'],
-  ['Ctrl + O', 'Abrir arquivo .crivo'],
+  ['Ctrl + O', 'Abrir arquivo (.crivo, .aseprite ou .ase) em uma nova aba'],
+  ['Ctrl + Tab e Ctrl + Shift + Tab', 'Próxima aba e aba anterior'],
+  ['F7', 'Mostrar ou ocultar a pré-visualização'],
   ['Ctrl + E', 'Exportar imagem'],
   ['Ctrl + Shift + E', 'Exportar dados da matriz'],
   ['Ctrl + Shift + G', 'Exportar GIF animado'],

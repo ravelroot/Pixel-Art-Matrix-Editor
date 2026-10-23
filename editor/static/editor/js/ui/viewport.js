@@ -1,5 +1,6 @@
 import { overlay } from '../core/colors.js';
 import { brush, mirrors } from '../core/geometry.js';
+import { selectionEdges } from '../core/selection.js';
 
 export const ZOOM_LEVELS = [1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24, 32, 40, 48, 64, 80, 96, 128];
 
@@ -16,11 +17,16 @@ export class Viewport {
     this.dpr = 1;
     this.cursor = null;
     this.preview = null;
+    this.guide = null;
     this.dirty = true;
     this.pending = false;
     this.adjusted = false;
     this.offscreen = document.createElement('canvas');
     this.onionCanvas = document.createElement('canvas');
+    // Onion skin layers (previous and next frames) and extra overlays drawn above the matrix (slices, tile grid):
+    // overlays are functions (ctx, X, Y, zoom, dpr) registered by feature modules.
+    this.onionLayers = [];
+    this.overlays = [];
     this.colors = {};
     this.readColors();
     const observer = new ResizeObserver(() => this.resize());
@@ -35,7 +41,8 @@ export class Viewport {
     editor.on('frame', () => this.invalidate());
     editor.on('selection', () => this.request());
     editor.on('state', ({ key }) => {
-      if (['grid', 'symmetry', 'onionSkin', 'tool', 'size', 'shape', 'majorGrid', 'tile'].includes(key)) this.request();
+      if (['onionPrev', 'onionNext', 'onionMode', 'showSlices', 'tileMode'].includes(key)) this.invalidate();
+      if (['grid', 'symmetry', 'onionSkin', 'tool', 'size', 'shape', 'majorGrid', 'tile', 'brush', 'sprayRadius'].includes(key)) this.request();
     });
     this.phase = 0;
     setInterval(() => {
@@ -138,6 +145,12 @@ export class Viewport {
     this.invalidate();
   }
 
+  // Guide line of the multi-click tools (lasso, polygon, curve): [x, y] pixel points joined through their centers.
+  setGuide(points, closed = false) {
+    this.guide = points && points.length ? { points, closed } : null;
+    this.request();
+  }
+
   setCursor(p) {
     const before = this.cursor;
     this.cursor = p && p.inside ? { x: p.x, y: p.y } : null;
@@ -172,19 +185,56 @@ export class Viewport {
       this.onionBuffer = new Uint32Array(this.onionData.data.buffer);
     }
     const q = Math.min(this.editor.state.frame, doc.frames.length - 1);
-    doc.composite(q, this.buffer);
+    doc.composite(q, this.buffer, { includeReference: true });
     if (this.preview) {
       const { indices, color } = this.preview;
       for (const i of indices) this.buffer[i] = color >>> 24 ? overlay(this.buffer[i], color) : 0;
     }
     this.offscreen.getContext('2d').putImageData(this.data, 0, 0);
     this.hasOnionSkin = false;
-    if (this.editor.state.onionSkin && !this.editor.state.playing && q > 0) {
-      doc.composite(q - 1, this.onionBuffer);
-      this.onionCanvas.getContext('2d').putImageData(this.onionData, 0, 0);
-      this.hasOnionSkin = true;
-    }
+    this.onionLayers = [];
+    if (this.editor.state.onionSkin && !this.editor.state.playing) this.compositeOnion(doc, q);
     this.dirty = false;
+  }
+
+  // Onion skin: up to 3 previous and 3 next frames, fading with distance; "tint" mode colors the previous
+  // frames red and the next ones blue. With the 2.0.0 defaults (1 previous, normal) it draws exactly as before.
+  compositeOnion(doc, q) {
+    const { onionPrev = 1, onionNext = 0, onionMode = 'normal' } = this.editor.state;
+    const offsets = [];
+    for (let k = Math.min(3, onionPrev); k >= 1; k--) offsets.push(-k);
+    for (let k = Math.min(3, onionNext); k >= 1; k--) offsets.push(k);
+    const L = doc.width;
+    const A = doc.height;
+    offsets.forEach((offset, n) => {
+      const f = q + offset;
+      if (f < 0 || f >= doc.frames.length) return;
+      let canvas = n === 0 ? this.onionCanvas : this.onionCanvases?.[n];
+      if (!canvas) {
+        this.onionCanvases ??= [];
+        canvas = this.onionCanvases[n] = document.createElement('canvas');
+      }
+      if (canvas.width !== L || canvas.height !== A) {
+        canvas.width = L;
+        canvas.height = A;
+      }
+      const data = n === 0 && this.onionData?.width === L && this.onionData?.height === A ? this.onionData : new ImageData(L, A);
+      const buffer = new Uint32Array(data.data.buffer);
+      doc.composite(f, buffer, { includeReference: true });
+      if (onionMode === 'tint') {
+        const prev = offset < 0;
+        for (let i = 0; i < buffer.length; i++) {
+          const c = buffer[i];
+          if (!(c >>> 24)) continue;
+          const l = Math.round(((c & 255) * 0.3 + ((c >>> 8) & 255) * 0.59 + ((c >>> 16) & 255) * 0.11) / 2);
+          buffer[i] = ((c & 0xff000000) | (prev ? (l << 16) | (l << 8) | 255 : (255 << 16) | (l << 8) | l)) >>> 0;
+        }
+      }
+      canvas.getContext('2d').putImageData(data, 0, 0);
+      const distance = Math.abs(offset);
+      this.onionLayers.push({ canvas, alpha: distance === 1 ? 0.32 : distance === 2 ? 0.2 : 0.12 });
+      this.hasOnionSkin = true;
+    });
   }
 
   checker() {
@@ -233,9 +283,9 @@ export class Viewport {
       }
       ctx.globalAlpha = 1;
     }
-    if (this.hasOnionSkin) {
-      ctx.globalAlpha = 0.32;
-      ctx.drawImage(this.onionCanvas, this.panX, this.panY, L, A);
+    for (const { canvas, alpha } of this.onionLayers) {
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(canvas, this.panX, this.panY, L, A);
       ctx.globalAlpha = 1;
     }
     ctx.drawImage(this.offscreen, this.panX, this.panY, L, A);
@@ -289,7 +339,9 @@ export class Viewport {
     ctx.strokeStyle = this.colors.border;
     ctx.lineWidth = Math.max(1, Math.round(dpr));
     ctx.strokeRect(X(0) - 0.5, Y(0) - 0.5, X(doc.width) - X(0) + 1, Y(doc.height) - Y(0) + 1);
+    for (const overlayFn of this.overlays) overlayFn(ctx, X, Y, z, dpr);
     if (this.editor.selection) this.drawSelection(X, Y);
+    if (this.guide) this.drawGuide(X, Y);
     if (this.cursor && !state.playing && !['move', 'movePixels'].includes(state.tool)) this.drawCursor(X, Y);
   }
 
@@ -297,6 +349,10 @@ export class Viewport {
   drawSelection(X, Y) {
     const { ctx, dpr } = this;
     const r = this.editor.selection;
+    if (r.mask) {
+      this.drawMaskOutline(r, X, Y);
+      return;
+    }
     const x = X(r.x) + 0.5;
     const y = Y(r.y) + 0.5;
     const l = X(r.x + r.width) - X(r.x) - 1;
@@ -313,12 +369,54 @@ export class Viewport {
     ctx.restore();
   }
 
+  // Non-rectangular selection: marching ants along the outline of the mask.
+  drawMaskOutline(r, X, Y) {
+    const { ctx, dpr } = this;
+    if (this.edgesFor !== r) {
+      this.edgesFor = r;
+      this.edges = selectionEdges(r);
+    }
+    ctx.save();
+    ctx.lineWidth = Math.max(1, Math.round(dpr));
+    ctx.beginPath();
+    for (const [x0, y0, x1, y1] of this.edges) {
+      ctx.moveTo(X(x0) + 0.5, Y(y0) + 0.5);
+      ctx.lineTo(X(x1) + 0.5, Y(y1) + 0.5);
+    }
+    ctx.setLineDash([]);
+    ctx.strokeStyle = this.colors.darkCursor || '#000';
+    ctx.stroke();
+    ctx.setLineDash([4 * dpr, 4 * dpr]);
+    ctx.lineDashOffset = -this.phase * dpr;
+    ctx.strokeStyle = this.colors.cursor || '#fff';
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  drawGuide(X, Y) {
+    const { ctx, dpr } = this;
+    const { points, closed } = this.guide;
+    const z = (X(1) - X(0)) / 2;
+    ctx.save();
+    ctx.lineWidth = Math.max(1, Math.round(dpr));
+    ctx.beginPath();
+    points.forEach(([x, y], k) => (k ? ctx.lineTo(X(x) + z, Y(y) + z) : ctx.moveTo(X(x) + z, Y(y) + z)));
+    if (closed) ctx.closePath();
+    for (const [color, dash] of [[this.colors.darkCursor || '#000', []], [this.colors.cursor || '#fff', [4 * dpr, 4 * dpr]]]) {
+      ctx.setLineDash(dash);
+      ctx.strokeStyle = color;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   drawCursor(X, Y) {
     const { ctx, dpr } = this;
     const state = this.editor.state;
-    const usesBrush = ['pencil', 'eraser', 'line', 'dither', 'shade'].includes(state.tool);
+    const usesBrush = ['pencil', 'eraser', 'line', 'dither', 'shade', 'curve', 'blur', 'jumble'].includes(state.tool);
     const doc = this.editor.doc;
-    const points = usesBrush ? brush(state.size, state.shape) : [[0, 0]];
+    const custom = this.editor.brush && ['pencil', 'eraser', 'spray'].includes(state.tool);
+    const points = custom ? this.editor.brush.points : usesBrush ? brush(state.size, state.shape) : [[0, 0]];
     const cells = new Map();
     for (const [dx, dy] of points) {
       for (const [x, y] of mirrors(this.cursor.x + dx, this.cursor.y + dy, doc.width, doc.height, state.symmetry)) cells.set(`${x},${y}`, [x, y]);
@@ -331,6 +429,16 @@ export class Viewport {
         ctx.rect(X(x) + 0.5 + offset, Y(y) + 0.5 + offset, X(x + 1) - X(x) - 1, Y(y + 1) - Y(y) - 1);
       }
       ctx.stroke();
+    }
+    if (state.tool === 'spray') {
+      // Spray: circle of the radius around the pointer.
+      const z = X(1) - X(0);
+      for (const [color, offset] of [[this.colors.darkCursor, 1], [this.colors.cursor, 0]]) {
+        ctx.beginPath();
+        ctx.arc(X(this.cursor.x) + z / 2, Y(this.cursor.y) + z / 2, (state.sprayRadius + 0.5) * z + offset, 0, 2 * Math.PI);
+        ctx.strokeStyle = color;
+        ctx.stroke();
+      }
     }
   }
 }

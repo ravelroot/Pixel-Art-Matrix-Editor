@@ -7,8 +7,26 @@ from django.conf import settings
 from django.db import transaction
 from django.urls import reverse
 
-from .models import Cell, Frame, Layer, Palette, PaletteColor, Project, Revision
-from .rle import RLEError, composite, decode, from_base64, to_base64
+from .blend import render_frame
+from .models import (
+    BLEND_MODES,
+    COLOR_MODES,
+    LAYER_KINDS,
+    MAX_TILE_SIDE,
+    MAX_TILES,
+    TAG_DIRECTIONS,
+    Cell,
+    Frame,
+    Layer,
+    Palette,
+    PaletteColor,
+    Project,
+    Revision,
+    Slice,
+    Tag,
+    Tileset,
+)
+from .rle import RLEError, decode, from_base64, run_length, split_runs, to_base64
 
 # Version of the .crivo document format written by this server. Version 1 (Portuguese keys) is still read.
 FORMAT_VERSION = 2
@@ -136,6 +154,7 @@ def validate_document(data):
                 "visible": layer.get("visible") is not False,
                 "opacity": _integer(layer.get("opacity", 100), "opacidade", 0, 100),
                 "locked": bool(layer.get("locked")),
+                **_layer_fields_21(layer),
             }
         )
     valid_frames = []
@@ -160,9 +179,9 @@ def validate_document(data):
             decode(raw, width * height)
         except RLEError as error:
             raise ValidationError(f"Pixels inválidos: {error}") from error
-        valid_cells.append({"frame": f, "layer": la, "pixels": raw})
+        valid_cells.append({"frame": f, "layer": la, "pixels": raw, **_cell_fields_21(cell)})
     palette = [normalize_hex(c) for c in (data.get("palette") or [])[:256]]
-    return {
+    document = {
         "name": str(data.get("name") or "Sem título").strip()[:120] or "Sem título",
         "width": width,
         "height": height,
@@ -172,6 +191,319 @@ def validate_document(data):
         "frames": valid_frames,
         "cells": valid_cells,
     }
+    _validate_21(data, document)
+    return document
+
+
+# Crivo 2.1 document additions: optional keys (colorMode, tags, slices, tilesets; layer blendMode, kind, parent,
+# collapsed, tileset, reference; cell link, tiles). Writers omit the defaults, so 2.0 documents round-trip unchanged.
+
+MAX_TAGS = 256
+MAX_SLICES = 256
+MAX_TILESETS = 32
+
+
+def _optional_key(value, label):
+    return None if value is None or value == "" else _key(value, label)
+
+
+def _layer_fields_21(layer):
+    name = str(layer.get("name") or "Camada")[:80]
+    blend_mode = layer.get("blendMode") or "normal"
+    if blend_mode not in BLEND_MODES:
+        raise ValidationError(f"Modo de mesclagem inválido na camada '{name}': {blend_mode!r}.")
+    kind = layer.get("kind") or "image"
+    if kind not in LAYER_KINDS:
+        raise ValidationError(f"Tipo de camada inválido na camada '{name}': {kind!r}.")
+    return {
+        "blendMode": blend_mode,
+        "kind": kind,
+        "parent": _optional_key(layer.get("parent"), "camadas"),
+        "collapsed": bool(layer.get("collapsed")),
+        "tileset": _optional_key(layer.get("tileset"), "camadas"),
+        "reference": bool(layer.get("reference")),
+    }
+
+
+def _cell_fields_21(cell):
+    tiles = cell.get("tiles")
+    raw = None
+    if tiles is not None and tiles != "":
+        try:
+            raw = from_base64(tiles)
+        except RLEError as error:
+            raise ValidationError(f"Tiles inválidos: {error}") from error
+    return {"link": _optional_key(cell.get("link"), "células"), "tiles": raw}
+
+
+def _list(data, key, maximum, message):
+    items = data.get(key) or []
+    if not isinstance(items, list) or len(items) > maximum or not all(isinstance(item, dict) for item in items):
+        raise ValidationError(message)
+    return items
+
+
+def _unique_key(item, seen, label, message):
+    key = _key(item.get("id"), label)
+    if key in seen:
+        raise ValidationError(message)
+    seen.add(key)
+    return key
+
+
+def _validate_tilesets(data):
+    tilesets = []
+    seen = set()
+    for item in _list(data, "tilesets", MAX_TILESETS, f"O projeto pode ter no máximo {MAX_TILESETS} conjuntos de tiles."):
+        key = _unique_key(item, seen, "conjuntos de tiles", "Identificadores repetidos entre os conjuntos de tiles.")
+        name = str(item.get("name") or "Tiles")[:80]
+        tile_width = _integer(item.get("tileWidth"), "largura do tile", 1, MAX_TILE_SIDE)
+        tile_height = _integer(item.get("tileHeight"), "altura do tile", 1, MAX_TILE_SIDE)
+        tiles = item.get("tiles")
+        if not isinstance(tiles, list) or not 1 <= len(tiles) <= MAX_TILES:
+            raise ValidationError(f"O conjunto de tiles '{name}' precisa de 1 a {MAX_TILES} tiles.")
+        size = tile_width * tile_height
+        raw_tiles = []
+        for tile in tiles:
+            try:
+                raw = from_base64(tile or "")
+                if run_length(raw, size) != size:
+                    raise RLEError("RLE menor que a matriz")
+            except RLEError as error:
+                raise ValidationError(f"Tiles inválidos no conjunto '{name}': {error}") from error
+            raw_tiles.append(raw)
+        tilesets.append({"id": key, "name": name, "tileWidth": tile_width, "tileHeight": tile_height, "tiles": raw_tiles})
+    return tilesets
+
+
+def _validate_layer_tree(layers, tilesets):
+    by_id = {layer["id"]: layer for layer in layers}
+    for layer in layers:
+        parent = layer["parent"]
+        if parent is not None and parent not in by_id:
+            raise ValidationError(f"A camada '{layer['name']}' está dentro de um grupo que não existe.")
+        if parent is not None and by_id[parent]["kind"] != "group":
+            raise ValidationError(f"A camada '{layer['name']}' só pode ficar dentro de uma camada de grupo.")
+        if layer["kind"] == "tilemap" and layer["tileset"] not in tilesets:
+            raise ValidationError(f"A camada de tiles '{layer['name']}' precisa de um conjunto de tiles que exista.")
+        if layer["kind"] != "tilemap" and layer["tileset"] is not None:
+            raise ValidationError(f"A camada '{layer['name']}' não é uma camada de tiles.")
+    for layer in layers:
+        seen = {layer["id"]}
+        parent = layer["parent"]
+        while parent is not None:
+            if parent in seen:
+                raise ValidationError("Os grupos de camadas formam um ciclo.")
+            seen.add(parent)
+            parent = by_id[parent]["parent"]
+
+
+def _validate_cells_21(document, tilesets):
+    layers = {layer["id"]: layer for layer in document["layers"]}
+    frames = {frame["id"] for frame in document["frames"]}
+    cells = {(cell["frame"], cell["layer"]): cell for cell in document["cells"]}
+    width, height = document["width"], document["height"]
+    for cell in document["cells"]:
+        link = cell["link"]
+        if link is not None:
+            if link not in frames:
+                raise ValidationError("Célula vinculada aponta para um quadro que não existe.")
+            # The editor does not write empty cels, so the source may be missing (an empty cel); it may not be linked.
+            source = cells.get((link, cell["layer"]))
+            if link == cell["frame"] or (source is not None and source["link"] is not None):
+                raise ValidationError("Célula vinculada precisa apontar para uma célula com pixels próprios da mesma camada.")
+        if cell["tiles"] is not None:
+            layer = layers[cell["layer"]]
+            if layer["kind"] != "tilemap":
+                raise ValidationError("Só células de camadas de tiles guardam tiles.")
+            tileset = tilesets[layer["tileset"]]
+            tw, th = tileset["tileWidth"], tileset["tileHeight"]
+            # columns x rows: whole tiles covering the canvas (partial tiles at the edges counted or not).
+            sizes = {-(-width // tw) * -(-height // th), (width // tw) * (height // th)}
+            try:
+                count = run_length(cell["tiles"], max(sizes))
+                if count not in sizes:
+                    raise RLEError("RLE menor que a matriz")
+                indices = decode(cell["tiles"], count)
+            except RLEError as error:
+                raise ValidationError(f"Tiles inválidos: {error}") from error
+            if indices and max(indices) >= len(tileset["tiles"]):
+                raise ValidationError("Célula aponta para um tile que não existe.")
+
+
+def _opaque_hex(value, label):
+    color = normalize_hex(value)
+    if len(color) != 7:
+        raise ValidationError(f"A cor {label} não pode ser transparente.")
+    return color
+
+
+def _validate_tags(data, document):
+    positions = {frame["id"]: i for i, frame in enumerate(document["frames"])}
+    tags = []
+    seen = set()
+    for item in _list(data, "tags", MAX_TAGS, f"O projeto pode ter no máximo {MAX_TAGS} tags."):
+        key = _unique_key(item, seen, "tags", "Identificadores repetidos entre as tags.")
+        name = str(item.get("name") or "Tag")[:80]
+        start, end = item.get("from"), item.get("to")
+        if not isinstance(start, str) or not isinstance(end, str) or start not in positions or end not in positions:
+            raise ValidationError(f"A tag '{name}' aponta para um quadro que não existe.")
+        if positions[start] > positions[end]:
+            raise ValidationError(f"A tag '{name}' termina antes de começar.")
+        direction = item.get("direction") or "forward"
+        if direction not in TAG_DIRECTIONS:
+            raise ValidationError(f"Direção inválida na tag '{name}': {direction!r}.")
+        tags.append(
+            {
+                "id": key,
+                "name": name,
+                "from": start,
+                "to": end,
+                "direction": direction,
+                "repeat": _integer(item.get("repeat") or 0, "repetições da tag", 0, 65535),
+                "color": _opaque_hex(item.get("color") or "#000000", "da tag"),
+            }
+        )
+    return tags
+
+
+def _validate_slices(data):
+    side = _limits()["MAX_SIDE"]
+    slices = []
+    seen = set()
+    for item in _list(data, "slices", MAX_SLICES, f"O projeto pode ter no máximo {MAX_SLICES} fatias."):
+        key = _unique_key(item, seen, "fatias", "Identificadores repetidos entre as fatias.")
+        name = str(item.get("name") or "Fatia")[:80]
+        center = item.get("center")
+        if center is not None:
+            if not isinstance(center, dict):
+                raise ValidationError(f"Centro inválido na fatia '{name}'.")
+            center = {
+                "x": _integer(center.get("x"), "x do centro da fatia", 0, side),
+                "y": _integer(center.get("y"), "y do centro da fatia", 0, side),
+                "width": _integer(center.get("width"), "largura do centro da fatia", 0, side),
+                "height": _integer(center.get("height"), "altura do centro da fatia", 0, side),
+            }
+        pivot = item.get("pivot")
+        if pivot is not None:
+            if not isinstance(pivot, dict):
+                raise ValidationError(f"Pivô inválido na fatia '{name}'.")
+            pivot = {"x": _integer(pivot.get("x"), "x do pivô da fatia", -side, side), "y": _integer(pivot.get("y"), "y do pivô da fatia", -side, side)}
+        slices.append(
+            {
+                "id": key,
+                "name": name,
+                "color": normalize_hex(item.get("color") or "#0000ff"),
+                "x": _integer(item.get("x"), "x da fatia", -side, side),
+                "y": _integer(item.get("y"), "y da fatia", -side, side),
+                "width": _integer(item.get("width"), "largura da fatia", 1, side),
+                "height": _integer(item.get("height"), "altura da fatia", 1, side),
+                "center": center,
+                "pivot": pivot,
+            }
+        )
+    return slices
+
+
+def _validate_21(data, document):
+    """Validate the 2.1 additions of `data` and add colorMode, tags, slices and tilesets to the normalized document."""
+    color_mode = data.get("colorMode") or "rgba"
+    if color_mode not in COLOR_MODES:
+        raise ValidationError(f"Modo de cor inválido: {color_mode!r}.")
+    document["colorMode"] = color_mode
+    tilesets = _validate_tilesets(data)
+    by_id = {tileset["id"]: tileset for tileset in tilesets}
+    _validate_layer_tree(document["layers"], by_id)
+    _validate_cells_21(document, by_id)
+    document["tags"] = _validate_tags(data, document)
+    document["slices"] = _validate_slices(data)
+    document["tilesets"] = tilesets
+
+
+def _slice_columns(item):
+    center = item["center"] or {}
+    pivot = item["pivot"] or {}
+    return {
+        "key": item["id"],
+        "name": item["name"],
+        "color": item["color"],
+        "x": item["x"],
+        "y": item["y"],
+        "width": item["width"],
+        "height": item["height"],
+        "center_x": center.get("x"),
+        "center_y": center.get("y"),
+        "center_width": center.get("width"),
+        "center_height": center.get("height"),
+        "pivot_x": pivot.get("x"),
+        "pivot_y": pivot.get("y"),
+    }
+
+
+def _layer_to_document_21(layer):
+    out = {}
+    if layer.blend_mode != "normal":
+        out["blendMode"] = layer.blend_mode
+    if layer.kind != "image":
+        out["kind"] = layer.kind
+    if layer.parent_key is not None:
+        out["parent"] = layer.parent_key
+    if layer.collapsed:
+        out["collapsed"] = True
+    if layer.tileset_key is not None:
+        out["tileset"] = layer.tileset_key
+    if layer.reference:
+        out["reference"] = True
+    return out
+
+
+def _cell_to_document_21(link, tiles):
+    out = {}
+    if link is not None:
+        out["link"] = link
+    if tiles is not None:
+        out["tiles"] = to_base64(bytes(tiles))
+    return out
+
+
+def _slice_to_document(item):
+    return {
+        "id": item.key,
+        "name": item.name,
+        "color": item.color,
+        "x": item.x,
+        "y": item.y,
+        "width": item.width,
+        "height": item.height,
+        "center": None if item.center_x is None else {"x": item.center_x, "y": item.center_y, "width": item.center_width, "height": item.center_height},
+        "pivot": None if item.pivot_x is None else {"x": item.pivot_x, "y": item.pivot_y},
+    }
+
+
+def _add_to_document_21(project, document):
+    if project.color_mode != "rgba":
+        document["colorMode"] = project.color_mode
+    tags = [
+        {"id": t.key, "name": t.name, "from": t.from_frame_key, "to": t.to_frame_key, "direction": t.direction, "repeat": t.repeat, "color": t.color}
+        for t in project.tags.all()
+    ]
+    if tags:
+        document["tags"] = tags
+    slices = [_slice_to_document(item) for item in project.slices.all()]
+    if slices:
+        document["slices"] = slices
+    tilesets = [
+        {
+            "id": t.key,
+            "name": t.name,
+            "tileWidth": t.tile_width,
+            "tileHeight": t.tile_height,
+            "tiles": [to_base64(tile) for tile in split_runs(bytes(t.tiles), t.tile_width * t.tile_height, t.tile_count)],
+        }
+        for t in project.tilesets.all()
+    ]
+    if tilesets:
+        document["tilesets"] = tilesets
 
 
 def read_thumbnail(value):
@@ -200,10 +532,10 @@ def document_from_db(project):
     layer_keys = {layer.pk: layer.key for layer in layers}
     frame_keys = {frame.pk: frame.key for frame in frames}
     cells = sorted(
-        Cell.objects.filter(frame__project=project).values_list("frame_id", "layer_id", "pixels"),
+        Cell.objects.filter(frame__project=project).values_list("frame_id", "layer_id", "pixels", "link_frame_key", "tiles"),
         key=lambda t: (t[0], t[1]),
     )
-    return {
+    document = {
         "format": "crivo",
         "version": FORMAT_VERSION,
         "name": project.name,
@@ -211,18 +543,50 @@ def document_from_db(project):
         "height": project.height,
         "fps": project.fps,
         "palette": project.palette,
-        "layers": [{"id": layer.key, "name": layer.name, "visible": layer.visible, "opacity": layer.opacity, "locked": layer.locked} for layer in layers],
+        "layers": [
+            {
+                "id": layer.key,
+                "name": layer.name,
+                "visible": layer.visible,
+                "opacity": layer.opacity,
+                "locked": layer.locked,
+                **_layer_to_document_21(layer),
+            }
+            for layer in layers
+        ],
         "frames": [{"id": frame.key, "duration": frame.duration_ms} for frame in frames],
-        "cells": [{"frame": frame_keys[f], "layer": layer_keys[la], "rle": to_base64(bytes(px))} for f, la, px in cells],
+        "cells": [
+            {"frame": frame_keys[f], "layer": layer_keys[la], "rle": to_base64(bytes(px)), **_cell_to_document_21(link, tiles)}
+            for f, la, px, link, tiles in cells
+        ],
     }
+    _add_to_document_21(project, document)
+    return document
 
 
 def _write_content(project, doc):
     project.frames.all().delete()
     project.layers.all().delete()
+    project.tags.all().delete()
+    project.slices.all().delete()
+    project.tilesets.all().delete()
     layers = Layer.objects.bulk_create(
         [
-            Layer(project=project, key=layer["id"], position=i, name=layer["name"], visible=layer["visible"], opacity=layer["opacity"], locked=layer["locked"])
+            Layer(
+                project=project,
+                key=layer["id"],
+                position=i,
+                name=layer["name"],
+                visible=layer["visible"],
+                opacity=layer["opacity"],
+                locked=layer["locked"],
+                blend_mode=layer["blendMode"],
+                kind=layer["kind"],
+                parent_key=layer["parent"],
+                collapsed=layer["collapsed"],
+                tileset_key=layer["tileset"],
+                reference=layer["reference"],
+            )
             for i, layer in enumerate(doc["layers"])
         ]
     )
@@ -232,8 +596,50 @@ def _write_content(project, doc):
     by_layer = {layer.key: layer for layer in layers}
     by_frame = {frame.key: frame for frame in frames}
     Cell.objects.bulk_create(
-        [Cell(frame=by_frame[cell["frame"]], layer=by_layer[cell["layer"]], pixels=cell["pixels"], size_bytes=len(cell["pixels"])) for cell in doc["cells"]],
+        [
+            Cell(
+                frame=by_frame[cell["frame"]],
+                layer=by_layer[cell["layer"]],
+                pixels=cell["pixels"],
+                size_bytes=len(cell["pixels"]),
+                link_frame_key=cell["link"],
+                tiles=cell["tiles"],
+            )
+            for cell in doc["cells"]
+        ],
         batch_size=200,
+    )
+    Tag.objects.bulk_create(
+        [
+            Tag(
+                project=project,
+                key=tag["id"],
+                position=i,
+                name=tag["name"],
+                from_frame_key=tag["from"],
+                to_frame_key=tag["to"],
+                direction=tag["direction"],
+                repeat=tag["repeat"],
+                color=tag["color"],
+            )
+            for i, tag in enumerate(doc["tags"])
+        ]
+    )
+    Slice.objects.bulk_create([Slice(project=project, position=i, **_slice_columns(item)) for i, item in enumerate(doc["slices"])])
+    Tileset.objects.bulk_create(
+        [
+            Tileset(
+                project=project,
+                key=tileset["id"],
+                position=i,
+                name=tileset["name"],
+                tile_width=tileset["tileWidth"],
+                tile_height=tileset["tileHeight"],
+                tile_count=len(tileset["tiles"]),
+                tiles=b"".join(tileset["tiles"]),
+            )
+            for i, tileset in enumerate(doc["tilesets"])
+        ]
     )
 
 
@@ -255,6 +661,7 @@ def create_project(data, thumbnail=None, name=None):
         fps=doc["fps"],
         format_version=FORMAT_VERSION,
         palette=doc["palette"],
+        color_mode=doc["colorMode"],
         thumbnail=read_thumbnail(thumbnail),
     )
     _write_content(project, doc)
@@ -274,6 +681,7 @@ def update_project(project_id, data, thumbnail=None, revision=None, name=None):
     project.fps = doc["fps"]
     project.format_version = FORMAT_VERSION
     project.palette = doc["palette"]
+    project.color_mode = doc["colorMode"]
     project.revision += 1
     new_thumbnail = read_thumbnail(thumbnail)
     if new_thumbnail:
@@ -296,16 +704,16 @@ def restore_revision(project_id, number):
 
 
 def composite_pixels(project, indices=None):
+    """Render frames for export: groups, blend modes and opacity applied; hidden and reference layers left out."""
     doc = document_from_db(project)
     total = doc["width"] * doc["height"]
-    cells = {(c["frame"], c["layer"]): decode(from_base64(c["rle"]), total) for c in doc["cells"]}
     frames = doc["frames"] if indices is None else [doc["frames"][i] for i in indices]
-    output = []
-    for frame in frames:
-        layers = [
-            (cells[(frame["id"], layer["id"])], layer["opacity"] / 100) for layer in doc["layers"] if layer["visible"] and (frame["id"], layer["id"]) in cells
-        ]
-        output.append(composite(doc["width"], doc["height"], layers))
+    wanted = {frame["id"] for frame in frames}
+    cells = {}
+    for c in doc["cells"]:
+        if c["frame"] in wanted:
+            cells.setdefault(c["frame"], {})[c["layer"]] = decode(from_base64(c["rle"]), total)
+    output = [render_frame(doc["layers"], cells.get(frame["id"], {}), total) for frame in frames]
     return doc, output
 
 

@@ -32,8 +32,12 @@
         <div id="options" class="options" aria-label="Opções da ferramenta"></div>
       </div>
       <main class="area">
-        <div id="view" class="view" aria-label="Visualização"></div>
-        <canvas id="viewport" aria-label="Matriz de pixels. Use as ferramentas da barra lateral para desenhar."></canvas>
+        <div id="doc-tabs" class="doc-tabs" role="tablist" aria-label="Projetos abertos"></div>
+        <div class="canvas-host">
+          <canvas id="viewport" aria-label="Matriz de pixels. Use as ferramentas da barra lateral para desenhar."></canvas>
+          <div id="view" class="view" aria-label="Visualização"></div>
+          <div id="minimap" class="minimap" hidden></div>
+        </div>
       </main>
       <aside class="sidebar" aria-label="Cores, paletas e camadas">
         <section class="panel">

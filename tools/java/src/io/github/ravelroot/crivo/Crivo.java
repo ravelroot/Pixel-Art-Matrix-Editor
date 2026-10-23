@@ -20,6 +20,7 @@ public final class Crivo {
 
             Uso:
               crivo info    <projeto.crivo>
+              crivo tags    <projeto.crivo>
               crivo palette <projeto.crivo>
               crivo png     <projeto.crivo> <saida.png> [--frame N] [--scale N]
               crivo sheet   <projeto.crivo> <saida.png> [--layout horizontal|vertical|grid] [--columns N] [--spacing N] [--scale N]
@@ -61,6 +62,7 @@ public final class Crivo {
             Options options = Options.parse(args, command.equals("png") || command.equals("sheet") ? 3 : 2);
             switch (command) {
                 case "info" -> info(project);
+                case "tags" -> System.out.print(tags(project));
                 case "palette" -> palette(project);
                 case "png" -> png(project, Path.of(requireArg(args, 2, "arquivo de saída")), options);
                 case "sheet" -> sheet(project, Path.of(requireArg(args, 2, "arquivo de saída")), options);
@@ -149,9 +151,48 @@ public final class Crivo {
         System.out.printf(Locale.ROOT, "Camadas:  %d%n", p.layers.size());
         for (int i = p.layers.size() - 1; i >= 0; i--) {
             Project.Layer l = p.layers.get(i);
-            System.out.printf(Locale.ROOT, "  - %s%s%s%n", l.name(), l.visible() ? "" : " (oculta)", l.opacity() < 100 ? " " + l.opacity() + "%" : "");
+            System.out.printf(Locale.ROOT, "  %s- %s%s%s%s%n", "  ".repeat(p.depth(l)), l.name(), l.visible() ? "" : " (oculta)",
+                    l.opacity() < 100 ? " " + l.opacity() + "%" : "", layerDetails(l));
         }
         System.out.printf(Locale.ROOT, "Cores:    %d%n", p.colors().size());
+        if (p.colorMode != null) {
+            System.out.printf(Locale.ROOT, "Modo de cor: %s%n", COLOR_MODE_NAMES.get(p.colorMode));
+        }
+        if (!p.tags.isEmpty()) {
+            System.out.printf(Locale.ROOT, "Tags:     %d%n", p.tags.size());
+        }
+        if (!p.slices.isEmpty()) {
+            System.out.printf(Locale.ROOT, "Fatias:   %d%n", p.slices.size());
+        }
+        if (!p.tilesets.isEmpty()) {
+            System.out.printf(Locale.ROOT, "Conjuntos de tiles: %d%n", p.tilesets.size());
+        }
+    }
+
+    private static final Map<String, String> COLOR_MODE_NAMES = Map.of("rgba", "RGBA", "indexed", "indexado", "grayscale", "tons de cinza");
+    private static final Map<String, String> KIND_NAMES = Map.of("group", " (grupo)", "tilemap", " (tiles)", "image", "");
+    private static final Map<String, String> DIRECTION_NAMES = Map.of("forward", "para frente", "reverse", "ao contrário", "pingpong", "pingue-pongue");
+
+    /** The 2.1 details of a layer for {@code info}: empty for a plain 2.0 layer. */
+    private static String layerDetails(Project.Layer l) {
+        return KIND_NAMES.get(l.kind()) + (l.reference() ? " (referência)" : "") + (l.blendMode().equals("normal") ? "" : " [" + l.blendMode() + "]");
+    }
+
+    /** Lists the frame tags with their frame ranges (1-based), direction and repeat count. */
+    static String tags(Project p) {
+        if (p.tags.isEmpty()) {
+            return "Este projeto não tem tags." + System.lineSeparator();
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format(Locale.ROOT, "Tags: %d%n", p.tags.size()));
+        for (Project.Tag t : p.tags) {
+            int from = p.frameIndex(t.from()) + 1;
+            int to = p.frameIndex(t.to()) + 1;
+            String range = from == to ? "quadro " + from : "quadros " + from + " a " + to;
+            String repeat = t.repeat() > 0 ? ", " + t.repeat() + (t.repeat() == 1 ? " vez" : " vezes") : "";
+            sb.append(String.format(Locale.ROOT, "  - %s: %s, %s%s (%s)%n", t.name(), range, DIRECTION_NAMES.get(t.direction()), repeat, t.color()));
+        }
+        return sb.toString();
     }
 
     private static void palette(Project p) {

@@ -5,6 +5,9 @@ import { el, notify, pickFile, downloadText, delay, readPreference, writePrefere
 import { icon } from './icons.js';
 import { createCanvas, pixelsToCanvas } from './image.js';
 import { promptText, confirm, openDialog } from './dialog.js';
+import { BLEND_LABELS } from '../core/blend.js';
+import { layerPropertiesDialog, framePropertiesDialog, tagDialog, onionSkinDialog } from './layer-dialogs.js';
+import { colorPickerDialog } from './color-picker.js';
 
 function swatch(color, { title, onClick, onRightClick, active = false, className = '' } = {}) {
   const b = el('button', {
@@ -71,7 +74,27 @@ export class ColorPanel {
     this.updateRecent();
   }
 
-  openPicker(which) {
+  // HSV picker (ui/color-picker.js) with live preview; Cancel puts the previous color back.
+  async openPicker(which) {
+    this.target = which;
+    const key = which === 'secondary' ? 'secondaryColor' : 'primaryColor';
+    const before = this.editor.state[key];
+    const chosen = await colorPickerDialog({
+      color: before,
+      title: which === 'secondary' ? 'Cor secundária' : 'Cor principal',
+      gray: this.editor.doc?.colorMode === 'grayscale',
+      onInput: (c) => this.editor.setColor(which, c),
+    });
+    if (chosen === null || chosen === undefined) {
+      this.editor.setColor(which, before);
+      return;
+    }
+    this.editor.setColor(which, chosen);
+    this.editor.rememberColor(this.editor.state[key]);
+  }
+
+  // The browser's native color input (kept for code that still wants it).
+  openNativePicker(which) {
     this.target = which;
     const c = which === 'secondary' ? this.editor.state.secondaryColor : this.editor.state.primaryColor;
     this.picker.value = colorToHex6(c);
@@ -348,9 +371,11 @@ export class RampPanel {
 export class LayersPanel {
   constructor(root, editor) {
     this.editor = editor;
+    LayersPanel.instance = this;
     this.list = el('ol', { class: 'layer-list', 'aria-label': 'Camadas, da mais alta para a mais baixa' });
     this.opacity = el('input', { type: 'range', min: 0, max: 100, 'aria-label': 'Opacidade da camada' });
     this.opacityValue = el('output', { class: 'mono' });
+    this.tiles = el('div', { class: 'tileset-section', hidden: true });
     root.append(
       this.list,
       el('label', { class: 'field compact' }, el('span', {}, 'Opacidade'), this.opacity, this.opacityValue),
@@ -358,12 +383,14 @@ export class LayersPanel {
         'div',
         { class: 'row-actions icons' },
         iconButton('plus', 'Nova camada', () => this.action('Nova camada', (d) => editor.selectLayer(d.addLayer(null, d.layerIndex(editor.currentLayer.id) + 1).id))),
+        iconButton('folder', 'Novo grupo', () => this.action('Novo grupo', (d) => editor.selectLayer(d.addGroup(null, d.layerIndex(editor.currentLayer.id) + 1).id))),
         iconButton('duplicate', 'Duplicar camada', () => this.action('Duplicar camada', (d) => editor.selectLayer(d.duplicateLayer(editor.currentLayer.id).id))),
         iconButton('up', 'Subir camada', () => this.action('Subir camada', (d) => d.moveLayer(editor.currentLayer.id, 1))),
         iconButton('down', 'Descer camada', () => this.action('Descer camada', (d) => d.moveLayer(editor.currentLayer.id, -1))),
         iconButton('merge', 'Mesclar com a de baixo', () => this.action('Mesclar camadas', (d) => d.mergeDown(editor.currentLayer.id))),
         iconButton('trash', 'Excluir camada', () => this.remove()),
       ),
+      this.tiles,
     );
     const saveOpacity = delay((id, before, value) => {
       const layer = editor.doc.layer(id);
@@ -393,6 +420,9 @@ export class LayersPanel {
     editor.on('pixels', ({ thumbnails }) => {
       if (thumbnails) this.scheduleThumbnails();
     });
+    editor.on('state', ({ key }) => {
+      if (key === 'tileIndex' || key === 'tileMode') this.drawTiles();
+    });
     this.scheduleThumbnails = delay(() => this.thumbnails(), 120);
     this.draw();
   }
@@ -407,72 +437,177 @@ export class LayersPanel {
 
   async remove() {
     const d = this.editor.doc;
-    if (d.layers.length <= 1) {
+    const layer = this.editor.currentLayer;
+    const range = d.block(layer.id);
+    const drawable = d.layers.filter((c, i) => (i < range[0] || i > range[1]) && c.kind !== 'group').length;
+    if (d.layers.length <= 1 || !drawable) {
       notify('O projeto precisa de pelo menos uma camada.', 'warning');
       return;
     }
-    this.action('Excluir camada', (doc) => doc.removeLayer(this.editor.currentLayer.id));
+    if (layer.kind === 'group' && range[1] > range[0] && !(await confirm('Excluir grupo', `O grupo "${layer.name}" e as ${range[1] - range[0]} camada(s) dentro dele serão apagados.`, 'Excluir', true))) return;
+    this.action(layer.kind === 'group' ? 'Excluir grupo' : 'Excluir camada', (doc) => doc.removeLayer(layer.id));
+  }
+
+  // True when some group above the layer is collapsed (the row is not shown).
+  folded(c) {
+    const doc = this.editor.doc;
+    let p = c.parent ? doc.layer(c.parent) : null;
+    let guard = 0;
+    while (p && guard++ < 64) {
+      if (p.collapsed) return true;
+      p = p.parent ? doc.layer(p.parent) : null;
+    }
+    return false;
   }
 
   draw() {
     const { doc } = this.editor;
     const current = this.editor.currentLayer;
     this.list.replaceChildren(
-      ...[...doc.layers].reverse().map((c) => {
-        const name = el('span', { class: 'name', title: 'Clique duas vezes para renomear' }, c.name);
-        const mini = createCanvas(28, 28);
-        mini.className = 'mini';
-        mini.dataset.layer = c.id;
-        const item = el(
-          'li',
-          { class: `layer ${c.id === current.id ? 'active' : ''} ${c.visible ? '' : 'hidden-layer'}`, tabindex: 0, 'aria-current': c.id === current.id ? 'true' : null },
-          el('button', {
-            type: 'button',
-            class: 'icon-button',
-            title: c.visible ? 'Ocultar' : 'Mostrar',
-            'aria-label': (c.visible ? 'Ocultar ' : 'Mostrar ') + c.name,
-            html: icon(c.visible ? 'eye' : 'eyeClosed', 16),
-            onclick: (e) => {
-              e.stopPropagation();
-              this.action(c.visible ? 'Ocultar camada' : 'Mostrar camada', (d) => {
-                d.layer(c.id).visible = !c.visible;
-              });
+      ...[...doc.layers]
+        .reverse()
+        .filter((c) => !this.folded(c))
+        .map((c) => {
+          const group = c.kind === 'group';
+          const name = el('span', { class: 'name', title: 'Clique duas vezes para abrir as propriedades' }, c.name);
+          let mini;
+          if (group) {
+            mini = el('button', {
+              type: 'button',
+              class: 'icon-button group-toggle',
+              title: c.collapsed ? 'Expandir grupo' : 'Recolher grupo',
+              'aria-label': (c.collapsed ? 'Expandir ' : 'Recolher ') + c.name,
+              'aria-expanded': String(!c.collapsed),
+              onclick: (e) => {
+                e.stopPropagation();
+                // Collapsing is a view change: it is saved with the project but does not enter the history.
+                doc.layer(c.id).collapsed = !c.collapsed;
+                this.editor.markModified();
+                this.draw();
+              },
+            }, c.collapsed ? '▸' : '▾');
+          } else {
+            mini = createCanvas(28, 28);
+            mini.className = 'mini';
+            mini.dataset.layer = c.id;
+          }
+          const badges = [];
+          if (c.opacity < 100) badges.push(c.opacity + '%');
+          if (c.blendMode && c.blendMode !== 'normal') badges.push(BLEND_LABELS[c.blendMode] ?? c.blendMode);
+          if (c.reference) badges.push('Ref');
+          if (c.kind === 'tilemap') badges.push('Tiles');
+          const depth = doc.depth(c.id);
+          const item = el(
+            'li',
+            {
+              class: `layer ${group ? 'group' : ''} ${c.kind === 'tilemap' ? 'tilemap' : ''} ${c.reference ? 'reference' : ''} ${c.id === current.id ? 'active' : ''} ${c.visible ? '' : 'hidden-layer'}`,
+              tabindex: 0,
+              'aria-current': c.id === current.id ? 'true' : null,
+              data: { layerId: c.id, depth: String(depth) },
+              style: depth ? { paddingLeft: 4 + depth * 14 + 'px' } : undefined,
             },
-          }),
-          mini,
-          name,
-          c.opacity < 100 ? el('span', { class: 'badge' }, c.opacity + '%') : null,
-          el('button', {
-            type: 'button',
-            class: `icon-button ${c.locked ? 'on' : 'off'}`,
-            title: c.locked ? 'Desbloquear' : 'Bloquear',
-            'aria-label': (c.locked ? 'Desbloquear ' : 'Bloquear ') + c.name,
-            html: icon(c.locked ? 'lock' : 'lockOpen', 16),
-            onclick: (e) => {
-              e.stopPropagation();
-              this.action(c.locked ? 'Desbloquear camada' : 'Bloquear camada', (d) => {
-                d.layer(c.id).locked = !c.locked;
-              });
-            },
-          }),
-        );
-        item.addEventListener('click', () => this.editor.selectLayer(c.id));
-        item.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') this.editor.selectLayer(c.id);
-        });
-        name.addEventListener('dblclick', async () => {
-          const newName = await promptText('Renomear camada', 'Nome da camada', c.name);
-          if (newName)
-            this.action('Renomear camada', (d) => {
-              d.layer(c.id).name = newName;
-            });
-        });
-        return item;
-      }),
+            el('button', {
+              type: 'button',
+              class: 'icon-button',
+              title: c.visible ? 'Ocultar' : 'Mostrar',
+              'aria-label': (c.visible ? 'Ocultar ' : 'Mostrar ') + c.name,
+              html: icon(c.visible ? 'eye' : 'eyeClosed', 16),
+              onclick: (e) => {
+                e.stopPropagation();
+                this.action(c.visible ? 'Ocultar camada' : 'Mostrar camada', (d) => {
+                  d.layer(c.id).visible = !c.visible;
+                });
+              },
+            }),
+            mini,
+            name,
+            badges.length ? el('span', { class: 'badge' }, badges.join(' · ')) : null,
+            el('button', {
+              type: 'button',
+              class: `icon-button ${c.locked ? 'on' : 'off'}`,
+              title: c.locked ? 'Desbloquear' : 'Bloquear',
+              'aria-label': (c.locked ? 'Desbloquear ' : 'Bloquear ') + c.name,
+              html: icon(c.locked ? 'lock' : 'lockOpen', 16),
+              onclick: (e) => {
+                e.stopPropagation();
+                this.action(c.locked ? 'Desbloquear camada' : 'Bloquear camada', (d) => {
+                  d.layer(c.id).locked = !c.locked;
+                });
+              },
+            }),
+          );
+          item.addEventListener('click', () => this.editor.selectLayer(c.id));
+          item.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.editor.selectLayer(c.id);
+          });
+          name.addEventListener('dblclick', () => {
+            this.editor.selectLayer(c.id);
+            layerPropertiesDialog(this.editor, c.id);
+          });
+          return item;
+        }),
     );
     this.opacity.value = current.opacity;
     this.opacityValue.textContent = current.opacity + '%';
     this.thumbnails();
+    this.drawTiles();
+  }
+
+  // Tileset of the current tilemap layer: tile mode toggle and the tiles to pick from.
+  drawTiles() {
+    const { doc, state } = this.editor;
+    const layer = this.editor.currentLayer;
+    const tileset = layer.kind === 'tilemap' ? doc.tilesets.find((t) => t.id === layer.tileset) : null;
+    this.tiles.hidden = !tileset;
+    if (!tileset) return this.tiles.replaceChildren();
+    const mode = el(
+      'button',
+      {
+        type: 'button',
+        class: `button small ${state.tileMode ? 'on' : ''}`,
+        'aria-pressed': String(Boolean(state.tileMode)),
+        title: 'Modo tile: o lápis coloca o tile escolhido, a borracha põe o tile vazio e o conta-gotas pega o tile',
+        onclick: () => this.editor.setState('tileMode', !state.tileMode),
+      },
+      state.tileMode ? 'Modo tile' : 'Modo pixel',
+    );
+    const grid = el(
+      'div',
+      { class: 'tile-grid', role: 'listbox', 'aria-label': 'Tiles' },
+      tileset.tiles.map((tile, i) => {
+        const canvas = createCanvas(24, 24);
+        canvas.className = 'mini';
+        drawThumbnail(canvas, tile, tileset.tileWidth, tileset.tileHeight);
+        return el(
+          'button',
+          {
+            type: 'button',
+            class: `tile ${i === state.tileIndex ? 'active' : ''}`,
+            role: 'option',
+            'aria-selected': String(i === state.tileIndex),
+            title: i === 0 ? 'Tile 0 (vazio)' : `Tile ${i}`,
+            data: { tile: String(i) },
+            onclick: () => this.editor.setState('tileIndex', i),
+          },
+          canvas,
+        );
+      }),
+    );
+    const add = el(
+      'button',
+      {
+        type: 'button',
+        class: 'button small',
+        onclick: () =>
+          this.action('Novo tile', (d) => {
+            const t = d.tilesets.find((x) => x.id === tileset.id);
+            t.tiles.push(new Uint32Array(t.tileWidth * t.tileHeight));
+            this.editor.state.tileIndex = t.tiles.length - 1;
+          }),
+      },
+      '+ Tile',
+    );
+    this.tiles.replaceChildren(el('div', { class: 'small-label' }, `${tileset.name} · ${tileset.tileWidth} × ${tileset.tileHeight} · ${tileset.tiles.length} tiles`), el('div', { class: 'row-actions' }, mode, add), grid);
   }
 
   thumbnails() {
@@ -499,10 +634,12 @@ export function drawThumbnail(canvas, pixels, width, height) {
 export class Timeline {
   constructor(root, editor) {
     this.editor = editor;
+    Timeline.instance = this;
     this.list = el('ol', { class: 'frame-list', 'aria-label': 'Quadros da animação' });
     this.play = el('button', { type: 'button', class: 'icon-button large', title: 'Tocar animação (Enter)', 'aria-label': 'Tocar animação', onclick: () => (editor.state.playing ? editor.stop() : editor.play()) });
     this.fps = el('input', { type: 'number', min: 1, max: 60, class: 'fps', 'aria-label': 'Quadros por segundo' });
     this.onionSkin = el('button', { type: 'button', class: 'icon-button', title: 'Papel cebola: mostra o quadro anterior (K)', 'aria-label': 'Papel cebola', html: icon('onionSkin', 16), onclick: () => editor.setState('onionSkin', !editor.state.onionSkin) });
+    this.onionSettings = el('button', { type: 'button', class: 'icon-button onion-settings', title: 'Configurar papel cebola', 'aria-label': 'Configurar papel cebola', onclick: () => onionSkinDialog(editor) }, '⋯');
     const action = (label, fn) => {
       try {
         editor.editStructure(label, fn);
@@ -517,6 +654,7 @@ export class Timeline {
         this.play,
         el('label', { class: 'field compact fps-field' }, el('span', {}, 'FPS'), this.fps),
         this.onionSkin,
+        this.onionSettings,
         el('span', { class: 'separator' }),
         iconButton('plus', 'Novo quadro', () =>
           action('Novo quadro', (d) => {
@@ -556,6 +694,7 @@ export class Timeline {
       });
     });
     editor.on('document', () => this.draw());
+    editor.on('layer', () => this.draw());
     editor.on('frame', () => this.mark());
     editor.on('state', ({ key }) => {
       if (key === 'playing' || key === 'onionSkin') this.updateButtons();
@@ -578,16 +717,50 @@ export class Timeline {
 
   draw() {
     const { doc } = this.editor;
+    const layer = this.editor.currentLayer;
     this.fps.value = doc.fps;
     this.list.replaceChildren(
       ...doc.frames.map((q, i) => {
         const c = createCanvas(48, 48);
         c.className = 'mini';
-        const item = el('li', { class: 'frame', tabindex: 0, title: `Quadro ${i + 1}` }, c, el('span', { class: 'number' }, String(i + 1)));
+        // Tags appear as a colored strip above their frames (the innermost tag wins), named on the first frame.
+        const tag = doc.tagAt(i);
+        let strip = null;
+        if (tag) {
+          const first = doc.frameIndex(tag.from) === i;
+          const directions = { forward: '→', reverse: '←', pingpong: '↔' };
+          strip = el(
+            'button',
+            {
+              type: 'button',
+              class: `frame-tag ${first ? 'first' : ''}`,
+              style: { '--tag-color': tag.color },
+              title: `Tag "${tag.name}" ${directions[tag.direction] ?? ''}${tag.repeat ? ` ×${tag.repeat}` : ''} · clique para editar`,
+              'aria-label': `Editar tag ${tag.name}`,
+              onclick: (e) => {
+                e.stopPropagation();
+                tagDialog(this.editor, tag.id);
+              },
+            },
+            first ? `${tag.name} ${directions[tag.direction] ?? ''}` : '',
+          );
+        }
+        const linked = layer.kind !== 'group' && doc.isLinked(q.id, layer.id);
+        const title = `Quadro ${i + 1}${q.duration ? ` · ${q.duration} ms` : ''}${linked ? ' · célula vinculada' : ''}`;
+        const item = el(
+          'li',
+          { class: `frame ${tag ? 'tagged' : ''} ${linked ? 'linked' : ''}`, tabindex: 0, title, data: { frame: String(i) } },
+          strip,
+          c,
+          el('span', { class: 'number' }, String(i + 1)),
+          linked ? el('span', { class: 'link-mark', 'aria-label': 'Célula vinculada' }, '∞') : null,
+          q.duration ? el('span', { class: 'duration' }, `${q.duration}ms`) : null,
+        );
         item.addEventListener('click', () => {
           this.editor.stop();
           this.editor.selectFrame(i);
         });
+        item.addEventListener('dblclick', () => framePropertiesDialog(this.editor, i));
         item.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') this.editor.selectFrame(i);
         });

@@ -22,8 +22,12 @@ import { confirm } from './ui/dialog.js';
 import { icon } from './ui/icons.js';
 import { thumbnail } from './ui/image.js';
 import { el, $, notify, downloadText, pickFile, formatBytes, delay, readPreference, writePreference } from './ui/util.js';
+import { install as installLayers } from './features/layers.js';
+import { install as installSelection } from './features/selection.js';
+import { install as installColor } from './features/color.js';
+import { install as installFiles } from './features/files.js';
 
-const VERSION = '2.0.0';
+const VERSION = '2.1.0';
 
 // In the desktop app (Crivo.exe), the Windows program creates window.crivoDesktop before this page loads.
 // In the browser and in Crivo.html it does not exist, and nothing that depends on it is shown.
@@ -99,6 +103,7 @@ function buildOptions() {
   const f = TOOLS.find((x) => x.id === editor.state.tool);
   const items = [el('strong', { class: 'tool-name' }, f.name)];
   for (const op of f.options) {
+    if (extraToolOptions.some((builder) => builder(op, items))) continue;
     if (op === 'size') {
       const r = el('input', { type: 'range', min: 1, max: 32, value: editor.state.size, 'aria-label': 'Tamanho do pincel' });
       const o = el('output', { class: 'mono' }, `${editor.state.size}px`);
@@ -162,8 +167,18 @@ function buildOptions() {
     dither: 'Botão direito troca as cores',
     gradient: 'Arraste de onde começa até onde termina · botão direito inverte · Shift: 45°',
     shade: 'Esquerdo clareia · direito escurece',
-    selection: 'Shift: quadrada · clique para desmarcar · Ctrl+C/X/V',
+    selection: 'Shift: adicionar (no meio do arraste: quadrada) · Alt: subtrair · Shift+Alt: interseção · clique para desmarcar · Ctrl+C/X/V',
+    ellipseSelection: 'Shift: adicionar · Alt: subtrair · Shift+Alt: interseção',
+    lasso: 'Arraste em volta da área · Shift: adicionar · Alt: subtrair',
+    polygonLasso: 'Clique nos cantos · duplo clique, Enter ou clique no primeiro ponto fecha · Esc cancela',
+    magicWand: 'Seleciona pela cor · Shift: adicionar · Alt: subtrair · Shift+Alt: interseção',
     movePixels: 'Arraste ou use as setas (Shift: 8 px) · sem seleção move a camada toda',
+    spray: 'Segure o botão para borrifar · botão direito usa a cor secundária',
+    curve: 'Arraste a linha, depois arraste para curvar (até 2 vezes) · Enter ou clique aplica · Esc cancela',
+    contour: 'Desenhe o contorno: a forma é preenchida ao soltar',
+    polygon: 'Clique nos cantos · duplo clique, Enter ou clique no primeiro ponto fecha · Esc cancela',
+    blur: 'Suaviza misturando os vizinhos · pixels transparentes continuam transparentes',
+    jumble: 'Troca pixels vizinhos de lugar, sem criar cores novas',
   };
   if (HINTS[f.id]) items.push(el('span', { class: 'option-hint' }, HINTS[f.id]));
   bar.replaceChildren(...items);
@@ -287,6 +302,60 @@ const MENUS = [
   ['Exibir', ['grid', 'onionSkin', 'tile', '-', 'zoomIn', 'zoomOut', 'fit', 'zoom100', '-', 'theme', ...(DESKTOP ? ['fullscreen'] : [])]],
   ['Ajuda', ['shortcuts', 'about']],
 ];
+
+// Feature modules (features/*.js) receive this object in install(app) and plug into the app through it:
+// they add commands to app.commands, menu entries with app.addMenuItems / app.addMenu, keyboard shortcuts
+// with app.addShortcut and option widgets with app.addToolOptions. Keep each feature inside its own module.
+const extraShortcuts = [];
+const extraToolOptions = [];
+const app = {
+  editor,
+  viewport,
+  controller,
+  commands: COMMANDS,
+  menus: MENUS,
+  get storage() {
+    return storage;
+  },
+  get palette() {
+    return palette;
+  },
+  execute: (id) => execute(id),
+  rebuildMenus: () => buildMenus(),
+  rebuildTools: () => buildTools(),
+  rebuildOptions: () => buildOptions(),
+  // Adds command ids to an existing menu, after the item `after` (or at the end).
+  addMenuItems(menu, ids, after = null) {
+    const entry = MENUS.find(([title]) => title === menu);
+    if (!entry) throw new Error(`Unknown menu: ${menu}`);
+    const i = after ? entry[1].indexOf(after) : -1;
+    if (i >= 0) entry[1].splice(i + 1, 0, ...ids);
+    else entry[1].push(...ids);
+  },
+  // Adds a new top-level menu before the menu `before` (or before "Ajuda").
+  addMenu(title, ids, before = 'Ajuda') {
+    const i = MENUS.findIndex(([t]) => t === before);
+    MENUS.splice(i < 0 ? MENUS.length : i, 0, [title, ids]);
+  },
+  // shortcut: { key: 'b', ctrl: false, shift: false, alt: false, run: () => {} }; key is KeyboardEvent.key in lower case.
+  addShortcut(shortcut) {
+    extraShortcuts.push({ ctrl: false, shift: false, alt: false, ...shortcut });
+  },
+  // builder(op, items) appends widgets for the tool option `op` to `items` and returns true when it handled it.
+  addToolOptions(builder) {
+    extraToolOptions.push(builder);
+  },
+  notify,
+  optionGroup: (label, ...content) => optionGroup(label, ...content),
+  stateSelect: (key, options, label) => stateSelect(key, options, label),
+};
+
+function runExtraShortcut(e, ctrl, k) {
+  const s = extraShortcuts.find((x) => x.key === k && x.ctrl === ctrl && x.shift === e.shiftKey && x.alt === e.altKey);
+  if (!s) return false;
+  s.run(e);
+  return true;
+}
 
 function execute(id) {
   const c = COMMANDS[id];
@@ -670,6 +739,10 @@ function shortcuts(e) {
   }
   const ctrl = e.ctrlKey || e.metaKey;
   const k = e.key.toLowerCase();
+  if (runExtraShortcut(e, ctrl, k)) {
+    e.preventDefault();
+    return;
+  }
   if (ctrl) {
     if (k === 'z' && !e.shiftKey) execute('undo');
     else if (k === 'y' || (k === 'z' && e.shiftKey)) execute('redo');
@@ -759,6 +832,10 @@ async function init() {
   $('#theme').addEventListener('click', toggleTheme);
   // Same proportion as the project logo (docs/images/logo.svg) and the app icon: pointer at about half the height.
   $('#logo').innerHTML = icon('logo', 18);
+  installLayers(app);
+  installSelection(app);
+  installColor(app);
+  installFiles(app);
   buildTools();
   buildOptions();
   buildView();
@@ -807,4 +884,4 @@ async function init() {
 
 init();
 
-window.crivo = { editor, viewport, version: VERSION };
+window.crivo = { editor, viewport, app, version: VERSION };

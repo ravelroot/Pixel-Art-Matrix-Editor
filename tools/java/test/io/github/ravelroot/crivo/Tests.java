@@ -91,6 +91,63 @@ public final class Tests {
         }
     }
 
+    /** An ARGB pixel as '#rrggbbaa'. */
+    private static String rgbaHex(int argb) {
+        return String.format("#%02x%02x%02x%02x", (argb >>> 16) & 0xff, (argb >>> 8) & 0xff, argb & 0xff, argb >>> 24);
+    }
+
+    /** '#rrggbbaa' as an ARGB pixel. */
+    private static int argbOf(String text) {
+        int v = (int) Long.parseLong(text.substring(1), 16);
+        return (v >>> 8) | (v << 24);
+    }
+
+    /** The 2.0 rendering (normal layers only), to check that the 2.1 rendering keeps it bit for bit. */
+    private static int[] compose20(Project p, int frame, Map<String, int[]> cells) {
+        int[] target = new int[p.width * p.height];
+        for (Project.Layer l : p.layers) {
+            int[] source = cells.get(p.frames.get(frame).id() + ":" + l.id());
+            if (!l.visible() || source == null || l.opacity() <= 0) {
+                continue;
+            }
+            double opacity = l.opacity() / 100.0;
+            for (int i = 0; i < source.length; i++) {
+                int a = source[i] >>> 24;
+                if (a != 0) {
+                    target[i] = (a == 255 && opacity >= 1) ? source[i] : Color.blend(target[i], source[i], opacity);
+                }
+            }
+        }
+        return target;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, int[]> cellsOf(Path file) throws IOException {
+        Map<String, Object> data = (Map<String, Object>) Json.parse(Files.readString(file, StandardCharsets.UTF_8));
+        int total = ((Number) data.get("width")).intValue() * ((Number) data.get("height")).intValue();
+        Map<String, int[]> cells = new java.util.HashMap<>();
+        for (Object o : (List<Object>) data.get("cells")) {
+            Map<String, Object> c = (Map<String, Object>) o;
+            cells.put(c.get("frame") + ":" + c.get("layer"), Rle.decode(Base64.getDecoder().decode((String) c.get("rle")), total));
+        }
+        return cells;
+    }
+
+    // Same expected values as editor/tests/test_features_2_1.py (cross-language parity of the blend modes).
+    private static final String[][] EXAMPLE_PIXELS = {
+        {"0", "15", "0", "#1d2b53ff"}, {"0", "0", "0", "#113056ff"}, {"0", "8", "8", "#ffe8b4ff"}, {"0", "8", "4", "#ac5653ff"},
+        {"0", "4", "13", "#00522fff"}, {"0", "13", "10", "#00af6aff"}, {"0", "8", "10", "#eff289ff"}, {"1", "8", "10", "#7cc16aff"},
+        {"1", "8", "5", "#f2db6bff"},
+    };
+    private static final String[][] BLEND_TABLE = {
+        {"#2878c8b4", "#dc3c8cc8", "0.7",
+            "#9a52a2dd #474495dd #9c7bcadd #5650bfdd #4a52a2dd #9a6dbddd #aa7dd5dd #3a37a9dd #8f50bfdd #5d5ebedd "
+            + "#88527edd #8d6e99dd #954d9ddd #4a6dbddd #954d9ddd #4f72c2dd #aa88d5dd #38527edd #4ca9d5dd"},
+        {"#00ff80ff", "#ff0040ff", "1.0",
+            "#ff0040ff #000020ff #ffffa0ff #00ff41ff #000040ff #ffff80ff #00ffabff #00ff00ff #ff0040ff #00ff60ff "
+            + "#ffff40ff #ffff80ff #ff789aff #00ff80ff #ff789aff #008141ff #ffffc0ff #00ff40ff #00ffffff"},
+    };
+
     public static void main(String[] args) throws Exception {
         Path examples = Path.of(args.length > 0 ? args[0] : "../../examples");
         int red = Color.argb(255, 0, 0, 255);
@@ -285,6 +342,138 @@ public final class Tests {
                     && "--frame precisa ficar entre 1 e 4".equals(frame) && "--quadro precisa ficar entre 1 e 4".equals(quadro);
         });
         check("The command line opens a v1 file", () -> run("info", v1File.toString()).startsWith("Nome:     Teste v1"));
+
+        // Crivo 2.1: blend modes, groups, reference layers, linked cels, tags, slices and tilesets.
+        check("Every blend mode matches the server table", () -> {
+            for (String[] row : BLEND_TABLE) {
+                String[] expected = row[3].split(" ");
+                for (int i = 0; i < Blend.MODES.size(); i++) {
+                    String got = rgbaHex(Blend.blend(argbOf(row[0]), argbOf(row[1]), Double.parseDouble(row[2]), Blend.MODES.get(i)));
+                    if (!got.equals(expected[i])) {
+                        System.out.println("  " + Blend.MODES.get(i) + ": " + got + " != " + expected[i]);
+                        return false;
+                    }
+                }
+            }
+            return Blend.MODES.size() == 19 && argbOf("#11223344") == 0x44112233;
+        });
+        check("Blending over nothing and with a transparent source", () -> Blend.blend(0, 0, 1, "multiply") == 0
+                && Blend.blend(argbOf("#336699ff"), argbOf("#ffffff00"), 1, "screen") == argbOf("#336699ff")
+                && Blend.blend(0, argbOf("#336699ff"), 0.5, "difference") == argbOf("#33669980"));
+        Path blendFile = examples.resolve("blend-modes.crivo");
+        Project blend = Project.open(blendFile);
+        check("Renders the blend-modes example like the server", () -> {
+            for (String[] px : EXAMPLE_PIXELS) {
+                int[] frame = blend.compose(Integer.parseInt(px[0]));
+                String got = rgbaHex(frame[Integer.parseInt(px[2]) * 16 + Integer.parseInt(px[1])]);
+                if (!got.equals(px[3])) {
+                    System.out.println("  frame " + px[0] + " (" + px[1] + ", " + px[2] + "): " + got + " != " + px[3]);
+                    return false;
+                }
+            }
+            return true;
+        });
+        String blendText = Files.readString(blendFile, StandardCharsets.UTF_8);
+        String groupKey = "\"opacity\":90,\"locked\":false,\"blendMode\":\"screen\",\"kind\":\"group\"";
+        check("Group opacity, visibility and blend mode apply to the composited children", () -> {
+            Project halfGroup = open(write(temp, "half.crivo", blendText.replace(groupKey, groupKey.replace("90", "50"))));
+            Project normal = open(write(temp, "normal.crivo", blendText.replace(groupKey, groupKey.replace("90", "100").replace("screen", "normal"))));
+            Project hidden = open(write(temp, "hidden.crivo", blendText.replace("\"visible\":true,\"opacity\":90", "\"visible\":false,\"opacity\":90")));
+            return blendText.contains(groupKey) && rgbaHex(halfGroup.compose(0)[8 * 16 + 8]).equals("#ffb6afff")
+                    && rgbaHex(normal.compose(0)[8 * 16 + 8]).equals("#ffec27ff")
+                    && rgbaHex(hidden.compose(0)[8 * 16 + 8]).equals("#ff77a8ff") && rgbaHex(hidden.compose(0)[4 * 16 + 8]).equals("#7e2553ff");
+        });
+        check("Reference layers are shown only on request", () -> rgbaHex(blend.compose(0)[15]).equals("#1d2b53ff")
+                && rgbaHex(blend.compose(0, true)[15]).equals("#ff004dff") && !blend.colors().containsKey(argbOf("#ff004dff")));
+        check("Normal layers render bit for bit like 2.0", () -> {
+            try {
+                for (String name : List.of("heart.crivo", "game-boy-slime.crivo", "potion.crivo")) {
+                    Project p = open(examples.resolve(name));
+                    Map<String, int[]> cells = cellsOf(examples.resolve(name));
+                    for (int f = 0; f < p.frames.size(); f++) {
+                        if (!Arrays.equals(p.compose(f), compose20(p, f, cells))) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        String full = """
+                {"format":"crivo","version":2,"name":"Recursos","width":2,"height":2,"colorMode":"indexed",
+                 "layers":[{"id":"l1","name":"Base"},{"id":"g1","name":"Grupo","kind":"group","collapsed":true,"blendMode":"multiply"},
+                           {"id":"tm","name":"Mapa","kind":"tilemap","tileset":"ts1","parent":"g1"}],
+                 "frames":[{"id":"f1"},{"id":"f2"},{"id":"f3"}],
+                 "cells":[{"frame":"f1","layer":"l1","rle":"%1$s"},{"frame":"f2","layer":"l1","rle":"%1$s","link":"f1"}],
+                 "tags":[{"id":"t1","name":"Andar","from":"f1","to":"f3","direction":"reverse","repeat":2,"color":"#ff0000"},
+                         {"id":"t2","name":"Pulo","from":"f2","to":"f2"}],
+                 "slices":[{"id":"s1","name":"Botão","color":"#0000ff","x":0,"y":0,"width":2,"height":1,"center":null,"pivot":{"x":1,"y":0}}],
+                 "tilesets":[{"id":"ts1","name":"Chão","tileWidth":1,"tileHeight":1,"tiles":["%2$s","%2$s"]}]}
+                """.formatted(rle, Base64.getEncoder().encodeToString(Rle.encode(new int[1])));
+        Path fullFile = write(temp, "full.crivo", full);
+        check("Reads the optional 2.1 keys", () -> {
+            Project p = open(fullFile);
+            Project.Layer map = p.layers.get(2);
+            return p.colorMode.equals("indexed") && p.tags.size() == 2 && p.slices.size() == 1 && p.tilesets.size() == 1
+                    && p.tilesets.get(0).tileCount() == 2 && p.tags.get(0).repeat() == 2 && p.tags.get(1).direction().equals("forward")
+                    && p.links.equals(Map.of("f2:l1", "f1")) && map.parent().equals("g1") && map.kind().equals("tilemap")
+                    && p.layers.get(1).group() && p.layers.get(1).blendMode().equals("multiply") && p.depth(map) == 1
+                    && heart.colorMode == null && heart.tags.isEmpty() && heart.layers.get(0).blendMode().equals("normal");
+        });
+        check("tags lists the frame ranges and directions", () -> {
+            String nl = System.lineSeparator();
+            return run("tags", fullFile.toString()).equals("Tags: 2" + nl + "  - Andar: quadros 1 a 3, ao contrário, 2 vezes (#ff0000)" + nl
+                    + "  - Pulo: quadro 2, para frente (#000000)" + nl)
+                    && run("tags", blendFile.toString()).equals("Tags: 1" + nl + "  - Nascer do sol: quadros 1 a 2, pingue-pongue (#ffa300)" + nl)
+                    && run("tags", heartFile).equals("Este projeto não tem tags." + nl);
+        });
+        check("info shows the 2.1 additions only when present", () -> {
+            String nl = System.lineSeparator();
+            String info = run("info", fullFile.toString());
+            String example = run("info", blendFile.toString());
+            return info.contains("Modo de cor: indexado" + nl) && info.contains("Tags:     2" + nl) && info.contains("Fatias:   1" + nl)
+                    && info.contains("Conjuntos de tiles: 1" + nl) && info.contains("  - Grupo (grupo) [multiply]" + nl)
+                    && info.contains("    - Mapa (tiles)" + nl) && example.contains("  - Esboço (referência)" + nl)
+                    && example.contains("    - Halo 50% [addition]" + nl) && !example.contains("Modo de cor")
+                    && !run("info", heartFile).contains("Tags") && run("info", heartFile).endsWith("Cores:    5" + nl);
+        });
+        check("Rejects unknown blend modes and tags pointing nowhere", () -> {
+            Path badMode = write(temp, "bad-mode.crivo", full.replace("\"multiply\"", "\"glow\""));
+            Path badTag = write(temp, "bad-tag.crivo", full.replace("\"to\":\"f3\"", "\"to\":\"f9\""));
+            return "Modo de mesclagem inválido na camada 'Grupo': glow".equals(errorMessage(() -> open(badMode)))
+                    && "A tag 'Andar' aponta para um quadro que não existe.".equals(errorMessage(() -> open(badTag)));
+        });
+
+        // tests/fixtures/blend-parity.json: documents written by the editor with its composite (the reference) as the
+        // expected pixels; the server checks the same file (editor/tests/test_features_2_1.py).
+        Path parityFile = examples.resolve("../tests/fixtures/blend-parity.json");
+        check("Every pixel of the blend parity fixture matches the editor", () -> {
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> fixture = (Map<String, Object>) Json.parse(Files.readString(parityFile, StandardCharsets.UTF_8));
+                @SuppressWarnings("unchecked")
+                List<Object> documents = (List<Object>) fixture.get("documents");
+                for (int n = 0; n < documents.size(); n++) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> item = (Map<String, Object>) documents.get(n);
+                    @SuppressWarnings("unchecked")
+                    Project p = Project.of((Map<String, Object>) item.get("data"));
+                    int[] px = p.compose(0);
+                    List<?> expected = (List<?>) item.get("expected");
+                    for (int i = 0; i < px.length; i++) {
+                        if (!rgbaHex(px[i]).equals(expected.get(i))) {
+                            System.out.println("  document " + (n + 1) + ", pixel " + i + ": " + rgbaHex(px[i]) + " != " + expected.get(i));
+                            return false;
+                        }
+                    }
+                }
+                return documents.size() >= 30;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
 
         System.out.printf("%n%d of %d tests passed.%n", total - failures, total);
         System.exit(failures == 0 ? 0 : 1);

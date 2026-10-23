@@ -2,11 +2,15 @@ import { PixelDocument } from '../core/document.js';
 import { History, Stroke } from '../core/history.js';
 import { hexToColor, colorToHex } from '../core/colors.js';
 import { clipToDocument } from '../core/selection.js';
+import { Playback } from '../core/animation.js';
+import { applyPixelsToTiles } from '../core/tilemap.js';
 import { notify, readPreference, writePreference } from './util.js';
 
 const PREFERENCES = [
   'tool', 'size', 'shape', 'symmetry', 'grid', 'filled', 'connectivity', 'tolerance', 'contiguous', 'sample', 'eraserMode', 'onionSkin', 'palette',
   'pixelPerfect', 'density', 'ditherBackground', 'gradientType', 'gradientMatrix', 'shadeMode', 'shadeIntensity', 'majorGrid', 'tile',
+  'selectionMode', 'inkMode', 'sprayRadius', 'sprayDensity',
+  'onionPrev', 'onionNext', 'onionMode', 'showSlices',
 ];
 
 // Accepted values for each preference read from localStorage (which may have been edited by hand).
@@ -22,9 +26,14 @@ const ALLOWED = {
   gradientMatrix: [2, 4, 8],
   shadeMode: ['palette', 'light'],
   majorGrid: [0, 4, 8, 16, 32],
+  onionPrev: [0, 1, 2, 3],
+  onionNext: [0, 1, 2, 3],
+  onionMode: ['normal', 'tint'],
+  selectionMode: ['replace', 'add', 'subtract', 'intersect'],
+  inkMode: ['simple', 'composite', 'lockAlpha', 'behind'],
 };
-const RANGES = { size: [1, 32], tolerance: [0, 100], shadeIntensity: [2, 30] };
-const BOOLEANS = ['grid', 'filled', 'contiguous', 'onionSkin', 'pixelPerfect', 'tile'];
+const RANGES = { size: [1, 32], tolerance: [0, 100], shadeIntensity: [2, 30], sprayRadius: [1, 32], sprayDensity: [1, 100] };
+const BOOLEANS = ['grid', 'filled', 'contiguous', 'onionSkin', 'pixelPerfect', 'tile', 'showSlices'];
 
 function isValidPreference(key, value) {
   if (key === 'tool') return VALID_TOOLS.includes(value);
@@ -35,7 +44,10 @@ function isValidPreference(key, value) {
   return false;
 }
 
-export const VALID_TOOLS = ['pencil', 'eraser', 'bucket', 'line', 'rectangle', 'ellipse', 'eyedropper', 'move', 'selection', 'movePixels', 'dither', 'gradient', 'shade'];
+export const VALID_TOOLS = [
+  'pencil', 'eraser', 'bucket', 'line', 'rectangle', 'ellipse', 'eyedropper', 'move', 'selection', 'movePixels', 'dither', 'gradient', 'shade',
+  'ellipseSelection', 'lasso', 'polygonLasso', 'magicWand', 'spray', 'curve', 'contour', 'polygon', 'blur', 'jumble',
+];
 
 export class Editor extends EventTarget {
   constructor() {
@@ -64,8 +76,19 @@ export class Editor extends EventTarget {
       gradientMatrix: 4,
       shadeMode: 'palette',
       shadeIntensity: 8,
+      selectionMode: 'replace',
+      inkMode: 'simple',
+      sprayRadius: 6,
+      sprayDensity: 30,
       majorGrid: 8,
       tile: false,
+      // Layers worker (2.1.0): onion skin range and tint, slice outlines, tile mode on tilemap layers.
+      onionPrev: 1,
+      onionNext: 0,
+      onionMode: 'normal',
+      showSlices: true,
+      tileMode: false,
+      tileIndex: 1,
       frame: 0,
       layerId: null,
       playing: false,
@@ -79,6 +102,9 @@ export class Editor extends EventTarget {
     this.state.size = Math.max(1, Math.min(32, Math.round(this.state.size) || 1));
     this.selection = null;
     this.floating = null;
+    // Selection kept by Deselect for Reselect, and the custom brush made from a selection (never persisted).
+    this.lastSelection = null;
+    this.brush = null;
     this.clipboard = null;
     this.recent = readPreference('recent', []).map(hexToColor).filter((c) => c !== null);
     this.project = { id: null, local: null, revision: null };
@@ -105,6 +131,41 @@ export class Editor extends EventTarget {
     this.savedVersion = this.history.version;
     this.selection = null;
     this.emit('selection', null);
+    this.emit('document', { isNew: true });
+    this.emit('history');
+  }
+
+  // Multiple open documents (ui/tabs.js): everything that belongs to one document, to park it while another
+  // tab is active, and to bring it back later exactly as it was (history, selection, saved state).
+  captureSession() {
+    if (this.state.playing) this.stop();
+    return {
+      doc: this.doc,
+      history: this.history,
+      project: { ...this.project },
+      modified: this.modified,
+      savedVersion: this.savedVersion,
+      selection: this.selection,
+      lastSelection: this.lastSelection ?? null,
+      floating: this.floating,
+      frame: this.state.frame,
+      layerId: this.state.layerId,
+    };
+  }
+
+  restoreSession(s) {
+    if (this.state.playing) this.stop();
+    this.doc = s.doc;
+    this.history = s.history;
+    this.project = { ...s.project };
+    this.modified = s.modified;
+    this.savedVersion = s.savedVersion;
+    this.selection = s.selection;
+    this.lastSelection = s.lastSelection ?? null;
+    this.floating = s.floating;
+    this.state.frame = Math.min(s.frame, s.doc.frames.length - 1);
+    this.state.layerId = s.doc.layer(s.layerId) ? s.layerId : s.doc.layers.at(-1).id;
+    this.emit('selection', this.selection);
     this.emit('document', { isNew: true });
     this.emit('history');
   }
@@ -152,11 +213,15 @@ export class Editor extends EventTarget {
 
   canEditLayer(warn = true) {
     const c = this.currentLayer;
+    if (c.kind === 'group') {
+      if (warn) notify(`"${c.name}" é um grupo. Selecione uma camada dentro dele para desenhar.`, 'warning');
+      return false;
+    }
     if (c.locked) {
       if (warn) notify(`A camada "${c.name}" está bloqueada.`, 'warning');
       return false;
     }
-    if (!c.visible) {
+    if (!c.visible || (c.parent && !this.doc.isVisible(c.id))) {
       if (warn) notify(`A camada "${c.name}" está oculta. Mostre a camada para desenhar nela.`, 'warning');
       return false;
     }
@@ -170,6 +235,7 @@ export class Editor extends EventTarget {
   }
 
   finishStroke(stroke, label) {
+    if (this.currentLayer.kind === 'tilemap' && stroke.key === this.activeKey) return this.finishTileStroke(stroke, label);
     const entry = stroke.finish(label);
     if (!entry) return false;
     this.history.record(entry, { frame: this.state.frame, layerId: this.state.layerId });
@@ -206,7 +272,10 @@ export class Editor extends EventTarget {
   }
 
   setSelection(r, { keepFloating = false } = {}) {
+    if (this.selection && !r) this.lastSelection = this.selection;
     this.selection = r ? { x: r.x, y: r.y, width: r.width, height: r.height } : null;
+    // Non-rectangular selections carry a mask (see core/selection.js); rectangles keep the 2.0.0 shape.
+    if (r?.mask) this.selection.mask = r.mask;
     if (!keepFloating) this.floating = null;
     this.emit('selection', this.selection);
   }
@@ -284,13 +353,32 @@ export class Editor extends EventTarget {
     this.emit('layer');
   }
 
+  // Pixel mode on a tilemap layer: the painted pixels go into the tiles under them (all instances update),
+  // recorded as one structural step because the tileset and other cels change too.
+  finishTileStroke(stroke, label) {
+    const changes = [];
+    for (const [i, before] of stroke.originals) if (stroke.pixels[i] !== before) changes.push([i, stroke.pixels[i]]);
+    stroke.revertVisual();
+    if (!changes.length) return false;
+    const frameId = this.currentFrame.id;
+    const layerId = this.currentLayer.id;
+    this.editStructure(label, (d) => applyPixelsToTiles(d, frameId, layerId, changes));
+    this.emit('pixels', { thumbnails: true });
+    return true;
+  }
+
+  // Plays inside the tag that contains the current frame (direction and repeat), or every frame in a loop.
   play() {
     if (this.state.playing || this.doc.frames.length < 2) return;
+    const playback = new Playback(this.doc, this.state.frame);
+    if (playback.frames.length < 2) return;
     this.state.playing = true;
     this.frameBeforePlay = this.state.frame;
     const step = () => {
       if (!this.state.playing) return;
-      this.state.frame = (this.state.frame + 1) % this.doc.frames.length;
+      const next = playback.next();
+      if (next < 0) return this.stop();
+      this.state.frame = next;
       this.emit('frame');
       this.emit('pixels');
       const q = this.currentFrame;
