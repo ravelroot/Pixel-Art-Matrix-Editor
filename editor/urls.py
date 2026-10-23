@@ -11,6 +11,7 @@ urlpatterns = [
     path("api/v1/projetos/<uuid:projeto_id>", api.projeto, name="projeto"),
     path("api/v1/projetos/<uuid:projeto_id>/miniatura", api.miniatura, name="miniatura"),
     path("api/v1/projetos/<uuid:projeto_id>/exportar", api.exportar, name="exportar"),
+    path("api/v1/projetos/<uuid:projeto_id>/png", api.png, name="png"),
     path("api/v1/projetos/<uuid:projeto_id>/revisoes", api.revisoes, name="revisoes"),
     path("api/v1/projetos/<uuid:projeto_id>/revisoes/<int:numero>/restaurar", api.restaurar, name="restaurar"),
     path("api/v1/paletas", api.paletas, name="paletas"),

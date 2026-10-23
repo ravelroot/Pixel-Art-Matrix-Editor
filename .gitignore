@@ -14,3 +14,4 @@ ferramentas/java/out-teste/
 .vscode/
 .DS_Store
 Thumbs.db
+.ruff_cache/

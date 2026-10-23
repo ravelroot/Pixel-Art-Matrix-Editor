@@ -1,5 +1,7 @@
 import { serializar, desserializar, nomeDeArquivo } from './nucleo/formato.js';
 import { corParaHex } from './nucleo/cores.js';
+import { extrairRegiao, colarRegiao, limitesDoConteudo, deslocarComRepeticao, indicesDe, contem } from './nucleo/selecao.js';
+import { contorno, converterParaPaleta, inverter, tonsDeCinza } from './nucleo/filtros.js';
 import { Editor } from './ui/editor.js';
 import { Visor } from './ui/visor.js';
 import { Controlador, FERRAMENTAS } from './ui/ferramentas.js';
@@ -21,12 +23,13 @@ import { icone } from './ui/icones.js';
 import { miniatura } from './ui/imagem.js';
 import { el, $, avisar, baixarTexto, escolherArquivo, formatarBytes, atrasar, lerPreferencia, gravarPreferencia } from './ui/util.js';
 
-const VERSAO = '1.0.0';
+const VERSAO = '1.1.0';
 
 const editor = new Editor();
 let armazenamento = new ArmazenamentoLocal();
 const visor = new Visor($('#visor'), editor);
 const controlador = new Controlador(editor, visor);
+controlador.paleta = () => paleta.atual.cores;
 
 function aplicarTema(tema) {
   const efetivo = tema === 'sistema' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'escuro' : 'claro') : tema;
@@ -67,6 +70,11 @@ function montarFerramentas() {
     if (chave === 'ferramenta') {
       marcar();
       montarOpcoes();
+    } else if (chave === 'modoSombra') {
+      montarOpcoes();
+    } else if (FERRAMENTAS.find((f) => f.id === editor.estado.ferramenta)?.opcoes.includes(chave) && !$('#opcoes').contains(document.activeElement)) {
+      // Mudança feita por atalho ou por código: redesenha a barra para mostrar o valor atual.
+      montarOpcoes();
     }
   });
   marcar();
@@ -88,7 +96,7 @@ function montarOpcoes() {
   const itens = [el('strong', { class: 'nome-ferramenta' }, f.nome)];
   for (const op of f.opcoes) {
     if (op === 'tamanho') {
-      const r = el('input', { type: 'range', min: 1, max: 16, value: editor.estado.tamanho, 'aria-label': 'Tamanho do pincel' });
+      const r = el('input', { type: 'range', min: 1, max: 32, value: editor.estado.tamanho, 'aria-label': 'Tamanho do pincel' });
       const o = el('output', { class: 'mono' }, `${editor.estado.tamanho}px`);
       r.addEventListener('input', () => {
         editor.definir('tamanho', +r.value);
@@ -115,13 +123,45 @@ function montarOpcoes() {
       itens.push(el('label', { class: 'opcao' }, c, el('span', {}, 'Só a área contígua')));
     } else if (op === 'amostra') {
       itens.push(grupoOpcao('Ler de', selectEstado('amostra', [['camada', 'Camada atual'], ['todas', 'Todas as camadas']], 'Amostragem')));
+    } else if (op === 'pixelPerfect') {
+      const c = el('input', { type: 'checkbox', checked: editor.estado.pixelPerfect });
+      c.addEventListener('change', () => editor.definir('pixelPerfect', c.checked));
+      itens.push(el('label', { class: 'opcao', title: 'Remove os cantos em L dos traços de 1 px' }, c, el('span', {}, 'Pixel perfect')));
+    } else if (op === 'densidade') {
+      itens.push(grupoOpcao('Densidade', selectEstado('densidade', [[12.5, '12,5%'], [25, '25%'], [37.5, '37,5%'], [50, '50% (xadrez)'], [62.5, '62,5%'], [75, '75%'], [87.5, '87,5%']], 'Densidade do pontilhado')));
+    } else if (op === 'fundoPontilhado') {
+      itens.push(grupoOpcao('Fundo', selectEstado('fundoPontilhado', [['secundaria', 'Cor secundária'], ['manter', 'Manter o que há']], 'Fundo do pontilhado')));
+    } else if (op === 'tipoDegrade') {
+      itens.push(grupoOpcao('Tipo', selectEstado('tipoDegrade', [['linear', 'Linear'], ['radial', 'Radial']], 'Tipo de degradê')));
+    } else if (op === 'matrizDegrade') {
+      itens.push(grupoOpcao('Padrão', selectEstado('matrizDegrade', [[2, 'Bayer 2×2'], [4, 'Bayer 4×4'], [8, 'Bayer 8×8']], 'Matriz de Bayer')));
+    } else if (op === 'modoSombra') {
+      itens.push(grupoOpcao('Modo', selectEstado('modoSombra', [['paleta', 'Rampa da paleta'], ['luz', 'Luminosidade (OKLCH)']], 'Modo de clarear e escurecer')));
+    } else if (op === 'intensidadeSombra' && editor.estado.modoSombra === 'luz') {
+      const r = el('input', { type: 'range', min: 2, max: 30, value: editor.estado.intensidadeSombra, 'aria-label': 'Intensidade' });
+      const o = el('output', { class: 'mono' }, `${editor.estado.intensidadeSombra}%`);
+      r.addEventListener('input', () => {
+        editor.definir('intensidadeSombra', +r.value);
+        o.textContent = `${r.value}%`;
+      });
+      itens.push(grupoOpcao('Intensidade', r, o));
     } else if (op === 'preenchido') {
       const c = el('input', { type: 'checkbox', checked: editor.estado.preenchido });
       c.addEventListener('change', () => editor.definir('preenchido', c.checked));
       itens.push(el('label', { class: 'opcao' }, c, el('span', {}, 'Preenchido')));
     }
   }
-  if (f.id === 'retangulo' || f.id === 'elipse' || f.id === 'linha') itens.push(el('span', { class: 'dica-opcao' }, f.id === 'linha' ? 'Shift: 45°' : 'Shift: proporção 1:1 · Alt: do centro'));
+  const DICAS = {
+    linha: 'Shift: 45°',
+    retangulo: 'Shift: proporção 1:1 · Alt: do centro',
+    elipse: 'Shift: proporção 1:1 · Alt: do centro',
+    pontilhado: 'Botão direito troca as cores',
+    degrade: 'Arraste de onde começa até onde termina · botão direito inverte · Shift: 45°',
+    sombra: 'Esquerdo clareia · direito escurece',
+    selecao: 'Shift: quadrada · clique para desmarcar · Ctrl+C/X/V',
+    moverPixels: 'Arraste ou use as setas (Shift: 8 px) · sem seleção move a camada toda',
+  };
+  if (DICAS[f.id]) itens.push(el('span', { class: 'dica-opcao' }, DICAS[f.id]));
   barra.replaceChildren(...itens);
 }
 
@@ -134,11 +174,20 @@ function montarVisao() {
   );
   simetria.addEventListener('change', () => editor.definir('simetria', simetria.value));
   const grade = el('button', { type: 'button', class: 'botao-icone', title: 'Grade (G)', 'aria-label': 'Grade', html: icone('grade', 18), onclick: () => editor.definir('grade', !editor.estado.grade) });
+  const gradeForte = el(
+    'select',
+    { 'aria-label': 'Linha forte da grade a cada', title: 'Linha forte da grade a cada N pixels' },
+    [[0, 'Sem linha forte'], [4, 'Forte a cada 4'], [8, 'Forte a cada 8'], [16, 'Forte a cada 16'], [32, 'Forte a cada 32']].map(([v, t]) => el('option', { value: v, selected: editor.estado.gradeForte === v }, t)),
+  );
+  gradeForte.addEventListener('change', () => editor.definir('gradeForte', +gradeForte.value));
+  const ladrilho = el('button', { type: 'button', class: 'botao-icone', title: 'Modo ladrilho (T)', 'aria-label': 'Modo ladrilho', html: icone('quadros', 18), onclick: () => editor.definir('ladrilho', !editor.estado.ladrilho) });
   const zoom = el('output', { class: 'mono zoom' });
   barra.replaceChildren(
     el('span', { class: 'icone-rotulo', html: icone('simetria', 18), title: 'Simetria (M)' }),
     simetria,
     grade,
+    gradeForte,
+    ladrilho,
     el('span', { class: 'separador' }),
     el('button', { type: 'button', class: 'botao-icone', title: 'Afastar (-)', 'aria-label': 'Afastar', html: icone('menos', 16), onclick: () => visor.passoZoom(-1) }),
     zoom,
@@ -149,6 +198,9 @@ function montarVisao() {
     simetria.value = editor.estado.simetria;
     grade.classList.toggle('ligado', editor.estado.grade);
     grade.setAttribute('aria-pressed', String(editor.estado.grade));
+    gradeForte.value = String(editor.estado.gradeForte);
+    ladrilho.classList.toggle('ligado', editor.estado.ladrilho);
+    ladrilho.setAttribute('aria-pressed', String(editor.estado.ladrilho));
     zoom.textContent = `${visor.zoom * 100}%`;
   };
   editor.ao('estado', atualizar);
@@ -164,26 +216,48 @@ const COMANDOS = {
   salvar: { rotulo: 'Salvar', atalho: 'Ctrl+S', fn: () => salvar() },
   salvarComo: { rotulo: 'Salvar como cópia', atalho: '', fn: () => salvar(true) },
   baixarCrivo: { rotulo: 'Baixar arquivo .crivo', atalho: '', fn: baixarCrivo },
-  exportarImagem: { rotulo: 'Exportar imagem (PNG/JPEG)…', atalho: 'Ctrl+E', fn: () => dialogoExportarImagem(editor) },
+  exportarImagem: { rotulo: 'Exportar imagem (PNG, JPEG ou GIF)…', atalho: 'Ctrl+E', fn: () => dialogoExportarImagem(editor) },
+  exportarGif: { rotulo: 'Exportar GIF animado…', atalho: 'Ctrl+Shift+G', fn: () => dialogoExportarImagem(editor, 'gif') },
   exportarFolha: { rotulo: 'Exportar sprite sheet…', atalho: '', fn: () => dialogoFolha(editor) },
   exportarDados: { rotulo: 'Exportar dados (JSON, CSV, código)…', atalho: 'Ctrl+Shift+E', fn: () => dialogoExportarDados(editor, paleta.atual) },
   desfazer: { rotulo: 'Desfazer', atalho: 'Ctrl+Z', fn: () => editor.desfazer() },
   refazer: { rotulo: 'Refazer', atalho: 'Ctrl+Y', fn: () => editor.refazer() },
+  selecionarTudo: { rotulo: 'Selecionar tudo', atalho: 'Ctrl+A', fn: () => editor.definirSelecao({ x: 0, y: 0, largura: editor.doc.largura, altura: editor.doc.altura }) },
+  desmarcar: { rotulo: 'Desmarcar', atalho: 'Ctrl+D', fn: () => editor.definirSelecao(null) },
+  copiar: { rotulo: 'Copiar', atalho: 'Ctrl+C', fn: () => copiar(false) },
+  recortar: { rotulo: 'Recortar', atalho: 'Ctrl+X', fn: () => copiar(true) },
+  colar: { rotulo: 'Colar', atalho: 'Ctrl+V', fn: colar },
   limparCamada: {
-    rotulo: 'Limpar camada',
+    rotulo: 'Apagar (seleção ou camada)',
     atalho: 'Delete',
     fn: () => {
       if (!editor.podeEditarCamada()) return;
+      const sel = editor.selecaoRecortada;
+      if (sel) {
+        const d = editor.doc;
+        editor.aplicarMudancas('Apagar seleção', [...indicesDe(sel, d.largura, d.altura)].map((i) => [i, 0]));
+        return;
+      }
       editor.estrutura('Limpar camada', () => editor.celulaAtiva().fill(0));
     },
   },
-  espelharH: { rotulo: 'Espelhar camada na horizontal', atalho: '', fn: () => espelharCamada('horizontal') },
-  espelharV: { rotulo: 'Espelhar camada na vertical', atalho: '', fn: () => espelharCamada('vertical') },
+  espelharH: { rotulo: 'Espelhar na horizontal (seleção ou camada)', atalho: 'Shift+H', fn: () => espelharCamada('horizontal') },
+  espelharV: { rotulo: 'Espelhar na vertical (seleção ou camada)', atalho: 'Shift+V', fn: () => espelharCamada('vertical') },
+  substituirCor: { rotulo: 'Substituir a cor primária pela secundária (todos os quadros)', atalho: '', fn: substituirCor },
   tamanho: { rotulo: 'Tamanho da matriz…', atalho: 'Ctrl+Alt+C', fn: () => dialogoRedimensionar(editor) },
   girarDireita: { rotulo: 'Girar 90° à direita', atalho: '', fn: () => girar(1) },
   girarEsquerda: { rotulo: 'Girar 90° à esquerda', atalho: '', fn: () => girar(-1) },
+  recortarSelecao: { rotulo: 'Recortar para a seleção', atalho: '', fn: recortarParaSelecao },
+  aparar: { rotulo: 'Aparar bordas transparentes', atalho: '', fn: aparar },
+  deslocarMetade: { rotulo: 'Deslocar meia matriz (ladrilho)', atalho: 'Shift+T', fn: deslocarMetade },
+  contorno4: { rotulo: 'Adicionar contorno (4 vizinhos)', atalho: '', fn: () => filtrar('Contorno', (px, d, f) => contorno(px, d.largura, d.altura, editor.estado.corPrimaria, { vizinhos: 4, filtro: f })) },
+  contorno8: { rotulo: 'Adicionar contorno (8 vizinhos)', atalho: '', fn: () => filtrar('Contorno', (px, d, f) => contorno(px, d.largura, d.altura, editor.estado.corPrimaria, { vizinhos: 8, filtro: f })) },
+  paraPaleta: { rotulo: 'Converter para a paleta atual', atalho: '', fn: () => filtrar('Converter para a paleta', (px, d, f) => converterParaPaleta(px, paleta.atual.cores, { filtro: f })) },
+  inverter: { rotulo: 'Inverter cores', atalho: '', fn: () => filtrar('Inverter cores', (px, d, f) => inverter(px, { filtro: f })) },
+  cinza: { rotulo: 'Tons de cinza', atalho: '', fn: () => filtrar('Tons de cinza', (px, d, f) => tonsDeCinza(px, { filtro: f })) },
   grade: { rotulo: 'Mostrar grade', atalho: 'G', marcado: () => editor.estado.grade, fn: () => editor.definir('grade', !editor.estado.grade) },
   cebola: { rotulo: 'Papel cebola', atalho: 'K', marcado: () => editor.estado.cebola, fn: () => editor.definir('cebola', !editor.estado.cebola) },
+  ladrilho: { rotulo: 'Modo ladrilho', atalho: 'T', marcado: () => editor.estado.ladrilho, fn: () => editor.definir('ladrilho', !editor.estado.ladrilho) },
   aproximar: { rotulo: 'Aproximar', atalho: '+', fn: () => visor.passoZoom(1) },
   afastar: { rotulo: 'Afastar', atalho: '-', fn: () => visor.passoZoom(-1) },
   ajustar: { rotulo: 'Ajustar à tela', atalho: '0', fn: () => visor.ajustar() },
@@ -194,10 +268,10 @@ const COMANDOS = {
 };
 
 const MENUS = [
-  ['Arquivo', ['novo', 'abrirSalvos', 'abrirArquivo', 'importarImagem', '-', 'salvar', 'salvarComo', 'baixarCrivo', '-', 'exportarImagem', 'exportarFolha', 'exportarDados']],
-  ['Editar', ['desfazer', 'refazer', '-', 'limparCamada', 'espelharH', 'espelharV']],
-  ['Imagem', ['tamanho', 'girarDireita', 'girarEsquerda']],
-  ['Exibir', ['grade', 'cebola', '-', 'aproximar', 'afastar', 'ajustar', 'zoom100', '-', 'tema']],
+  ['Arquivo', ['novo', 'abrirSalvos', 'abrirArquivo', 'importarImagem', '-', 'salvar', 'salvarComo', 'baixarCrivo', '-', 'exportarImagem', 'exportarGif', 'exportarFolha', 'exportarDados']],
+  ['Editar', ['desfazer', 'refazer', '-', 'copiar', 'recortar', 'colar', 'limparCamada', '-', 'selecionarTudo', 'desmarcar', '-', 'espelharH', 'espelharV']],
+  ['Imagem', ['tamanho', 'recortarSelecao', 'aparar', '-', 'girarDireita', 'girarEsquerda', 'deslocarMetade', '-', 'contorno4', 'contorno8', '-', 'paraPaleta', 'substituirCor', 'inverter', 'cinza']],
+  ['Exibir', ['grade', 'cebola', 'ladrilho', '-', 'aproximar', 'afastar', 'ajustar', 'zoom100', '-', 'tema']],
   ['Ajuda', ['atalhos', 'sobre']],
 ];
 
@@ -214,6 +288,8 @@ function montarMenus() {
   let aberto = null;
   const fechar = () => {
     if (!aberto) return;
+    // Tira o foco de um item que vai sumir, para os atalhos do teclado voltarem a valer.
+    if (aberto.menu.contains(document.activeElement)) document.activeElement.blur();
     aberto.menu.hidden = true;
     aberto.botao.setAttribute('aria-expanded', 'false');
     aberto = null;
@@ -277,12 +353,133 @@ function montarMenus() {
 
 function espelharCamada(eixo) {
   if (!editor.podeEditarCamada()) return;
-  editor.estrutura(eixo === 'horizontal' ? 'Espelhar na horizontal' : 'Espelhar na vertical', (d) => d.espelharCelula(editor.celulaAtiva(), eixo));
+  const rotulo = eixo === 'horizontal' ? 'Espelhar na horizontal' : 'Espelhar na vertical';
+  const r = editor.selecaoRecortada;
+  if (r) {
+    const d = editor.doc;
+    const px = editor.celulaAtiva();
+    const mudancas = [];
+    for (let y = 0; y < r.altura; y++) {
+      for (let x = 0; x < r.largura; x++) {
+        const sx = eixo === 'horizontal' ? r.largura - 1 - x : x;
+        const sy = eixo === 'vertical' ? r.altura - 1 - y : y;
+        mudancas.push([(r.y + y) * d.largura + r.x + x, px[(r.y + sy) * d.largura + r.x + sx]]);
+      }
+    }
+    editor.aplicarMudancas(rotulo, mudancas);
+    return;
+  }
+  editor.estrutura(rotulo, (d) => d.espelharCelula(editor.celulaAtiva(), eixo));
+}
+
+// Troca a cor primária exata pela secundária na camada atual, em todos os quadros (respeita a seleção).
+function substituirCor() {
+  if (!editor.podeEditarCamada()) return;
+  const { corPrimaria: de, corSecundaria: para } = editor.estado;
+  if (de === para) {
+    avisar('A cor primária e a secundária são iguais.', 'info');
+    return;
+  }
+  const camada = editor.camadaAtual;
+  const sel = editor.selecao;
+  let total = 0;
+  editor.estrutura('Substituir cor', (d) => {
+    for (const q of d.quadros) {
+      if (!d.temCelula(q.id, camada.id)) continue;
+      const px = d.celula(q.id, camada.id);
+      for (let i = 0; i < px.length; i++) {
+        if (px[i] !== de) continue;
+        if (sel && !contem(sel, i % d.largura, (i / d.largura) | 0)) continue;
+        px[i] = para;
+        total++;
+      }
+    }
+    return total > 0;
+  });
+  avisar(total ? `${total} pixel(s) trocados em ${camada.nome}.` : 'A cor primária não aparece nesta camada.', total ? 'sucesso' : 'info');
 }
 
 function girar(sentido) {
   editor.estrutura(sentido > 0 ? 'Girar à direita' : 'Girar à esquerda', (d) => d.girar(sentido));
   visor.ajustar();
+}
+
+// Filtros de cor e contorno: atuam na célula atual e, se houver seleção, só dentro dela.
+function filtrar(rotulo, fn) {
+  if (!editor.podeEditarCamada()) return;
+  const d = editor.doc;
+  const sel = editor.selecao;
+  const filtro = sel ? (i) => contem(sel, i % d.largura, (i / d.largura) | 0) : null;
+  editor.aplicarMudancas(rotulo, fn(editor.celulaAtiva(), d, filtro));
+}
+
+function copiar(recortar) {
+  const d = editor.doc;
+  const area = editor.selecaoRecortada ?? { x: 0, y: 0, largura: d.largura, altura: d.altura };
+  editor.areaTransferencia = extrairRegiao(editor.celulaAtiva(), d.largura, area);
+  editor.areaTransferencia.origem = { x: area.x, y: area.y };
+  if (recortar) {
+    if (!editor.podeEditarCamada()) return;
+    editor.aplicarMudancas('Recortar', [...indicesDe(area, d.largura, d.altura)].map((i) => [i, 0]));
+  } else {
+    avisar(`Copiado: ${area.largura} × ${area.altura} px`, 'info', 1200);
+  }
+}
+
+function colar() {
+  const regiao = editor.areaTransferencia;
+  if (!regiao) {
+    avisar('Nada para colar. Selecione uma área e use Ctrl+C.', 'info');
+    return;
+  }
+  if (!editor.podeEditarCamada()) return;
+  const d = editor.doc;
+  const destino = editor.selecao ?? regiao.origem ?? { x: 0, y: 0 };
+  const x = Math.min(Math.max(0, destino.x), Math.max(0, d.largura - regiao.largura));
+  const y = Math.min(Math.max(0, destino.y), Math.max(0, d.altura - regiao.altura));
+  const mudancas = [];
+  colarRegiao(regiao, d.largura, d.altura, x, y, (i, c) => mudancas.push([i, c]), { somenteOpacos: true });
+  const fundo = editor.celulaAtiva().slice();
+  editor.aplicarMudancas('Colar', mudancas, { silencioso: true });
+  editor.definirSelecao({ x, y, largura: regiao.largura, altura: regiao.altura });
+  // A colagem fica "flutuando" sobre o fundo: Mover pixels (V) leva só ela, sem arrastar nem furar o que está embaixo.
+  editor.flutuante = { chave: editor.chaveAtiva, regiao, fundo, x, y, versao: editor.historico.versao };
+  editor.definir('ferramenta', 'moverPixels');
+}
+
+function recortarParaSelecao() {
+  const r = editor.selecaoRecortada;
+  if (!r) {
+    avisar('Faça uma seleção primeiro (ferramenta S).', 'info');
+    return;
+  }
+  editor.estrutura('Recortar para a seleção', (d) => d.recortar(r.x, r.y, r.largura, r.altura));
+  editor.definirSelecao(null);
+  visor.ajustar();
+}
+
+function aparar() {
+  const d = editor.doc;
+  const r = limitesDoConteudo(d.celulas.values(), d.largura, d.altura);
+  if (!r) {
+    avisar('O projeto está vazio: nada para aparar.', 'info');
+    return;
+  }
+  if (r.largura === d.largura && r.altura === d.altura) {
+    avisar('Não há bordas transparentes para aparar.', 'info');
+    return;
+  }
+  editor.estrutura('Aparar bordas', (doc) => doc.recortar(r.x, r.y, r.largura, r.altura));
+  editor.definirSelecao(null);
+  visor.ajustar();
+  avisar(`Aparado para ${r.largura} × ${r.altura}.`, 'sucesso');
+}
+
+function deslocarMetade() {
+  if (!editor.podeEditarCamada()) return;
+  const d = editor.doc;
+  const novo = deslocarComRepeticao(editor.celulaAtiva(), d.largura, d.altura, Math.floor(d.largura / 2), Math.floor(d.altura / 2));
+  editor.aplicarMudancas('Deslocar meia matriz', [...novo].map((c, i) => [i, c]));
 }
 
 function alternarTema() {
@@ -406,6 +603,7 @@ function montarStatus() {
   const cor = $('#status-cor');
   const tam = $('#status-tamanho');
   const zoom = $('#status-zoom');
+  const sel = $('#status-selecao');
   editor.ao('ponteiro', (p) => {
     if (!p) {
       pos.textContent = '–';
@@ -419,6 +617,10 @@ function montarStatus() {
     cor.style.setProperty('--cor', corParaHex(c, true));
   });
   editor.ao('forma', ({ largura, altura }) => (pos.textContent = `${largura} × ${altura}`));
+  editor.ao('deslocamento', ({ dx, dy }) => (pos.textContent = `Δ ${dx}, ${dy}`));
+  editor.ao('selecao', (r) => {
+    sel.textContent = r?.largura ? `Seleção: ${r.largura} × ${r.altura} em ${r.x}, ${r.y}` : '';
+  });
   const tamanho = () => (tam.textContent = `${editor.doc.largura} × ${editor.doc.altura} · ${editor.doc.quadros.length} quadro(s) · ${editor.doc.camadas.length} camada(s)`);
   editor.ao('documento', tamanho);
   editor.ao('zoom', ({ zoom: z }) => (zoom.textContent = `${z * 100}%`));
@@ -436,8 +638,18 @@ function atualizarArmazenamento() {
 
 function atalhos(e) {
   const alvo = e.target;
-  if (alvo instanceof HTMLElement && (alvo.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(alvo.tagName))) return;
+  if (e.defaultPrevented) return;
+  if (alvo instanceof HTMLElement && (alvo.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(alvo.tagName) || alvo.closest('.menu'))) return;
   if (document.querySelector('dialog[open]')) return;
+  // Com o botão do mouse ainda pressionado (traço, forma, seleção ou arraste em andamento), só o Esc vale:
+  // qualquer outro comando mexeria no documento no meio do gesto e embaralharia o histórico.
+  if (controlador.ativo) {
+    if (e.key === 'Escape') {
+      controlador.cancelar();
+      e.preventDefault();
+    }
+    return;
+  }
   const ctrl = e.ctrlKey || e.metaKey;
   const k = e.key.toLowerCase();
   if (ctrl) {
@@ -447,11 +659,34 @@ function atalhos(e) {
     else if (k === 'o') executar('abrirArquivo');
     else if (k === 'e') executar(e.shiftKey ? 'exportarDados' : 'exportarImagem');
     else if (k === 'c' && e.altKey) executar('tamanho');
+    else if (k === 'g' && e.shiftKey) executar('exportarGif');
+    else if (k === 'a') executar('selecionarTudo');
+    else if (k === 'd') executar('desmarcar');
+    else if (k === 'c') executar('copiar');
+    else if (k === 'x') executar('recortar');
+    else if (k === 'v') executar('colar');
     else return;
     e.preventDefault();
     return;
   }
   if (e.altKey) return;
+  if (k.startsWith('arrow') && editor.estado.ferramenta === 'moverPixels') {
+    const passo = e.shiftKey ? 8 : 1;
+    const [dx, dy] = { arrowleft: [-passo, 0], arrowright: [passo, 0], arrowup: [0, -passo], arrowdown: [0, passo] }[k];
+    controlador.empurrar(dx, dy);
+    e.preventDefault();
+    return;
+  }
+  if (k === 't') {
+    executar(e.shiftKey ? 'deslocarMetade' : 'ladrilho');
+    e.preventDefault();
+    return;
+  }
+  if (e.shiftKey && (k === 'h' || k === 'v')) {
+    executar(k === 'h' ? 'espelharH' : 'espelharV');
+    e.preventDefault();
+    return;
+  }
   const ferramenta = FERRAMENTAS.find((f) => f.atalho.toLowerCase() === k);
   if (ferramenta) editor.definir('ferramenta', ferramenta.id);
   else if (k === 'x') editor.trocarCores();
@@ -463,8 +698,8 @@ function atalhos(e) {
     editor.definir('simetria', novo);
     avisar(`Simetria: ${{ nenhuma: 'desligada', horizontal: 'horizontal', vertical: 'vertical', ambas: 'horizontal e vertical' }[novo]}`, 'info', 1000);
   } else if (k === '[' || k === ']') {
-    editor.definir('tamanho', Math.max(1, Math.min(16, editor.estado.tamanho + (k === ']' ? 1 : -1))));
-    if (['lapis', 'borracha', 'linha'].includes(editor.estado.ferramenta)) montarOpcoes();
+    editor.definir('tamanho', Math.max(1, Math.min(32, editor.estado.tamanho + (k === ']' ? 1 : -1))));
+    if (['lapis', 'borracha', 'linha', 'pontilhado', 'sombra'].includes(editor.estado.ferramenta)) montarOpcoes();
   } else if (k === '+' || k === '=') visor.passoZoom(1);
   else if (k === '-' || k === '_') visor.passoZoom(-1);
   else if (k === '0') visor.ajustar();
@@ -474,7 +709,7 @@ function atalhos(e) {
   else if (k === 'enter') editor.estado.tocando ? editor.parar() : editor.tocar();
   else if (k === 'delete' || k === 'backspace') executar('limparCamada');
   else if (k === '?') executar('atalhos');
-  else if (k === 'escape') controlador.cancelar();
+  else if (k === 'escape') editor.definirSelecao(null);
   else return;
   e.preventDefault();
 }

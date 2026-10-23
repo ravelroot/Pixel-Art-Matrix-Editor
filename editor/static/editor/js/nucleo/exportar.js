@@ -131,7 +131,7 @@ function hexParaInteiro(hex, ordem) {
 export function gerarC(dados, nome) {
   const id = identificador(nome, 'cobra');
   const ID = id.toUpperCase();
-  const tipo = dados.modo === 'indices' ? 'int16_t' : 'uint32_t';
+  const tipo = dados.modo === 'indices' ? (dados.paleta.length > 32767 ? 'int32_t' : 'int16_t') : 'uint32_t';
   const converter = (v) => (dados.modo === 'indices' ? v : v === null ? '0x00000000' : hexParaInteiro(v, 'rgba'));
   const w = dados.modo === 'indices' ? larguraValores(dados) : 10;
   const quadros = dados.quadros
@@ -149,8 +149,92 @@ export function gerarC(dados, nome) {
   );
 }
 
+// Um inicializador Java passa de 64 KB de bytecode com alguns milhares de números, e a classe não compila.
+// Acima deste limite, a matriz e a paleta vão compactadas em texto e são lidas quando a classe carrega.
+export const LIMITE_JAVA_LITERAL = 4096;
+const PEDACO_JAVA = 20000;
+
+function textoJava(codigos) {
+  let s = '';
+  for (const c of codigos) {
+    if (c === 34) s += '\\"';
+    else if (c === 92) s += '\\\\';
+    else if (c >= 32 && c < 127) s += String.fromCharCode(c);
+    else if (c < 128) s += '\\' + c.toString(8).padStart(3, '0');
+    else s += '\\u' + c.toString(16).toUpperCase().padStart(4, '0');
+  }
+  return s;
+}
+
+function pedacosJava(codigos, recuo) {
+  const partes = [];
+  for (let i = 0; i < codigos.length; i += PEDACO_JAVA) partes.push(`${recuo}"${textoJava(codigos.slice(i, i + PEDACO_JAVA))}"`);
+  return partes.join(',\n');
+}
+
+function argb(hex) {
+  const h = hex.replace('#', '');
+  return ((parseInt(h.length === 8 ? h.slice(6, 8) : 'ff', 16) << 24) | parseInt(h.slice(0, 6), 16)) >>> 0;
+}
+
+function gerarJavaCompacto(dados, classe) {
+  const indices = dados.modo === 'indices';
+  const total = dados.quadros.length * dados.altura * dados.largura;
+  const umCaractere = indices && dados.paleta.length + 33 <= 0xffff;
+  const base = indices ? (umCaractere ? 33 : 1) : 0;
+  const codigos = [];
+  for (const q of dados.quadros) {
+    for (const l of q) {
+      for (const v of l) {
+        if (umCaractere) codigos.push(v + 33);
+        else {
+          const u = indices ? v + 1 : v === null ? 0 : argb(v);
+          codigos.push(u >>> 16, u & 0xffff);
+        }
+      }
+    }
+  }
+  const cores = [];
+  for (const c of dados.paleta) {
+    const u = argb(c);
+    cores.push(u >>> 16, u & 0xffff);
+  }
+  return (
+    `public final class ${classe} {\n\n` +
+    `    public static final int LARGURA = ${dados.largura};\n` +
+    `    public static final int ALTURA = ${dados.altura};\n` +
+    (indices ? '    public static final int TRANSPARENTE = -1;\n' : '') +
+    `\n    public static final int[] PALETA;\n` +
+    `    public static final int[][][] QUADROS;\n\n` +
+    `    // Matriz grande demais para um literal Java (limite de 64 KB por método): os valores vêm compactados\n` +
+    `    // em texto, ${umCaractere ? 'um caractere por pixel (valor + 33)' : 'dois caracteres por valor (16 bits altos e baixos)'}, e são lidos quando a classe carrega.\n` +
+    `    private static final String[] DADOS_PALETA = {\n${pedacosJava(cores, '        ')}${cores.length ? ',' : ''}\n    };\n\n` +
+    `    private static final String[] DADOS = {\n${pedacosJava(codigos, '        ')},\n    };\n\n` +
+    `    static {\n` +
+    `        PALETA = ler(DADOS_PALETA, 2, 0, ${dados.paleta.length});\n` +
+    `        int[] v = ler(DADOS, ${umCaractere ? 1 : 2}, ${base}, ${total});\n` +
+    `        QUADROS = new int[${dados.quadros.length}][ALTURA][LARGURA];\n` +
+    `        for (int q = 0, i = 0; q < ${dados.quadros.length}; q++)\n` +
+    `            for (int y = 0; y < ALTURA; y++)\n` +
+    `                for (int x = 0; x < LARGURA; x++) QUADROS[q][y][x] = v[i++];\n` +
+    `    }\n\n` +
+    `    private static int[] ler(String[] partes, int largura, int base, int total) {\n` +
+    `        StringBuilder texto = new StringBuilder();\n` +
+    `        for (String parte : partes) texto.append(parte);\n` +
+    `        int[] valores = new int[total];\n` +
+    `        for (int i = 0, k = 0; i < total; i++) {\n` +
+    `            if (largura == 1) valores[i] = texto.charAt(k++) - base;\n` +
+    `            else valores[i] = ((texto.charAt(k++) << 16) | texto.charAt(k++)) - base;\n` +
+    `        }\n` +
+    `        return valores;\n` +
+    `    }\n\n` +
+    `    private ${classe}() {\n    }\n}\n`
+  );
+}
+
 export function gerarJava(dados, nome) {
   const classe = identificador(nome, 'pascal');
+  if (dados.quadros.length * dados.altura * dados.largura > LIMITE_JAVA_LITERAL || dados.paleta.length > 2048) return gerarJavaCompacto(dados, classe);
   const converter = (v) => (dados.modo === 'indices' ? v : v === null ? '0x00000000' : hexParaInteiro(v, 'argb'));
   const w = dados.modo === 'indices' ? larguraValores(dados) : 10;
   const quadros = dados.quadros

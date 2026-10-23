@@ -192,48 +192,147 @@ public final class Crivo {
         }
         Map<Integer, Integer> ordem = new HashMap<>();
         List<Integer> paleta = new ArrayList<>();
-        StringBuilder corpo = new StringBuilder();
-        for (int k = 0; k < indices.size(); k++) {
-            int[] px = p.compor(indices.get(k));
-            corpo.append("        {\n");
-            for (int y = 0; y < p.altura; y++) {
-                corpo.append("            {");
-                for (int x = 0; x < p.largura; x++) {
-                    int c = px[y * p.largura + x];
-                    String v;
-                    if (modo.equals("argb")) {
-                        v = String.format("0x%08X", c);
-                    } else if ((c >>> 24) == 0) {
-                        v = "-1";
-                    } else {
-                        Integer idx = ordem.get(c);
-                        if (idx == null) {
-                            idx = paleta.size();
-                            ordem.put(c, idx);
-                            paleta.add(c);
-                        }
-                        v = String.valueOf(idx);
+        boolean argb = modo.equals("argb");
+        int[] valores = new int[indices.size() * p.largura * p.altura];
+        int n = 0;
+        for (int k : indices) {
+            int[] px = p.compor(k);
+            for (int c : px) {
+                if (argb) {
+                    valores[n++] = c;
+                } else if ((c >>> 24) == 0) {
+                    valores[n++] = -1;
+                } else {
+                    Integer idx = ordem.get(c);
+                    if (idx == null) {
+                        idx = paleta.size();
+                        ordem.put(c, idx);
+                        paleta.add(c);
                     }
-                    corpo.append(x == 0 ? "" : ", ").append(v);
+                    valores[n++] = idx;
                 }
-                corpo.append(y == p.altura - 1 ? "}\n" : "},\n");
             }
-            corpo.append(k == indices.size() - 1 ? "        }\n" : "        },\n");
         }
+        int[] cores = paleta.stream().mapToInt(Integer::intValue).toArray();
+        return classeJava(classe, p.largura, p.altura, indices.size(), valores, argb ? null : cores);
+    }
+
+    /** Acima deste número de valores, um literal Java passaria do limite de 64 KB por método e não compilaria. */
+    static final int LIMITE_LITERAL = 4096;
+    private static final int PEDACO = 20000;
+
+    static String classeJava(String classe, int largura, int altura, int quadros, int[] valores, int[] paleta) {
+        boolean indices = paleta != null;
         StringBuilder sb = new StringBuilder();
         sb.append("public final class ").append(classe).append(" {\n\n");
-        sb.append("    public static final int LARGURA = ").append(p.largura).append(";\n");
-        sb.append("    public static final int ALTURA = ").append(p.altura).append(";\n");
-        if (modo.equals("indices")) {
+        sb.append("    public static final int LARGURA = ").append(largura).append(";\n");
+        sb.append("    public static final int ALTURA = ").append(altura).append(";\n");
+        if (valores.length > LIMITE_LITERAL || (indices && paleta.length > 2048)) {
+            return compacta(sb, classe, quadros, valores, paleta);
+        }
+        if (indices) {
             sb.append("    public static final int TRANSPARENTE = -1;\n\n");
             sb.append("    public static final int[] PALETA = {");
-            for (int i = 0; i < paleta.size(); i++) {
-                sb.append(i == 0 ? "" : ", ").append(String.format("0x%08X", paleta.get(i)));
+            for (int i = 0; i < paleta.length; i++) {
+                sb.append(i == 0 ? "" : ", ").append(String.format("0x%08X", paleta[i]));
             }
             sb.append("};\n");
         }
-        sb.append("\n    public static final int[][][] QUADROS = {\n").append(corpo).append("    };\n\n");
+        sb.append("\n    public static final int[][][] QUADROS = {\n");
+        int i = 0;
+        for (int k = 0; k < quadros; k++) {
+            sb.append("        {\n");
+            for (int y = 0; y < altura; y++) {
+                sb.append("            {");
+                for (int x = 0; x < largura; x++) {
+                    int v = valores[i++];
+                    sb.append(x == 0 ? "" : ", ").append(indices ? String.valueOf(v) : String.format("0x%08X", v));
+                }
+                sb.append(y == altura - 1 ? "}\n" : "},\n");
+            }
+            sb.append(k == quadros - 1 ? "        }\n" : "        },\n");
+        }
+        sb.append("    };\n\n");
         sb.append("    private ").append(classe).append("() {\n    }\n}\n");
+        return sb.toString();
+    }
+
+    private static String compacta(StringBuilder sb, String classe, int quadros, int[] valores, int[] paleta) {
+        boolean indices = paleta != null;
+        boolean umCaractere = indices && paleta.length + 33 <= 0xFFFF;
+        int base = indices ? (umCaractere ? 33 : 1) : 0;
+        StringBuilder codigos = new StringBuilder();
+        for (int v : valores) {
+            if (umCaractere) {
+                codigos.append((char) (v + 33));
+            } else {
+                int u = indices ? v + 1 : v;
+                codigos.append((char) (u >>> 16)).append((char) (u & 0xFFFF));
+            }
+        }
+        if (indices) {
+            sb.append("    public static final int TRANSPARENTE = -1;\n");
+            sb.append("\n    public static final int[] PALETA;\n");
+        }
+        sb.append(indices ? "" : "\n").append("    public static final int[][][] QUADROS;\n\n");
+        sb.append("    // Matriz grande demais para um literal Java (limite de 64 KB por método): os valores vêm compactados\n");
+        sb.append("    // em texto, ").append(umCaractere ? "um caractere por pixel (valor + 33)" : "dois caracteres por valor (16 bits altos e baixos)");
+        sb.append(", e são lidos quando a classe carrega.\n");
+        if (indices) {
+            StringBuilder cores = new StringBuilder();
+            for (int c : paleta) {
+                cores.append((char) (c >>> 16)).append((char) (c & 0xFFFF));
+            }
+            sb.append("    private static final String[] DADOS_PALETA = {\n").append(pedacos(cores)).append(cores.length() > 0 ? ",\n" : "\n").append("    };\n\n");
+        }
+        sb.append("    private static final String[] DADOS = {\n").append(pedacos(codigos)).append(",\n    };\n\n");
+        sb.append("    static {\n");
+        if (indices) {
+            sb.append("        PALETA = ler(DADOS_PALETA, 2, 0, ").append(paleta.length).append(");\n");
+        }
+        sb.append("        int[] v = ler(DADOS, ").append(umCaractere ? 1 : 2).append(", ").append(base).append(", ").append(valores.length).append(");\n");
+        sb.append("        QUADROS = new int[").append(quadros).append("][ALTURA][LARGURA];\n");
+        sb.append("        for (int q = 0, i = 0; q < ").append(quadros).append("; q++)\n");
+        sb.append("            for (int y = 0; y < ALTURA; y++)\n");
+        sb.append("                for (int x = 0; x < LARGURA; x++) QUADROS[q][y][x] = v[i++];\n");
+        sb.append("    }\n\n");
+        sb.append("    private static int[] ler(String[] partes, int largura, int base, int total) {\n");
+        sb.append("        StringBuilder texto = new StringBuilder();\n");
+        sb.append("        for (String parte : partes) texto.append(parte);\n");
+        sb.append("        int[] valores = new int[total];\n");
+        sb.append("        for (int i = 0, k = 0; i < total; i++) {\n");
+        sb.append("            if (largura == 1) valores[i] = texto.charAt(k++) - base;\n");
+        sb.append("            else valores[i] = ((texto.charAt(k++) << 16) | texto.charAt(k++)) - base;\n");
+        sb.append("        }\n");
+        sb.append("        return valores;\n");
+        sb.append("    }\n\n");
+        sb.append("    private ").append(classe).append("() {\n    }\n}\n");
+        return sb.toString();
+    }
+
+    private static String pedacos(CharSequence codigos) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < codigos.length(); i += PEDACO) {
+            if (i > 0) {
+                sb.append(",\n");
+            }
+            sb.append("        \"");
+            for (int k = i; k < Math.min(codigos.length(), i + PEDACO); k++) {
+                char c = codigos.charAt(k);
+                if (c == '"') {
+                    sb.append("\\\"");
+                } else if (c == '\\') {
+                    sb.append("\\\\");
+                } else if (c >= 32 && c < 127) {
+                    sb.append(c);
+                } else if (c < 128) {
+                    sb.append(String.format("\\%03o", (int) c));
+                } else {
+                    sb.append(String.format("\\u%04X", (int) c));
+                }
+            }
+            sb.append('"');
+        }
         return sb.toString();
     }
 }

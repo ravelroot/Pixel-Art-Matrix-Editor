@@ -16,7 +16,8 @@ RUN pip install -r requirements.txt
 COPY manage.py VERSION ./
 COPY crivo ./crivo
 COPY editor ./editor
-RUN python manage.py collectstatic --noinput && chown -R crivo:crivo /app
+# A chave abaixo só existe durante o build (o collectstatic não usa a chave); a de produção vem do .env.
+RUN CRIVO_SECRET_KEY=build-somente-para-coletar-arquivos-estaticos-0000 python manage.py collectstatic --noinput && chown -R crivo:crivo /app
 
 USER crivo
 EXPOSE 8000

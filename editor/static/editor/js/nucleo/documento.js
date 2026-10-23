@@ -227,6 +227,28 @@ export class Documento {
     this.altura = novaAltura;
   }
 
+  recortar(x, y, novaLargura, novaAltura) {
+    novaLargura = validarLado(novaLargura);
+    novaAltura = validarLado(novaAltura);
+    x = Math.round(x);
+    y = Math.round(y);
+    for (const [k, origem] of this.celulas) {
+      const destino = new Uint32Array(novaLargura * novaAltura);
+      for (let ny = 0; ny < novaAltura; ny++) {
+        const sy = ny + y;
+        if (sy < 0 || sy >= this.altura) continue;
+        for (let nx = 0; nx < novaLargura; nx++) {
+          const sx = nx + x;
+          if (sx < 0 || sx >= this.largura) continue;
+          destino[ny * novaLargura + nx] = origem[sy * this.largura + sx];
+        }
+      }
+      this.celulas.set(k, destino);
+    }
+    this.largura = novaLargura;
+    this.altura = novaAltura;
+  }
+
   espelharCelula(pixels, eixo) {
     const L = this.largura;
     const A = this.altura;

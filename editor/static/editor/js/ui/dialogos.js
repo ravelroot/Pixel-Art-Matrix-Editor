@@ -2,6 +2,8 @@ import { Documento, LIMITE_LADO } from '../nucleo/documento.js';
 import { hexParaCor } from '../nucleo/cores.js';
 import { FORMATOS_DADOS, montarMatrizes, gerarDados, layoutFolha, colar, achatarFundo, metadadosFolha } from '../nucleo/exportar.js';
 import { nomeDeArquivo } from '../nucleo/formato.js';
+import { codificarGIF } from '../nucleo/gif.js';
+import { escalarVizinho } from '../nucleo/exportar.js';
 import { deteccaoDeEscala } from '../nucleo/geometria.js';
 import { PALETAS_PREDEFINIDAS } from '../nucleo/paletas.js';
 import { el, avisar, baixarBlob, baixarTexto, escolherArquivo, campoNumero, campoSelecao, campoMarcar, formatarData, formatarBytes } from './util.js';
@@ -143,9 +145,9 @@ function previa(canvas, maximo = 320) {
   return c;
 }
 
-export async function dialogoExportarImagem(editor) {
+export async function dialogoExportarImagem(editor, formatoInicial = 'png') {
   const { doc } = editor;
-  const formato = campoSelecao('Formato', [['png', 'PNG (mantém a transparência)'], ['jpeg', 'JPEG']], 'png');
+  const formato = campoSelecao('Formato', [['png', 'PNG (mantém a transparência)'], ['jpeg', 'JPEG'], ['gif', 'GIF animado (todos os quadros)']], formatoInicial);
   const escala = campoNumero('Escala', Math.max(1, Math.min(16, Math.floor(512 / Math.max(doc.largura, doc.altura)))), { min: 1, max: 64 });
   const quadro = campoSelecao('Quadro', doc.quadros.map((_, i) => [String(i), `Quadro ${i + 1}`]), String(editor.estado.quadro));
   const fundo = el('input', { type: 'color', value: '#ffffff', 'aria-label': 'Cor de fundo do JPEG' });
@@ -153,10 +155,16 @@ export async function dialogoExportarImagem(editor) {
   const blocoJpeg = el('div', { class: 'grade-form largo' }, el('label', { class: 'campo' }, el('span', {}, 'Fundo do JPEG'), fundo), qualidade.rotulo);
   const info = el('p', { class: 'dica largo' });
   const area = el('div', { class: 'area-previa largo' });
+  const blocoQuadro = doc.quadros.length > 1 ? quadro.rotulo : null;
   const atualizar = () => {
     const s = Math.max(1, Math.min(64, Math.round(+escala.input.value) || 1));
+    const gif = formato.select.value === 'gif';
     blocoJpeg.hidden = formato.select.value !== 'jpeg';
-    info.textContent = `Resultado: ${doc.largura * s} × ${doc.altura * s} pixels${s === 1 ? ' (tamanho real, pixel art pura)' : ` (cada pixel vira um bloco de ${s}×${s})`}.`;
+    if (blocoQuadro) blocoQuadro.hidden = gif;
+    const duracao = doc.quadros.reduce((t, q) => t + (q.duracao || 1000 / doc.fps), 0);
+    info.textContent =
+      `Resultado: ${doc.largura * s} × ${doc.altura * s} pixels${s === 1 ? ' (tamanho real, pixel art pura)' : ` (cada pixel vira um bloco de ${s}×${s})`}` +
+      (gif ? ` · ${doc.quadros.length} quadro(s), ${(duracao / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} s por volta, repetindo sem parar.` : '.');
     let px = doc.compor(+quadro.select.value);
     if (formato.select.value === 'jpeg') px = achatarFundo(px, hexParaCor(fundo.value));
     area.replaceChildren(previa(pixelsParaCanvas(px, doc.largura, doc.altura, Math.min(s, 8))));
@@ -165,7 +173,7 @@ export async function dialogoExportarImagem(editor) {
   atualizar();
   await abrirDialogo({
     titulo: 'Exportar imagem',
-    corpo: el('div', { class: 'grade-form' }, formato.rotulo, escala.rotulo, doc.quadros.length > 1 ? quadro.rotulo : null, blocoJpeg, info, area),
+    corpo: el('div', { class: 'grade-form' }, formato.rotulo, escala.rotulo, blocoQuadro, blocoJpeg, info, area),
     acoes: [
       { rotulo: 'Fechar', valor: null },
       {
@@ -174,6 +182,17 @@ export async function dialogoExportarImagem(editor) {
         enviar: true,
         acao: async () => {
           const s = Math.max(1, Math.min(64, Math.round(+escala.input.value) || 1));
+          if (formato.select.value === 'gif') {
+            if (doc.largura * s > 4096 || doc.altura * s > 4096) {
+              avisar('O GIF pode ter no máximo 4096 pixels de lado. Diminua a escala.', 'alerta');
+              return false;
+            }
+            const quadros = doc.quadros.map((_, i) => escalarVizinho(doc.compor(i), doc.largura, doc.altura, s));
+            const atrasos = doc.quadros.map((q) => q.duracao || 1000 / doc.fps);
+            const gif = codificarGIF(quadros, doc.largura * s, doc.altura * s, { atrasos });
+            baixarBlob(new Blob([gif], { type: 'image/gif' }), nomeDeArquivo(doc.nome + (s > 1 ? `-x${s}` : ''), 'gif'));
+            return true;
+          }
           const jpeg = formato.select.value === 'jpeg';
           let px = doc.compor(+quadro.select.value);
           if (jpeg) px = achatarFundo(px, hexParaCor(fundo.value));
@@ -501,6 +520,15 @@ export const ATALHOS = [
   ['Shift (lápis)', 'Linha reta a partir do último ponto'],
   ['Shift (formas)', 'Linha a 45°, quadrado ou círculo perfeito'],
   ['Alt (formas)', 'Desenhar a partir do centro'],
+  ['Clique direito (clarear e escurecer)', 'Escurecer em vez de clarear'],
+  ['Setas (mover pixels)', 'Mover a seleção 1 px (Shift: 8 px)'],
+  ['Ctrl + A', 'Selecionar tudo'],
+  ['Ctrl + D ou Esc', 'Desmarcar'],
+  ['Ctrl + C, X e V', 'Copiar, recortar e colar'],
+  ['Delete', 'Apagar a seleção (ou limpar a camada)'],
+  ['T', 'Modo ladrilho'],
+  ['Shift + T', 'Deslocar meia matriz (ladrilho)'],
+  ['Shift + H e Shift + V', 'Espelhar a seleção (ou a camada) na horizontal e na vertical'],
   ['X', 'Trocar cor principal e secundária'],
   ['[ e ]', 'Diminuir e aumentar o pincel'],
   ['M', 'Alternar o modo de simetria'],
@@ -519,6 +547,7 @@ export const ATALHOS = [
   ['Ctrl + O', 'Abrir arquivo .crivo'],
   ['Ctrl + E', 'Exportar imagem'],
   ['Ctrl + Shift + E', 'Exportar dados da matriz'],
+  ['Ctrl + Shift + G', 'Exportar GIF animado'],
 ];
 
 export function dialogoAtalhos() {

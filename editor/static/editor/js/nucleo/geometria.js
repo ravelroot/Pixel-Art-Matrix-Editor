@@ -169,3 +169,24 @@ export function deteccaoDeEscala(pixels, largura, altura) {
   }
   return Math.max(1, g);
 }
+
+// Pixel perfect: três pontos seguidos de um traço formam um "canto em L" quando o primeiro e o
+// terceiro são vizinhos na diagonal e o do meio encosta nos dois pelos lados. Tirar o do meio deixa
+// a linha com 1 pixel de espessura, sem degraus dobrados.
+export function cantoEmL(a, b, c) {
+  if (Math.abs(a[0] - c[0]) !== 1 || Math.abs(a[1] - c[1]) !== 1) return false;
+  const encostaA = (b[0] === a[0] && Math.abs(b[1] - a[1]) === 1) || (b[1] === a[1] && Math.abs(b[0] - a[0]) === 1);
+  const encostaC = (b[0] === c[0] && Math.abs(b[1] - c[1]) === 1) || (b[1] === c[1] && Math.abs(b[0] - c[0]) === 1);
+  return encostaA && encostaC;
+}
+
+export function pixelPerfect(pontos) {
+  const saida = [];
+  for (const p of pontos) {
+    const ultimo = saida.at(-1);
+    if (ultimo && ultimo[0] === p[0] && ultimo[1] === p[1]) continue;
+    saida.push(p);
+    while (saida.length >= 3 && cantoEmL(saida.at(-3), saida.at(-2), saida.at(-1))) saida.splice(-2, 1);
+  }
+  return saida;
+}

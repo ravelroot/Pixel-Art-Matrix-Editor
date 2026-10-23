@@ -4,6 +4,7 @@ import json
 from django.test import Client, TestCase, override_settings
 
 from editor.models import Celula, Paleta, Projeto, Revisao
+from editor.seguranca import LimiteDeEscritasMiddleware
 from editor.rle import codificar, decodificar, empacotar, para_base64, sobrepor
 
 VERMELHO = empacotar(255, 0, 0)
@@ -54,6 +55,7 @@ class RLETeste(TestCase):
 
 class ApiTeste(TestCase):
     def setUp(self):
+        LimiteDeEscritasMiddleware.reiniciar()
         self.c = Client()
 
     def post(self, url, dados):

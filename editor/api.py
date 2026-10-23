@@ -3,6 +3,7 @@ import logging
 from functools import wraps
 
 from django.conf import settings
+from django.core.exceptions import RequestDataTooBig
 from django.db import connection
 from django.db.models import Count
 from django.http import HttpResponse, JsonResponse
@@ -23,13 +24,27 @@ def ok(dados, status=200):
     return JsonResponse(dados, status=status, json_dumps_params={"ensure_ascii": False})
 
 
+class CorpoGrandeDemais(Exception):
+    pass
+
+
+class JsonInvalido(servico.ErroValidacao):
+    pass
+
+
 def ler_json(request):
-    if not request.body:
+    try:
+        corpo = request.body
+    except RequestDataTooBig as e:
+        raise CorpoGrandeDemais() from e
+    if not corpo:
         return {}
     try:
-        dados = json.loads(request.body.decode("utf-8"))
+        dados = json.loads(corpo.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as e:
-        raise servico.ErroValidacao("Corpo da requisição não é um JSON válido.") from e
+        raise JsonInvalido("Corpo da requisição não é um JSON válido.") from e
+    except RecursionError as e:
+        raise JsonInvalido("O JSON está aninhado demais.") from e
     if not isinstance(dados, dict):
         raise servico.ErroValidacao("O corpo da requisição precisa ser um objeto JSON.")
     return dados
@@ -40,6 +55,8 @@ def tratar_erros(view):
     def envoltorio(request, *args, **kwargs):
         try:
             return view(request, *args, **kwargs)
+        except CorpoGrandeDemais:
+            return erro(f"O corpo da requisição passa do limite de {settings.DATA_UPLOAD_MAX_MEMORY_SIZE // (1024 * 1024)} MB.", 413)
         except servico.ErroValidacao as e:
             return erro(str(e), 422)
         except servico.Conflito as e:
@@ -63,7 +80,8 @@ def indice(request):
                 "projetos": "/api/v1/projetos",
                 "projeto": "/api/v1/projetos/{id}",
                 "miniatura": "/api/v1/projetos/{id}/miniatura",
-                "exportar": "/api/v1/projetos/{id}/exportar?formato=json|csv|js|py&modo=indices|hex&quadro=todos|N",
+                "exportar": "/api/v1/projetos/{id}/exportar?formato=json|csv|js|py|c|java&modo=indices|hex&quadro=todos|N",
+                "png": "/api/v1/projetos/{id}/png?quadro=N&escala=1..32",
                 "revisoes": "/api/v1/projetos/{id}/revisoes",
                 "restaurar": "/api/v1/projetos/{id}/revisoes/{numero}/restaurar",
                 "paletas": "/api/v1/paletas",
@@ -143,6 +161,8 @@ def exportar(request, projeto_id):
     quadro = request.GET.get("quadro", "todos")
     indices = None
     if quadro != "todos":
+        if not quadro.isdigit():
+            return erro("O quadro precisa ser 'todos' ou um número.")
         n = int(quadro)
         total = p.quadros.count()
         if n < 1 or n > total:
@@ -153,7 +173,33 @@ def exportar(request, projeto_id):
     tipo, extensao = exportacao.FORMATOS[formato]
     resposta = HttpResponse(exportacao.gerar(formato, dados, p.nome), content_type=f"{tipo}; charset=utf-8")
     if request.GET.get("baixar"):
-        resposta["Content-Disposition"] = f'attachment; filename="{exportacao.identificador(p.nome)}.{extensao}"'
+        # Em Java o arquivo precisa ter o mesmo nome da classe pública (PascalCase), senão o javac recusa.
+        base = exportacao.identificador(p.nome, "pascal" if formato == "java" else "camelo")
+        resposta["Content-Disposition"] = f'attachment; filename="{base}.{extensao}"'
+    return resposta
+
+
+@require_http_methods(["GET"])
+@tratar_erros
+def png(request, projeto_id):
+    quadro = request.GET.get("quadro", "1")
+    escala = request.GET.get("escala", "1")
+    if not quadro.isdigit() or not escala.isdigit():
+        return erro("quadro e escala precisam ser números inteiros.")
+    escala = int(escala)
+    if not 1 <= escala <= 32:
+        return erro("A escala precisa ficar entre 1 e 32.")
+    p = Projeto.objects.get(pk=projeto_id)
+    total = p.quadros.count()
+    n = int(quadro)
+    if n < 1 or n > total:
+        return erro(f"Quadro fora do intervalo 1 a {total}.")
+    doc, (pixels,) = servico.pixels_compostos(p, [n - 1])
+    imagem = exportacao.gerar_png(pixels, doc["largura"], doc["altura"], escala)
+    resposta = HttpResponse(imagem, content_type="image/png")
+    resposta["Cache-Control"] = "no-cache"
+    if request.GET.get("baixar"):
+        resposta["Content-Disposition"] = f'attachment; filename="{exportacao.identificador(p.nome)}-{n}.png"'
     return resposta
 
 

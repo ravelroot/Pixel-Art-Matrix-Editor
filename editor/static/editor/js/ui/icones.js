@@ -1,4 +1,5 @@
 import { linha, retangulo, elipse } from '../nucleo/geometria.js';
+import { limiarBayer } from '../nucleo/pontilhado.js';
 
 const B = (...linhas) => linhas;
 
@@ -36,6 +37,18 @@ export const BITMAPS = {
   }),
   contaGotas: B('.......###', '......####', '.....#####', '......###.', '.....#.##.', '....#.#...', '...#.#....', '..#.#.....', '.##.......', '#.........'),
   mover: B('....##....', '...####...', '....##....', '.#..##..#.', '##########', '##########', '.#..##..#.', '....##....', '...####...', '....##....'),
+  selecao: B('##.##.##.#', '#........#', '..........', '#........#', '#........#', '..........', '#........#', '#........#', '..........', '##.##.##.#'),
+  moverPixels: B('....##....', '...####...', '..........', '.#.####.#.', '##.####.##', '##.####.##', '.#.####.#.', '..........', '...####...', '....##....'),
+  pontilhado: B('..#.#.#...', '.#.#.#.#..', '#.#.#.#.#.', '.#.#.#.#.#', '#.#.#.#.#.', '.#.#.#.#.#', '#.#.#.#.#.', '.#.#.#.#..', '..#.#.#...'),
+  degrade: gerar(10, 10, (p) => {
+    for (let y = 0; y < 10; y++) for (let x = 0; x < 10; x++) if ((10 - x) / 10.5 > limiarBayer(x, y, 4)) p(x, y);
+  }),
+  sombra: gerar(10, 10, (p) => {
+    elipse(0, 0, 9, 9, false, p);
+    elipse(0, 0, 9, 9, true, (x, y) => {
+      if (x < 5) p(x, y);
+    });
+  }),
   desfazer: DESFAZER,
   refazer: espelharH(DESFAZER),
   olho: B('..........', '...####...', '.##....##.', '#...##...#', '#..####..#', '#...##...#', '.##....##.', '...####...', '..........'),
@@ -98,6 +111,7 @@ export function icone(nome, tamanho = 20, rotulo = '') {
   const lado = Math.max(l, a) + 2;
   const ox = (lado - l) / 2;
   const oy = (lado - a) / 2;
-  const aria = rotulo ? `role="img" aria-label="${rotulo}"` : 'aria-hidden="true"';
+  const seguro = String(rotulo).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  const aria = rotulo ? `role="img" aria-label="${seguro}"` : 'aria-hidden="true"';
   return `<svg class="icone" width="${tamanho}" height="${tamanho}" viewBox="${-ox} ${-oy} ${lado} ${lado}" shape-rendering="crispEdges" ${aria}><path fill="currentColor" d="${caminhoBitmap(bitmap)}"/></svg>`;
 }

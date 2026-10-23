@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -17,10 +19,19 @@ def env_lista(nome, padrao=""):
     return [item.strip() for item in str(env(nome, padrao)).split(",") if item.strip()]
 
 
-VERSAO = (BASE_DIR / "VERSION").read_text(encoding="utf-8").strip() if (BASE_DIR / "VERSION").exists() else "1.0.0"
+VERSAO = (BASE_DIR / "VERSION").read_text(encoding="utf-8").strip() if (BASE_DIR / "VERSION").exists() else "1.1.0"
+
+CHAVE_DE_DESENVOLVIMENTO = "crivo-chave-local-de-desenvolvimento-troque-em-producao"
+CHAVES_DE_EXEMPLO = {CHAVE_DE_DESENVOLVIMENTO, "troque-esta-chave"}
 
 DEBUG = env_bool("CRIVO_DEBUG", True)
-SECRET_KEY = env("CRIVO_SECRET_KEY", "crivo-chave-local-de-desenvolvimento-troque-em-producao")
+SECRET_KEY = env("CRIVO_SECRET_KEY", CHAVE_DE_DESENVOLVIMENTO)
+
+if not DEBUG and (SECRET_KEY in CHAVES_DE_EXEMPLO or len(SECRET_KEY) < 32):
+    raise ImproperlyConfigured(
+        "CRIVO_SECRET_KEY insegura: com CRIVO_DEBUG=false defina uma chave aleatória com pelo menos 32 caracteres "
+        "(os scripts iniciar.sh e iniciar.cmd geram uma no .env)."
+    )
 ALLOWED_HOSTS = env_lista("CRIVO_ALLOWED_HOSTS", "localhost,127.0.0.1,[::1]")
 CSRF_TRUSTED_ORIGINS = env_lista("CRIVO_CSRF_TRUSTED_ORIGINS")
 
@@ -32,10 +43,12 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "editor.seguranca.CabecalhosDeSegurancaMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.common.CommonMiddleware",
     "editor.seguranca.TokenDaApiMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+    "editor.seguranca.LimiteDeEscritasMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
@@ -86,16 +99,22 @@ SESSION_COOKIE_SAMESITE = "Strict"
 X_FRAME_OPTIONS = "DENY"
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
 if env_bool("CRIVO_HTTPS", False):
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = int(env("CRIVO_HSTS_SEGUNDOS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("CRIVO_HSTS_SUBDOMINIOS", False)
+    SECURE_SSL_REDIRECT = env_bool("CRIVO_REDIRECIONAR_HTTPS", False)
 
 CRIVO = {
     "VERSAO": VERSAO,
     "TOKEN_API": env("CRIVO_API_TOKEN", ""),
     "MAX_REVISOES": int(env("CRIVO_MAX_REVISOES", "20")),
+    "LIMITE_ESCRITAS": int(env("CRIVO_LIMITE_ESCRITAS", "120")),
+    "PROXY_CONFIAVEL": env_bool("CRIVO_PROXY_CONFIAVEL", False),
     "LIMITE_LADO": 1024,
     "LIMITE_CAMADAS": 64,
     "LIMITE_QUADROS": 512,

@@ -28,6 +28,43 @@ jobs:
       - name: Testes do núcleo do editor
         run: npm test
 
+  qualidade:
+    name: Qualidade e segurança (Ruff + Bandit)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt ruff bandit
+      - name: Ruff (estilo, bugs e segurança)
+        run: ruff check .
+      - name: Bandit (segurança do Python)
+        run: bandit -q -r editor crivo -x editor/tests
+      - name: Checagem de produção do Django
+        env:
+          CRIVO_DEBUG: "false"
+          CRIVO_SECRET_KEY: ci-chave-aleatoria-com-mais-de-trinta-e-dois-caracteres
+          CRIVO_HTTPS: "true"
+        run: python manage.py check --deploy --fail-level ERROR
+
+  interface:
+    name: Interface (Playwright)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt playwright
+      - run: python -m playwright install --with-deps chromium
+      - name: Teste ponta a ponta do editor
+        run: python -m unittest discover -s tests/e2e -v
+
   django:
     name: API (Django + PostgreSQL)
     runs-on: ubuntu-24.04

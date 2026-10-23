@@ -33,9 +33,16 @@ export class Visor {
       this.invalidar();
     });
     editor.ao('quadro', () => this.invalidar());
+    editor.ao('selecao', () => this.pedir());
     editor.ao('estado', ({ chave }) => {
-      if (['grade', 'simetria', 'cebola', 'ferramenta', 'tamanho', 'forma'].includes(chave)) this.pedir();
+      if (['grade', 'simetria', 'cebola', 'ferramenta', 'tamanho', 'forma', 'gradeForte', 'ladrilho'].includes(chave)) this.pedir();
     });
+    this.fase = 0;
+    setInterval(() => {
+      if (!this.editor.selecao || document.hidden) return;
+      this.fase = (this.fase + 1) % 8;
+      this.pedir();
+    }, 120);
   }
 
   lerCores() {
@@ -211,6 +218,21 @@ export class Visor {
     ctx.fillStyle = padrao;
     ctx.fillRect(this.panX, this.panY, L, A);
     ctx.imageSmoothingEnabled = false;
+    if (estado.ladrilho) {
+      // Modo ladrilho: repete o quadro 3×3 em volta da matriz, esmaecido, para conferir as emendas.
+      ctx.globalAlpha = 0.55;
+      for (let ty = -1; ty <= 1; ty++) {
+        for (let tx = -1; tx <= 1; tx++) {
+          if (!tx && !ty) continue;
+          const ox = this.panX + tx * L;
+          const oy = this.panY + ty * A;
+          ctx.fillStyle = padrao;
+          ctx.fillRect(ox, oy, L, A);
+          ctx.drawImage(this.oc, ox, oy, L, A);
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
     if (this.temCebola) {
       ctx.globalAlpha = 0.32;
       ctx.drawImage(this.ocCebola, this.panX, this.panY, L, A);
@@ -220,16 +242,18 @@ export class Visor {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const X = (v) => Math.round((this.panX + v * z) * dpr);
     const Y = (v) => Math.round((this.panY + v * z) * dpr);
+    const passoForte = Number(estado.gradeForte) || 0;
+    const ehForte = (v) => passoForte > 0 && v % passoForte === 0;
     if (estado.grade && z >= 4) {
       const linhas = (forte) => {
         ctx.beginPath();
         for (let x = 1; x < doc.largura; x++) {
-          if ((x % 8 === 0) !== forte) continue;
+          if (ehForte(x) !== forte) continue;
           ctx.moveTo(X(x) + 0.5, Y(0));
           ctx.lineTo(X(x) + 0.5, Y(doc.altura));
         }
         for (let y = 1; y < doc.altura; y++) {
-          if ((y % 8 === 0) !== forte) continue;
+          if (ehForte(y) !== forte) continue;
           ctx.moveTo(X(0), Y(y) + 0.5);
           ctx.lineTo(X(doc.largura), Y(y) + 0.5);
         }
@@ -238,7 +262,7 @@ export class Visor {
       ctx.lineWidth = 1;
       ctx.strokeStyle = this.cores.grade;
       linhas(false);
-      if (doc.largura > 8 || doc.altura > 8) {
+      if (passoForte > 0 && (doc.largura > passoForte || doc.altura > passoForte)) {
         ctx.strokeStyle = this.cores.gradeForte;
         linhas(true);
       }
@@ -265,13 +289,34 @@ export class Visor {
     ctx.strokeStyle = this.cores.borda;
     ctx.lineWidth = Math.max(1, Math.round(dpr));
     ctx.strokeRect(X(0) - 0.5, Y(0) - 0.5, X(doc.largura) - X(0) + 1, Y(doc.altura) - Y(0) + 1);
-    if (this.cursor && !estado.tocando && estado.ferramenta !== 'mover') this.desenharCursor(X, Y);
+    if (this.editor.selecao) this.desenharSelecao(X, Y);
+    if (this.cursor && !estado.tocando && !['mover', 'moverPixels'].includes(estado.ferramenta)) this.desenharCursor(X, Y);
+  }
+
+  // Seleção: retângulo tracejado em duas cores que "anda" (formigas), visível sobre qualquer fundo.
+  desenharSelecao(X, Y) {
+    const { ctx, dpr } = this;
+    const r = this.editor.selecao;
+    const x = X(r.x) + 0.5;
+    const y = Y(r.y) + 0.5;
+    const l = X(r.x + r.largura) - X(r.x) - 1;
+    const a = Y(r.y + r.altura) - Y(r.y) - 1;
+    ctx.save();
+    ctx.lineWidth = Math.max(1, Math.round(dpr));
+    ctx.setLineDash([]);
+    ctx.strokeStyle = this.cores.cursorEscuro || '#000';
+    ctx.strokeRect(x, y, l, a);
+    ctx.setLineDash([4 * dpr, 4 * dpr]);
+    ctx.lineDashOffset = -this.fase * dpr;
+    ctx.strokeStyle = this.cores.cursor || '#fff';
+    ctx.strokeRect(x, y, l, a);
+    ctx.restore();
   }
 
   desenharCursor(X, Y) {
     const { ctx, dpr } = this;
     const estado = this.editor.estado;
-    const usaPincel = ['lapis', 'borracha', 'linha'].includes(estado.ferramenta);
+    const usaPincel = ['lapis', 'borracha', 'linha', 'pontilhado', 'sombra'].includes(estado.ferramenta);
     const doc = this.editor.doc;
     const pontos = usaPincel ? pincel(estado.tamanho, estado.forma) : [[0, 0]];
     const celulas = new Map();

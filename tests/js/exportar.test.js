@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { empacotar, hexParaCor } from '../../editor/static/editor/js/nucleo/cores.js';
-import { montarMatrizes, gerarDados, layoutFolha, escalarVizinho, identificador, achatarFundo, metadadosFolha } from '../../editor/static/editor/js/nucleo/exportar.js';
+import { montarMatrizes, gerarDados, layoutFolha, escalarVizinho, identificador, achatarFundo, metadadosFolha, gerarJava, gerarC } from '../../editor/static/editor/js/nucleo/exportar.js';
 import { importarPaleta, exportarPaleta, PALETAS_PREDEFINIDAS, extrairPaleta } from '../../editor/static/editor/js/nucleo/paletas.js';
 import { desserializar } from '../../editor/static/editor/js/nucleo/formato.js';
 
@@ -83,4 +83,19 @@ test('exemplos: os arquivos .crivo abrem sem erro', () => {
     assert.ok(doc.quadros.length >= 2);
     assert.ok(doc.compor(0).some((c) => c !== 0));
   }
+});
+
+test('java: matriz grande sai compactada em texto (sem estourar os 64 KB do Java) e C usa int32 com muitas cores', () => {
+  const L = 70;
+  const px = new Uint32Array(L * L).map((_, i) => (i % 3 ? (0xff000000 | (i * 77)) >>> 0 : 0));
+  const dados = montarMatrizes([px], L, L, { modo: 'indices' });
+  const fonte = gerarJava(dados, 'Meu Sprite');
+  assert.match(fonte, /public final class MeuSprite/);
+  assert.match(fonte, /private static final String\[\] DADOS = \{/);
+  assert.ok(fonte.split(',').length < 1000, 'os valores não viram um literal gigante');
+  assert.doesNotMatch(fonte, /\\u000[aAdD]|\\u0022|\\u005[cC]/, 'nada de escapes \\u que o Java leria antes do texto');
+  const pequeno = gerarJava(montarMatrizes([px.slice(0, 16)], 4, 4, { modo: 'indices' }), 'x');
+  assert.doesNotMatch(pequeno, /DADOS/);
+  const muitas = { largura: 1, altura: 1, modo: 'indices', paleta: Array(40000).fill('#000000'), quadros: [[[39999]]] };
+  assert.match(gerarC(muitas, 'a'), /static const int32_t/);
 });

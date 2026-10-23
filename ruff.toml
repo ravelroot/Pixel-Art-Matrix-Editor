@@ -1,0 +1,12 @@
+target-version = "py313"
+line-length = 160
+extend-exclude = ["editor/migrations", "staticfiles"]
+
+[lint]
+# E/W estilo, F erros, B bugs prováveis, S segurança (flake8-bandit), UP Python moderno, SIM simplificações
+select = ["E", "F", "W", "B", "S", "UP", "SIM"]
+ignore = ["E501"]
+
+[lint.per-file-ignores]
+"editor/tests/*" = ["S101", "S105", "S106", "S603"]
+"tests/*" = ["S101", "S603", "S310"]
