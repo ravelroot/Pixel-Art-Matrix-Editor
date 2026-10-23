@@ -5,7 +5,7 @@
 <h1 align="center">Crivo<br><sub><sup><sup><sub>Copyright (©) 2026 Erik Pimenta</sub></sup></sup></sub></h1>
 
 <p align="center">
-  Editor de pixel art que roda no navegador e trata a imagem como ela é: uma matriz de pixels RGBA. Desenhe com lápis, spray, balde, linhas, curvas, formas, pontilhado e degradês, selecione com retângulo, elipse, laço ou varinha mágica, organize em camadas e grupos com modos de mistura, anime quadro a quadro com tags e cels vinculados e exporte PNG, GIF e PNG animados, sprite sheets, arquivos do Aseprite ou a própria matriz em JSON, CSV, JavaScript, Python, C e Java para usar direto no seu jogo.<br>
+  Editor de pixel art que roda no navegador e trata a imagem como ela é: uma matriz de pixels RGBA. Desenhe com lápis, spray, balde, linhas, curvas, formas, pontilhado e degradês, selecione com retângulo, elipse, laço ou varinha mágica, organize em camadas e grupos com modos de mistura, anime quadro a quadro com tags e cels vinculados e exporte PNG, GIF e PNG animados, sprite sheets, arquivos <code>.ase</code> com camadas ou a própria matriz em JSON, CSV, JavaScript, Python, C e Java para usar direto no seu jogo.<br>
   Roda de três maneiras: app desktop para Windows (<code>Crivo.exe</code>), servidor local com backend ou arquivo único no navegador (<code>Crivo.html</code>).<br>
   Pronto para baixar e usar.
 </p>
@@ -16,7 +16,7 @@
 
 ---
 
-> **Manual completo:** [`Manual-Crivo.pdf`](Manual-Crivo.pdf) explica as três maneiras de rodar (app desktop, servidor local e arquivo único), cada uma das 23 ferramentas, seleção, camadas e grupos, modos de mistura, tags, tilemaps, slices, cor e paletas, ajustes, arquivos do Aseprite, abas, exportação, a matemática por trás dos algoritmos (Bresenham, flood fill, OKLCH, pontilhado de Bayer, LZW do GIF, RLE), a API, a ferramenta em Java, a configuração, a segurança, os testes e a solução de problemas, passo a passo (cópia em [`docs/`](docs/Manual-Crivo.pdf)).
+> **Manual completo:** [`Manual-Crivo.pdf`](Manual-Crivo.pdf) explica as três maneiras de rodar (app desktop, servidor local e arquivo único), cada uma das 23 ferramentas, seleção, camadas e grupos, modos de mistura, tags, tilemaps, slices, cor e paletas, ajustes, arquivos `.ase`, abas, exportação, a matemática por trás dos algoritmos (Bresenham, flood fill, OKLCH, pontilhado de Bayer, LZW do GIF, RLE), a API, a ferramenta em Java, a configuração, a segurança, os testes e a solução de problemas, passo a passo (cópia em [`docs/`](docs/Manual-Crivo.pdf)).
 
 > **Banco de dados:** [`Banco-de-Dados-Crivo.pdf`](Banco-de-Dados-Crivo.pdf) traz o diagrama de relacionamentos, todas as tabelas (inclusive `tag`, `slice` e `tileset`, da 2.1.0) com campos, tipos, chaves e restrições, o formato binário das células, o controle de versões, consultas prontas, como preparar o PostgreSQL e as regras de integridade e segurança dos dados.
 
@@ -40,7 +40,7 @@
 - **Tamanho da matriz:** de 1×1 a 1024×1024, com âncora de nove posições para centralizar ou expandir para um lado, ou escalando o desenho por vizinho mais próximo. Também gira 90° e espelha camadas.
 - **Paletas e cor:** Crivo, Game Boy, NES, Pico-8, CGA, CGA modo 4, Commodore 64 e 1 bit já incluídas. Crie, renomeie, importe (`.hex`, `.gpl`, `.json`, `.txt` do Paint.NET) e exporte as suas, gere uma paleta a partir das cores do desenho ou edite tudo no **editor de paleta**. Modos de cor **RGBA**, **indexado** (com pontilhado opcional) e **tons de cinza**, seletor HSV com alfa e **ajustes** com prévia: brilho e contraste, matiz/saturação/luminosidade, curva de cores, posterizar, remover ruído e matriz de convolução.
 - **Gerador de tons:** a partir da cor escolhida, cria rampas de sombra e luz no espaço de cor OKLCH, com o desvio de matiz típico da pixel art (sombras puxam para o azul, luzes para o amarelo).
-- **Importação e exportação:** PNG e JPEG em tamanho real ou ampliados por vizinho mais próximo; **GIF animado** com transparência e a duração de cada quadro (codificador LZW próprio, sem bibliotecas); **PNG animado (APNG)** e quadros em PNG num `.zip`; arquivos **`.aseprite`/`.ase`** (abrir e exportar); sprite sheet horizontal, vertical ou em grade, com JSON das posições no formato do Crivo ou do Aseprite; dados da matriz em JSON, CSV, JavaScript, Python, C e Java; importação de imagens com detecção automática do tamanho do pixel e fatiamento de sprite sheets.
+- **Importação e exportação:** PNG e JPEG em tamanho real ou ampliados por vizinho mais próximo; **GIF animado** com transparência e a duração de cada quadro (codificador LZW próprio, sem bibliotecas); **PNG animado (APNG)** e quadros em PNG num `.zip`; arquivos **`.ase`** com camadas, tags e slices (abrir e exportar); sprite sheet horizontal, vertical ou em grade, com JSON das posições no formato do Crivo ou nos formatos hash e array que os motores de jogo leem; dados da matriz em JSON, CSV, JavaScript, Python, C e Java; importação de imagens com detecção automática do tamanho do pixel e fatiamento de sprite sheets.
 - **Salva onde você estiver:** no app desktop, projetos e paletas ficam neste computador; com o servidor Django, vão para o banco de dados, com histórico de versões; no [`Crivo.html`](Crivo.html), ficam no navegador (IndexedDB). Um rascunho automático recupera o trabalho se a janela fechar.
 - **Seguro por padrão:** Content-Security-Policy restrita, CSRF, token de API comparado em tempo constante, limite de escritas por IP, validação de tudo que chega à API e recusa de iniciar em produção com chave secreta fraca. Detalhes em [Qualidade e segurança](#qualidade-e-segurança).
 
@@ -54,9 +54,9 @@
   <img src="docs/images/tela-simetria.png" width="49%" alt="Desenho com simetria horizontal e vertical, com os dois eixos tracejados">
 </p>
 
-## Recursos de nível Aseprite (2.1.0)
+## Recursos avançados (2.1.0)
 
-A versão 2.1.0 traz para o Crivo os recursos principais do Aseprite, escritos do zero (o formato `.aseprite` foi implementado a partir da especificação pública).
+A versão 2.1.0 traz para o Crivo os recursos de um editor de pixel art completo: camadas em grupos, modos de mistura, animação com tags, tilemaps, slices, modos de cor e arquivos `.ase` com camadas, tudo escrito do zero (o formato `.ase` foi implementado a partir da especificação pública).
 
 <p align="center">
   <img src="docs/images/tela-camadas-grupos.png" width="49%" alt="Camadas em grupo com modos de mistura, opacidade e camada de referência no exemplo blend-modes">
@@ -65,7 +65,7 @@ A versão 2.1.0 traz para o Crivo os recursos principais do Aseprite, escritos d
 
 ### Camadas, grupos e modos de mistura
 
-- **Grupos:** **Camada → Novo grupo** ou **Agrupar a camada atual**; o grupo abre e fecha (▸/▾) e as camadas de dentro aparecem recuadas. A visibilidade, a opacidade e o modo de mistura do grupo valem para tudo o que está nele. Um grupo **normal a 100%** é "pass-through", como no Aseprite; com outro modo ou opacidade, o conteúdo é composto à parte e misturado como uma camada só.
+- **Grupos:** **Camada → Novo grupo** ou **Agrupar a camada atual**; o grupo abre e fecha (▸/▾) e as camadas de dentro aparecem recuadas. A visibilidade, a opacidade e o modo de mistura do grupo valem para tudo o que está nele. Um grupo **normal a 100%** é "pass-through": as camadas de dentro se misturam direto com o que está abaixo; com outro modo ou opacidade, o conteúdo é composto à parte e misturado como uma camada só.
 - **Modos de mistura (19):** normal, multiplicar, tela, sobrepor, escurecer, clarear, subexposição de cor, superexposição de cor, luz forte, luz suave, diferença, exclusão, matiz, saturação, cor, luminosidade, adição, subtração e divisão, escolhidos em **Propriedades da camada…** (F2 ou duplo clique na camada). O normal continua idêntico, bit a bit, ao da 2.0.
 - **Camada de referência:** aparece no editor, mas fica fora de todas as exportações (PNG, GIF, sprite sheet, dados, servidor e Java).
 - **Camadas de tiles:** **Nova camada de tiles…** cria um tileset (tamanho do tile) e um tilemap. No **modo tile**, o lápis põe o tile escolhido, a borracha põe o tile 0 (vazio) e o conta-gotas pega um tile; no **modo pixel**, editar um tile atualiza todas as cópias. O painel mostra os tiles e o botão **+ Tile**.
@@ -76,7 +76,7 @@ A versão 2.1.0 traz para o Crivo os recursos principais do Aseprite, escritos d
 - **Cels vinculados:** **Novo quadro vinculado** e **Vincular célula a quadros…** fazem vários quadros dividirem a mesma célula: editar uma muda todas. O "∞" marca as células vinculadas; **Desvincular célula** faz uma cópia independente.
 - **Duração por quadro:** **Propriedades do quadro…** (ou duplo clique no quadro) define a duração em ms, mostrada na linha do tempo.
 - **Papel cebola configurável:** **Exibir → Configurar papel cebola…** (ou o botão "⋯" da linha do tempo) mostra de 0 a 3 quadros antes e depois, normal ou tingido de vermelho e azul.
-- **Slices:** **Exibir → Editar slices…** cria áreas com nome, cor, retângulo, centro de 9-slice e pivô opcionais, exportadas no `.aseprite` e no JSON do Aseprite; **Exibir → Slices** mostra ou esconde as áreas.
+- **Slices:** **Exibir → Editar slices…** cria áreas com nome, cor, retângulo, centro de 9-slice e pivô opcionais, exportadas no `.ase` e no JSON da sprite sheet; **Exibir → Slices** mostra ou esconde as áreas.
 
 ### Ferramentas e atalhos
 
@@ -117,7 +117,7 @@ A lista completa fica em **Ajuda → Atalhos do teclado** (`?`).
 
 | Menu | Comandos |
 |---|---|
-| Arquivo | Novo projeto, projetos salvos, **abrir arquivo** (`.crivo`, `.json`, `.aseprite` e `.ase`, numa aba nova), importar imagem ou sprite sheet, **fechar projeto (aba)**, salvar, salvar como cópia, baixar `.crivo`, **exportar como `.aseprite`**, exportar imagem, GIF animado, **PNG animado (APNG)**, **quadros em PNG (.zip)**, sprite sheet e dados |
+| Arquivo | Novo projeto, projetos salvos, **abrir arquivo** (`.crivo`, `.json` e `.ase`, numa aba nova), importar imagem ou sprite sheet, **fechar projeto (aba)**, salvar, salvar como cópia, baixar `.crivo`, **exportar como `.ase`**, exportar imagem, GIF animado, **PNG animado (APNG)**, **quadros em PNG (.zip)**, sprite sheet e dados |
 | Editar | Desfazer, refazer, copiar, recortar, colar, apagar, selecionar tudo, desmarcar e espelhar |
 | Imagem | Tamanho da matriz, recortar para a seleção, aparar, girar, deslocar meia matriz, contorno, converter para a paleta, substituir cor, inverter e tons de cinza |
 | **Cor** | Modo de cor RGBA, indexado (com pontilhado Bayer 4×4 opcional) ou tons de cinza, editar paleta, escolher cor principal e secundária (seletor HSV com alfa e hexadecimal), brilho e contraste, matiz/saturação/luminosidade, curva de cores, posterizar, remover ruído, matriz de convolução (suavizar, nitidez, realce de bordas, desfoque gaussiano), converter para a paleta, substituir cor, inverter e tons de cinza |
@@ -148,26 +148,26 @@ A lista completa fica em **Ajuda → Atalhos do teclado** (`?`).
 | Formato | Abrir | Exportar | Detalhes |
 |---|---|---|---|
 | `.crivo` | Sim | Sim | Versão 2, com as chaves opcionais da 2.1.0 (veja [Formato `.crivo`](#formato-crivo)) |
-| `.aseprite` / `.ase` | Sim | Sim | Abre 32 bits, tons de cinza de 16 bits e indexado de 8 bits, com camadas (visibilidade, bloqueio, opacidade, modo de mistura, grupos, fechados e referência), cels normais, vinculados, comprimidos e de tilemap, paletas, tags, slices e tilesets. Exporta em RGBA de 32 bits, com cels comprimidos e vinculados, grupos, modos, opacidade, referência, tags, slices, paleta, durações e tilesets |
+| `.ase` | Sim | Sim | Abre 32 bits, tons de cinza de 16 bits e indexado de 8 bits, com camadas (visibilidade, bloqueio, opacidade, modo de mistura, grupos, fechados e referência), cels normais, vinculados, comprimidos e de tilemap, paletas, tags, slices e tilesets. Exporta em RGBA de 32 bits, com cels comprimidos e vinculados, grupos, modos, opacidade, referência, tags, slices, paleta, durações e tilesets |
 | PNG animado (APNG) | — | Sim | **Arquivo → Exportar PNG animado (APNG)…**, com a duração de cada quadro e transparência total |
 | Quadros em PNG (`.zip`) | — | Sim | **Arquivo → Exportar quadros em PNG (.zip)…**, um PNG por quadro |
-| Sprite sheet + JSON | — | Sim | **Formato do JSON**: Crivo, Aseprite (hash) ou Aseprite (array), compatível com o JSON do Aseprite (`frames`, `meta.frameTags`, `meta.layers`, `meta.slices`) |
+| Sprite sheet + JSON | — | Sim | **Formato do JSON**: Crivo, hash (quadros por nome) ou array (lista de quadros), no layout de sprite sheet que Phaser, PixiJS e os importadores do Godot leem (`frames`, `meta.frameTags`, `meta.layers`, `meta.slices`) |
 | PNG, JPEG, GIF, dados | Imagens | Sim | Como antes; camadas de referência ficam de fora |
 
 - **Abas:** cada projeto aberto (novo, salvo, importado ou arrastado para a tela) ganha uma aba acima da matriz; clique do meio fecha. **Ctrl+Tab** e **Ctrl+Shift+Tab** andam entre elas.
 - **Pré-visualização** (F7): uma janela com o quadro inteiro e o retângulo da parte visível; clicar ou arrastar move a visão, e ela tem a própria reprodução.
-- **Arrastar e soltar:** `.crivo`, `.aseprite` e `.ase` abrem numa aba; imagens vão para o diálogo de importação.
+- **Arrastar e soltar:** `.crivo` e `.ase` abrem numa aba; imagens vão para o diálogo de importação.
 
 <p align="center">
   <img src="docs/images/tela-abas.png" width="49%" alt="Quatro projetos abertos em abas e a janela de pré-visualização">
-  <img src="docs/images/tela-sprite-sheet.png" width="49%" alt="Sprite sheet com o JSON no formato hash do Aseprite">
+  <img src="docs/images/tela-sprite-sheet.png" width="49%" alt="Sprite sheet com o JSON no formato hash">
 </p>
 
 ### Servidor, banco e Java
 
 - A API v2 aceita e devolve os campos novos do documento, validados com mensagens em português; documentos da 2.0 vão e voltam sem mudança.
 - O PNG e as exportações do servidor compõem grupos e modos de mistura e deixam de fora as camadas de referência, com os mesmos pixels do editor e da ferramenta em Java (um teste de paridade confere isso em 30 documentos aleatórios).
-- A migração `0004_aseprite_features` acrescenta `project.color_mode`; `layer.blend_mode`, `kind`, `parent_key`, `collapsed`, `tileset_key` e `reference`; `cell.link_frame_key` e `cell.tiles`; e as tabelas `tag`, `slice` e `tileset` (veja [Banco de dados](#banco-de-dados)).
+- A migração `0004_advanced_features` acrescenta `project.color_mode`; `layer.blend_mode`, `kind`, `parent_key`, `collapsed`, `tileset_key` e `reference`; `cell.link_frame_key` e `cell.tiles`; e as tabelas `tag`, `slice` e `tileset` (veja [Banco de dados](#banco-de-dados)).
 - A ferramenta em Java lê os campos novos, compõe grupos e modos de mistura, mostra grupos, tipos, modos, modo de cor, tags, slices e tilesets no `info` e ganha o comando `tags`.
 
 ## Arquitetura
@@ -185,7 +185,7 @@ flowchart LR
 
 | Parte | Linguagem | Responsabilidade |
 |---|---|---|
-| `editor/static/editor/js/core` | JavaScript | Núcleo sem DOM: cores e OKLCH, geometria (Bresenham, elipse, curvas, polígonos, pincel, simetria, pixel perfect), flood fill, pontilhado de Bayer e degradês, seleção com máscara, filtros e ajustes, modos de mistura (`blend.js`), modos de cor (`colormode.js`), ferramentas de paleta, pincel personalizado (`brush.js`), transformação com RotSprite (`transform.js`), tilemaps (`tilemap.js`), tags e reprodução (`animation.js`), codificadores GIF, APNG (`apng.js`), ZIP (`zip.js`) e zlib (`zlib.js`), leitor e gravador `.aseprite` (`aseprite.js`), RLE, documento, histórico, formato `.crivo`, exportação e paletas |
+| `editor/static/editor/js/core` | JavaScript | Núcleo sem DOM: cores e OKLCH, geometria (Bresenham, elipse, curvas, polígonos, pincel, simetria, pixel perfect), flood fill, pontilhado de Bayer e degradês, seleção com máscara, filtros e ajustes, modos de mistura (`blend.js`), modos de cor (`colormode.js`), ferramentas de paleta, pincel personalizado (`brush.js`), transformação com RotSprite (`transform.js`), tilemaps (`tilemap.js`), tags e reprodução (`animation.js`), codificadores GIF, APNG (`apng.js`), ZIP (`zip.js`) e zlib (`zlib.js`), leitor e gravador `.ase` (`ase-file.js`), RLE, documento, histórico, formato `.crivo`, exportação e paletas |
 | `editor/static/editor/js/features` | JavaScript | Recursos da 2.1.0 que se ligam ao editor pelo ponto de extensão `install(app)` do `main.js`: `layers.js` (menus Camada e Quadro), `selection.js` (menu Seleção), `color.js` (menu Cor) e `files.js` (abrir, abas, exportações novas) |
 | `editor/static/editor/js/ui` | JavaScript | Visor em canvas, ferramentas, painéis, diálogos, armazenamento e atalhos; na 2.1.0, também `layer-dialogs.js` (propriedades de camada e quadro, tags, slices, papel cebola), `palette-editor.js`, `color-picker.js`, `adjustments.js`, `tabs.js` e `minimap.js` (pré-visualização) |
 | `Crivo.exe` e `desktop/` | Go | App desktop para Windows, gerado por `scripts/build-desktop.js`: janela própria com o WebView2, maximizada (F11 alterna a tela cheia), com o `Crivo.html` embutido e atalho no menu Iniciar |
@@ -440,7 +440,7 @@ Na 2.0.0, sete variáveis ganharam nomes em inglês: `CRIVO_TAMANHO_MAXIMO_MB` �
 
 ## Banco de dados
 
-As tabelas são `project`, `layer`, `frame`, `cell`, `revision`, `palette` e `palette_color` e, desde a 2.1.0, `tag`, `slice` e `tileset` (o detalhe de cada campo está no [`Banco-de-Dados-Crivo.pdf`](Banco-de-Dados-Crivo.pdf)). A migração `0004_aseprite_features` só acrescenta: toda coluna nova tem valor padrão ou aceita nulo, então os projetos existentes continuam iguais.
+As tabelas são `project`, `layer`, `frame`, `cell`, `revision`, `palette` e `palette_color` e, desde a 2.1.0, `tag`, `slice` e `tileset` (o detalhe de cada campo está no [`Banco-de-Dados-Crivo.pdf`](Banco-de-Dados-Crivo.pdf)). A migração `0004_advanced_features` só acrescenta: toda coluna nova tem valor padrão ou aceita nulo, então os projetos existentes continuam iguais.
 
 | Tabela | O que a 2.1.0 acrescenta |
 |---|---|
@@ -491,7 +491,7 @@ Resultado da rodada de testes da versão 2.1.0: **257 testes, todos passando**, 
 
 | Verificação | O que cobre | Resultado |
 |---|---|---|
-| Núcleo JavaScript (107) | Cores, geometria, flood fill, RLE, histórico, formato, exportação (inclusive Java compacta e C com muitas cores), pontilhado, degradês, pixel perfect, seleção, aparar, ladrilho, contorno, filtros e GIF (LZW de ida e volta); na 2.1.0, grupos, modos de mistura, tags, cels vinculados, tilemaps, slices, seleções com máscara, ferramentas novas, modos de tinta, pincel, transformação, modos de cor, ajustes, paleta, `.aseprite` de ida e volta, APNG, ZIP e o JSON do Aseprite | 107 de 107 |
+| Núcleo JavaScript (107) | Cores, geometria, flood fill, RLE, histórico, formato, exportação (inclusive Java compacta e C com muitas cores), pontilhado, degradês, pixel perfect, seleção, aparar, ladrilho, contorno, filtros e GIF (LZW de ida e volta); na 2.1.0, grupos, modos de mistura, tags, cels vinculados, tilemaps, slices, seleções com máscara, ferramentas novas, modos de tinta, pincel, transformação, modos de cor, ajustes, paleta, `.ase` de ida e volta, APNG, ZIP e o JSON hash e array da sprite sheet | 107 de 107 |
 | API Django (72) | Ciclo de projetos e paletas, revisões, conflitos, exportação, PNG, formatos C e Java (a classe grande é compilada e executada com o JDK quando ele existe), o conjunto de segurança abaixo, as migrações e os campos da 2.1.0 (validação, ida e volta, documentos da 2.0 inalterados) | 72 de 72 |
 | Ferramenta Java (36) | Leitura do `.crivo`, RLE, PNG, sprite sheet e matriz, inclusive uma classe grande compilada em memória com o compilador do JDK; na 2.1.0, chaves opcionais, modos de mistura, grupos, `info` e `tags` | 36 de 36 |
 | Paridade de composição | 30 documentos aleatórios com os 19 modos de mistura, grupos (inclusive "pass-through" normais a 100%) e camadas ocultas ou de referência, compostos no editor (JS), no servidor (Python) e na ferramenta Java (`tests/fixtures/blend-parity.json`) | Mesmos pixels nos três |
@@ -521,7 +521,7 @@ editor/                     aplicação Django (modelos, API, validação, expor
     js/core/                núcleo em JavaScript, sem DOM, testado no Node
     js/features/            recursos da 2.1.0 ligados pelo install(app): camadas, seleção, cor e arquivos
     js/ui/                  interface: visor, ferramentas, painéis, diálogos, abas, pré-visualização, armazenamento
-  migrations/               esquema do banco, paletas predefinidas, nomes em inglês (0003) e recursos do Aseprite (0004)
+  migrations/               esquema do banco, paletas predefinidas, nomes em inglês (0003) e recursos avançados (0004)
   tests/                    testes da API e de segurança
 crivo/                      configurações do projeto Django
 tools/java/                 linha de comando em Java 21

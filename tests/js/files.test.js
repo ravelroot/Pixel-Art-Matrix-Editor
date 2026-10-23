@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { PixelDocument } from '../../editor/static/editor/js/core/document.js';
 import { pack } from '../../editor/static/editor/js/core/colors.js';
-import { readAseprite, writeAseprite, parseAseprite, layerFileOrder, BLEND_MODES } from '../../editor/static/editor/js/core/aseprite.js';
+import { readAseprite, writeAseprite, parseAseprite, layerFileOrder, BLEND_MODES } from '../../editor/static/editor/js/core/ase-file.js';
 import { encodeAPNG, encodePNG, readPNGChunks } from '../../editor/static/editor/js/core/apng.js';
 import { createZip } from '../../editor/static/editor/js/core/zip.js';
 import { crc32, deflate, inflate, deflateStored } from '../../editor/static/editor/js/core/zlib.js';
@@ -164,7 +164,7 @@ test('aseprite: hand-built tilemap fixture (tileset, compressed tilemap, X flip)
 });
 
 test('aseprite: invalid files are rejected with a message', async () => {
-  await assert.rejects(readAseprite(new Uint8Array(200)), /não é um \.aseprite válido/);
+  await assert.rejects(readAseprite(new Uint8Array(200)), /não é um \.ase válido/);
   await assert.rejects(readAseprite(new Uint8Array(10)), /incompleto/);
 });
 

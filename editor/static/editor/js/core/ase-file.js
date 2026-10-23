@@ -34,7 +34,7 @@ class Reader {
   }
 
   need(n) {
-    if (this.p + n > this.bytes.length) throw new Error('Arquivo .aseprite incompleto ou corrompido.');
+    if (this.p + n > this.bytes.length) throw new Error('Arquivo .ase incompleto ou corrompido.');
   }
 
   u8() {
@@ -115,9 +115,9 @@ function readTiles(raw, count, bits) {
 export function parseAseprite(bytes) {
   if (!(bytes instanceof Uint8Array)) bytes = new Uint8Array(bytes);
   const r = new Reader(bytes);
-  if (bytes.length < 128) throw new Error('Arquivo .aseprite incompleto ou corrompido.');
+  if (bytes.length < 128) throw new Error('Arquivo .ase incompleto ou corrompido.');
   r.u32();
-  if (r.u16() !== HEADER_MAGIC) throw new Error('Este arquivo não é um .aseprite válido.');
+  if (r.u16() !== HEADER_MAGIC) throw new Error('Este arquivo não é um .ase válido.');
   const header = { frames: r.u16(), width: r.u16(), height: r.u16(), depth: r.u16(), flags: r.u32(), speed: r.u16() };
   r.u32();
   r.u32();
@@ -130,7 +130,7 @@ export function parseAseprite(bytes) {
   for (let f = 0; f < header.frames; f++) {
     const frameStart = r.p;
     const frameSize = r.u32();
-    if (r.u16() !== FRAME_MAGIC) throw new Error('Quadro inválido no arquivo .aseprite.');
+    if (r.u16() !== FRAME_MAGIC) throw new Error('Quadro inválido no arquivo .ase.');
     const oldCount = r.u16();
     const duration = r.u16();
     r.p += 2;
@@ -141,7 +141,7 @@ export function parseAseprite(bytes) {
       const start = r.p;
       const size = r.u32();
       const type = r.u16();
-      if (size < 6) throw new Error('Bloco inválido no arquivo .aseprite.');
+      if (size < 6) throw new Error('Bloco inválido no arquivo .ase.');
       const end = start + size;
       const targets = [];
       if (type === CHUNK.layer) {

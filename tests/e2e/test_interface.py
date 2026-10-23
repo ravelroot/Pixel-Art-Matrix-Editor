@@ -372,8 +372,8 @@ class EditorTests:
         self.drag((5, 5), (8, 5))
         color = self.pixel(6, 5)
         with self.page.expect_download() as download:
-            self.menu("Arquivo", "Exportar como .aseprite")
-        self.assertTrue(download.value.suggested_filename.endswith(".aseprite"))
+            self.menu("Arquivo", "Exportar como .ase")
+        self.assertTrue(download.value.suggested_filename.endswith(".ase"))
         path = download.value.path()
         data = Path(path).read_bytes()
         self.assertEqual(data[4:6], b"\xe0\xa5", "Aseprite magic number")
@@ -381,7 +381,7 @@ class EditorTests:
             self.menu("Arquivo", "Abrir arquivo…")
         chooser.value.set_files(path)
         self.page.wait_for_function("() => document.querySelectorAll('#doc-tabs .doc-tab').length === 2")
-        self.assertEqual(self.pixel(6, 5), color, "the exported .aseprite opens back in a new tab")
+        self.assertEqual(self.pixel(6, 5), color, "the exported .ase opens back in a new tab")
         self.assertEqual(self.page.evaluate("() => window.crivo.editor.modified"), False)
         self.menu("Arquivo", "Exportar PNG animado (APNG)…")
         with self.page.expect_download() as download:

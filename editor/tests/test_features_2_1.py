@@ -434,11 +434,11 @@ class BlendParityTest(Api21TestCase):
 
 
 class FeatureMigrationTest(TransactionTestCase):
-    """Projects saved by Crivo 2.0 (schema 0003) survive 0004_aseprite_features and read exactly as before."""
+    """Projects saved by Crivo 2.0 (schema 0003) survive 0004_advanced_features and read exactly as before."""
 
     serialized_rollback = True
     BEFORE = [("editor", "0003_english_schema")]
-    AFTER = [("editor", "0004_aseprite_features")]
+    AFTER = [("editor", "0004_advanced_features")]
 
     @staticmethod
     def migrate(targets):

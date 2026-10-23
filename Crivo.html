@@ -7,7 +7,7 @@
 <html lang="pt-BR" data-theme="light">
   <head>
     <meta charset="utf-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-QxbzhZDjx1lcSPedj1XxarIK6iWp6NEwj2Vh2j9DSC0='; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-W60H0QLpPQTfPFCp5BCidL95ERzeu6+CbQ1mNj5DCnU='; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Crivo</title>
     <meta name="description" content="Crivo: editor de pixel art baseado em matrizes, com camadas, animação, histórico ilimitado e exportação para jogos.">
@@ -8311,7 +8311,7 @@ class PalettePanel {
 
   async exportFile() {
     const p = this.current;
-    const select = el('select', {}, el('option', { value: 'hex' }, '.hex (uma cor por linha, Lospec)'), el('option', { value: 'gpl' }, '.gpl (GIMP, Aseprite, Krita)'), el('option', { value: 'json' }, '.json'));
+    const select = el('select', {}, el('option', { value: 'hex' }, '.hex (uma cor por linha, Lospec)'), el('option', { value: 'gpl' }, '.gpl (GIMP, Krita)'), el('option', { value: 'json' }, '.json'));
     const format = await openDialog({
       title: `Exportar "${p.name}"`,
       body: el('label', { class: 'field' }, el('span', {}, 'Formato'), select),
@@ -9829,7 +9829,7 @@ async function spriteSheetDialog(editor) {
   const scale = numberField('Escala', 1, { min: 1, max: 32 });
   const spacing = numberField('Espaço entre quadros', 0, { min: 0, max: 64 });
   const json = checkboxField('Baixar também o JSON com a posição de cada quadro', true);
-  const jsonFormat = selectField('Formato do JSON', [['crivo', 'Crivo'], ['aseprite-hash', 'Aseprite (hash)'], ['aseprite-array', 'Aseprite (array)']], 'crivo');
+  const jsonFormat = selectField('Formato do JSON', [['crivo', 'Crivo'], ['aseprite-hash', 'Hash (quadros por nome)'], ['aseprite-array', 'Array (lista de quadros)']], 'crivo');
   json.input.addEventListener('change', () => (jsonFormat.label.hidden = !json.input.checked));
   const info = el('p', { class: 'hint wide' });
   const area = el('div', { class: 'preview-area wide' });
@@ -10164,7 +10164,7 @@ const SHORTCUTS = [
   ['Ctrl + Z', 'Desfazer'],
   ['Ctrl + Y ou Ctrl + Shift + Z', 'Refazer'],
   ['Ctrl + S', 'Salvar'],
-  ['Ctrl + O', 'Abrir arquivo (.crivo, .aseprite ou .ase) em uma nova aba'],
+  ['Ctrl + O', 'Abrir arquivo (.crivo ou .ase) em uma nova aba'],
   ['Ctrl + Tab e Ctrl + Shift + Tab', 'Próxima aba e aba anterior'],
   ['F7', 'Mostrar ou ocultar a pré-visualização'],
   ['Ctrl + E', 'Exportar imagem'],
@@ -11825,8 +11825,8 @@ function install(app) {
 return { install };
 })();
 
-// js/core/aseprite.js
-modules["js/core/aseprite.js"] = (() => {
+// js/core/ase-file.js
+modules["js/core/ase-file.js"] = (() => {
 // .aseprite / .ase reader and writer, implemented from the public file format specification
 // (docs/ase-file-specs.md in the Aseprite repository). Little-endian binary: a 128-byte header, then frames
 // made of chunks. Images are zlib streams (see zlib.js), so both directions are async.
@@ -11863,7 +11863,7 @@ class Reader {
   }
 
   need(n) {
-    if (this.p + n > this.bytes.length) throw new Error('Arquivo .aseprite incompleto ou corrompido.');
+    if (this.p + n > this.bytes.length) throw new Error('Arquivo .ase incompleto ou corrompido.');
   }
 
   u8() {
@@ -11944,9 +11944,9 @@ function readTiles(raw, count, bits) {
 function parseAseprite(bytes) {
   if (!(bytes instanceof Uint8Array)) bytes = new Uint8Array(bytes);
   const r = new Reader(bytes);
-  if (bytes.length < 128) throw new Error('Arquivo .aseprite incompleto ou corrompido.');
+  if (bytes.length < 128) throw new Error('Arquivo .ase incompleto ou corrompido.');
   r.u32();
-  if (r.u16() !== HEADER_MAGIC) throw new Error('Este arquivo não é um .aseprite válido.');
+  if (r.u16() !== HEADER_MAGIC) throw new Error('Este arquivo não é um .ase válido.');
   const header = { frames: r.u16(), width: r.u16(), height: r.u16(), depth: r.u16(), flags: r.u32(), speed: r.u16() };
   r.u32();
   r.u32();
@@ -11959,7 +11959,7 @@ function parseAseprite(bytes) {
   for (let f = 0; f < header.frames; f++) {
     const frameStart = r.p;
     const frameSize = r.u32();
-    if (r.u16() !== FRAME_MAGIC) throw new Error('Quadro inválido no arquivo .aseprite.');
+    if (r.u16() !== FRAME_MAGIC) throw new Error('Quadro inválido no arquivo .ase.');
     const oldCount = r.u16();
     const duration = r.u16();
     r.p += 2;
@@ -11970,7 +11970,7 @@ function parseAseprite(bytes) {
       const start = r.p;
       const size = r.u32();
       const type = r.u16();
-      if (size < 6) throw new Error('Bloco inválido no arquivo .aseprite.');
+      if (size < 6) throw new Error('Bloco inválido no arquivo .ase.');
       const end = start + size;
       const targets = [];
       if (type === CHUNK.layer) {
@@ -12908,11 +12908,11 @@ return { Minimap };
 // js/features/files.js
 modules["js/features/files.js"] = (() => {
 // Feature module: files and workspace. See main.js (app) for the extension points.
-// - .aseprite/.ase import and export (core/aseprite.js);
+// - .ase import and export (core/ase-file.js);
 // - APNG and PNG-sequence (.zip) export, Aseprite sprite-sheet JSON (ui/dialogs.js export dialogs);
 // - several documents in tabs (ui/tabs.js), drag and drop of files onto the canvas;
 // - preview window with the viewport rectangle (ui/minimap.js).
-const { readAseprite, writeAseprite, isAsepriteName } = modules["js/core/aseprite.js"];
+const { readAseprite, writeAseprite, isAsepriteName } = modules["js/core/ase-file.js"];
 const { deserialize, fileNameFor } = modules["js/core/format.js"];
 const { Tabs } = modules["js/ui/tabs.js"];
 const { Minimap } = modules["js/ui/minimap.js"];
@@ -12992,8 +12992,8 @@ function install(app) {
   async function exportAseprite() {
     const doc = editor.doc;
     const bytes = await writeAseprite(doc, { palette: doc.palette?.length ? null : app.palette?.current?.colors });
-    downloadBlob(new Blob([bytes], { type: 'application/octet-stream' }), fileNameFor(doc.name, 'aseprite'));
-    notify(`"${doc.name}" exportado como .aseprite.`, 'success');
+    downloadBlob(new Blob([bytes], { type: 'application/octet-stream' }), fileNameFor(doc.name, 'ase'));
+    notify(`"${doc.name}" exportado como .ase.`, 'success');
   }
 
   Object.assign(commands, {
@@ -13002,7 +13002,7 @@ function install(app) {
     openFile: { label: 'Abrir arquivo…', shortcut: 'Ctrl+O', fn: openFile },
     importImage: { ...commands.importImage, fn: () => importImageDialog(editor, { open: openInTab }) },
     closeTab: { label: 'Fechar projeto (aba)', shortcut: '', fn: () => tabs.close() },
-    exportAseprite: { label: 'Exportar como .aseprite', shortcut: '', fn: exportAseprite },
+    exportAseprite: { label: 'Exportar como .ase', shortcut: '', fn: exportAseprite },
     exportApng: { label: 'Exportar PNG animado (APNG)…', shortcut: '', fn: () => exportImageDialog(editor, 'apng') },
     exportPngZip: { label: 'Exportar quadros em PNG (.zip)…', shortcut: '', fn: () => exportImageDialog(editor, 'zip') },
     nextTab: { label: 'Próxima aba', shortcut: 'Ctrl+Tab', fn: () => tabs.next(1) },

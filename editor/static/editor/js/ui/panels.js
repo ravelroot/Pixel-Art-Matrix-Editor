@@ -278,7 +278,7 @@ export class PalettePanel {
 
   async exportFile() {
     const p = this.current;
-    const select = el('select', {}, el('option', { value: 'hex' }, '.hex (uma cor por linha, Lospec)'), el('option', { value: 'gpl' }, '.gpl (GIMP, Aseprite, Krita)'), el('option', { value: 'json' }, '.json'));
+    const select = el('select', {}, el('option', { value: 'hex' }, '.hex (uma cor por linha, Lospec)'), el('option', { value: 'gpl' }, '.gpl (GIMP, Krita)'), el('option', { value: 'json' }, '.json'));
     const format = await openDialog({
       title: `Exportar "${p.name}"`,
       body: el('label', { class: 'field' }, el('span', {}, 'Formato'), select),

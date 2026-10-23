@@ -1,9 +1,9 @@
 // Feature module: files and workspace. See main.js (app) for the extension points.
-// - .aseprite/.ase import and export (core/aseprite.js);
+// - .ase import and export (core/ase-file.js);
 // - APNG and PNG-sequence (.zip) export, Aseprite sprite-sheet JSON (ui/dialogs.js export dialogs);
 // - several documents in tabs (ui/tabs.js), drag and drop of files onto the canvas;
 // - preview window with the viewport rectangle (ui/minimap.js).
-import { readAseprite, writeAseprite, isAsepriteName } from '../core/aseprite.js';
+import { readAseprite, writeAseprite, isAsepriteName } from '../core/ase-file.js';
 import { deserialize, fileNameFor } from '../core/format.js';
 import { Tabs } from '../ui/tabs.js';
 import { Minimap } from '../ui/minimap.js';
@@ -83,8 +83,8 @@ export function install(app) {
   async function exportAseprite() {
     const doc = editor.doc;
     const bytes = await writeAseprite(doc, { palette: doc.palette?.length ? null : app.palette?.current?.colors });
-    downloadBlob(new Blob([bytes], { type: 'application/octet-stream' }), fileNameFor(doc.name, 'aseprite'));
-    notify(`"${doc.name}" exportado como .aseprite.`, 'success');
+    downloadBlob(new Blob([bytes], { type: 'application/octet-stream' }), fileNameFor(doc.name, 'ase'));
+    notify(`"${doc.name}" exportado como .ase.`, 'success');
   }
 
   Object.assign(commands, {
@@ -93,7 +93,7 @@ export function install(app) {
     openFile: { label: 'Abrir arquivo…', shortcut: 'Ctrl+O', fn: openFile },
     importImage: { ...commands.importImage, fn: () => importImageDialog(editor, { open: openInTab }) },
     closeTab: { label: 'Fechar projeto (aba)', shortcut: '', fn: () => tabs.close() },
-    exportAseprite: { label: 'Exportar como .aseprite', shortcut: '', fn: exportAseprite },
+    exportAseprite: { label: 'Exportar como .ase', shortcut: '', fn: exportAseprite },
     exportApng: { label: 'Exportar PNG animado (APNG)…', shortcut: '', fn: () => exportImageDialog(editor, 'apng') },
     exportPngZip: { label: 'Exportar quadros em PNG (.zip)…', shortcut: '', fn: () => exportImageDialog(editor, 'zip') },
     nextTab: { label: 'Próxima aba', shortcut: 'Ctrl+Tab', fn: () => tabs.next(1) },

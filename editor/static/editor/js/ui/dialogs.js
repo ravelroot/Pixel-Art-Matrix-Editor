@@ -257,7 +257,7 @@ export async function spriteSheetDialog(editor) {
   const scale = numberField('Escala', 1, { min: 1, max: 32 });
   const spacing = numberField('Espaço entre quadros', 0, { min: 0, max: 64 });
   const json = checkboxField('Baixar também o JSON com a posição de cada quadro', true);
-  const jsonFormat = selectField('Formato do JSON', [['crivo', 'Crivo'], ['aseprite-hash', 'Aseprite (hash)'], ['aseprite-array', 'Aseprite (array)']], 'crivo');
+  const jsonFormat = selectField('Formato do JSON', [['crivo', 'Crivo'], ['aseprite-hash', 'Hash (quadros por nome)'], ['aseprite-array', 'Array (lista de quadros)']], 'crivo');
   json.input.addEventListener('change', () => (jsonFormat.label.hidden = !json.input.checked));
   const info = el('p', { class: 'hint wide' });
   const area = el('div', { class: 'preview-area wide' });
@@ -592,7 +592,7 @@ export const SHORTCUTS = [
   ['Ctrl + Z', 'Desfazer'],
   ['Ctrl + Y ou Ctrl + Shift + Z', 'Refazer'],
   ['Ctrl + S', 'Salvar'],
-  ['Ctrl + O', 'Abrir arquivo (.crivo, .aseprite ou .ase) em uma nova aba'],
+  ['Ctrl + O', 'Abrir arquivo (.crivo ou .ase) em uma nova aba'],
   ['Ctrl + Tab e Ctrl + Shift + Tab', 'Próxima aba e aba anterior'],
   ['F7', 'Mostrar ou ocultar a pré-visualização'],
   ['Ctrl + E', 'Exportar imagem'],

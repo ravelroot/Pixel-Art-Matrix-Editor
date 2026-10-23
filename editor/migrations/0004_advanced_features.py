@@ -1,4 +1,6 @@
-"""Crivo 2.1.0: Aseprite-style document features.
+"""Crivo 2.1.0: advanced document features (groups, blend modes, tags, tilemaps, slices, color modes).
+
+Formerly 0004_aseprite_features: `replaces` keeps databases that already applied it under the old name in sync.
 
 Adds, without touching existing rows (every new column is nullable or has a default, so existing projects read
 exactly as before and the API still returns their 2.0 documents unchanged):
@@ -41,6 +43,7 @@ BLEND_MODES = (
 
 
 class Migration(migrations.Migration):
+    replaces = [("editor", "0004_aseprite_features")]
     dependencies = [("editor", "0003_english_schema")]
 
     operations = [
