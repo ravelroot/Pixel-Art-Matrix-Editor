@@ -23,10 +23,14 @@ import { icone } from './ui/icones.js';
 import { miniatura } from './ui/imagem.js';
 import { el, $, avisar, baixarTexto, escolherArquivo, formatarBytes, atrasar, lerPreferencia, gravarPreferencia } from './ui/util.js';
 
-const VERSAO = '1.1.0';
+const VERSAO = '1.2.0';
+
+// No app desktop (Crivo.exe), o programa do Windows cria window.crivoDesktop antes desta página carregar.
+// No navegador e no Crivo.html ele não existe, e nada do que depende dele aparece.
+const DESKTOP = typeof window.crivoDesktop?.alternarTelaCheia === 'function' ? window.crivoDesktop : null;
 
 const editor = new Editor();
-let armazenamento = new ArmazenamentoLocal();
+let armazenamento = new ArmazenamentoLocal(DESKTOP ? 'este computador' : 'este navegador');
 const visor = new Visor($('#visor'), editor);
 const controlador = new Controlador(editor, visor);
 controlador.paleta = () => paleta.atual.cores;
@@ -265,13 +269,22 @@ const COMANDOS = {
   tema: { rotulo: 'Alternar tema claro/escuro', atalho: '', fn: alternarTema },
   atalhos: { rotulo: 'Atalhos do teclado', atalho: '?', fn: () => dialogoAtalhos() },
   sobre: { rotulo: 'Sobre o Crivo', atalho: '', fn: () => dialogoSobre(VERSAO, armazenamento) },
+  telaCheia: { rotulo: 'Tela cheia', atalho: 'F11', fn: () => DESKTOP?.alternarTelaCheia() },
+  sair: {
+    rotulo: 'Sair do Crivo',
+    atalho: 'Alt+F4',
+    fn: async () => {
+      await guardarRascunhoAgora();
+      DESKTOP?.sair();
+    },
+  },
 };
 
 const MENUS = [
-  ['Arquivo', ['novo', 'abrirSalvos', 'abrirArquivo', 'importarImagem', '-', 'salvar', 'salvarComo', 'baixarCrivo', '-', 'exportarImagem', 'exportarGif', 'exportarFolha', 'exportarDados']],
+  ['Arquivo', ['novo', 'abrirSalvos', 'abrirArquivo', 'importarImagem', '-', 'salvar', 'salvarComo', 'baixarCrivo', '-', 'exportarImagem', 'exportarGif', 'exportarFolha', 'exportarDados', ...(DESKTOP ? ['-', 'sair'] : [])]],
   ['Editar', ['desfazer', 'refazer', '-', 'copiar', 'recortar', 'colar', 'limparCamada', '-', 'selecionarTudo', 'desmarcar', '-', 'espelharH', 'espelharV']],
   ['Imagem', ['tamanho', 'recortarSelecao', 'aparar', '-', 'girarDireita', 'girarEsquerda', 'deslocarMetade', '-', 'contorno4', 'contorno8', '-', 'paraPaleta', 'substituirCor', 'inverter', 'cinza']],
-  ['Exibir', ['grade', 'cebola', 'ladrilho', '-', 'aproximar', 'afastar', 'ajustar', 'zoom100', '-', 'tema']],
+  ['Exibir', ['grade', 'cebola', 'ladrilho', '-', 'aproximar', 'afastar', 'ajustar', 'zoom100', '-', 'tema', ...(DESKTOP ? ['telaCheia'] : [])]],
   ['Ajuda', ['atalhos', 'sobre']],
 ];
 
@@ -632,8 +645,13 @@ function montarStatus() {
 
 function atualizarArmazenamento() {
   const s = $('#status-armazenamento');
-  s.replaceChildren(el('span', { class: 'icone-rotulo', html: icone(armazenamento.tipo === 'servidor' ? 'nuvem' : 'pasta', 14) }), armazenamento.tipo === 'servidor' ? ' Servidor Django' : ' Modo local (navegador)');
-  s.title = armazenamento.tipo === 'servidor' ? 'Projetos e paletas salvos no banco de dados do servidor' : 'Sem servidor: projetos ficam no IndexedDB deste navegador';
+  const servidor = armazenamento.tipo === 'servidor';
+  s.replaceChildren(el('span', { class: 'icone-rotulo', html: icone(servidor ? 'nuvem' : 'pasta', 14) }), servidor ? ' Servidor Django' : DESKTOP ? ' Desktop (este computador)' : ' Modo local (navegador)');
+  s.title = servidor
+    ? 'Projetos e paletas salvos no banco de dados do servidor'
+    : DESKTOP
+      ? 'App desktop: projetos e paletas guardados neste computador, na pasta do Crivo em AppData'
+      : 'Sem servidor: projetos ficam no IndexedDB deste navegador';
 }
 
 function atalhos(e) {
@@ -724,6 +742,12 @@ const autosalvar = atrasar(() => {
   const doc = editor.doc;
   guardarRascunho({ dados: serializar(doc), projeto: editor.projeto, modificado: editor.modificado, quando: new Date().toISOString() });
 }, 1200);
+
+// Grava o rascunho na hora, sem esperar o autosalvamento. Usado ao fechar a aba ou o app desktop.
+function guardarRascunhoAgora() {
+  autosalvar.cancelar();
+  return guardarRascunho({ dados: serializar(editor.doc), projeto: editor.projeto, modificado: editor.modificado, quando: new Date().toISOString() });
+}
 editor.ao('historico', autosalvar);
 editor.ao('salvo', autosalvar);
 
@@ -733,7 +757,8 @@ async function iniciar() {
     if (lerPreferencia('tema', 'sistema') === 'sistema') aplicarTema('sistema');
   });
   $('#tema').addEventListener('click', alternarTema);
-  $('#logo').innerHTML = icone('logo', 22);
+  // Mesma proporção do logo do projeto (docs/images/logo.svg) e do ícone do app: ponteiro em cerca de metade da altura.
+  $('#logo').innerHTML = icone('logo', 18);
   montarFerramentas();
   montarOpcoes();
   montarVisao();
@@ -744,9 +769,22 @@ async function iniciar() {
   atualizarArmazenamento();
   window.addEventListener('keydown', atalhos);
   window.addEventListener('beforeunload', () => {
-    autosalvar.cancelar();
-    guardarRascunho({ dados: serializar(editor.doc), projeto: editor.projeto, modificado: editor.modificado, quando: new Date().toISOString() });
+    guardarRascunhoAgora();
   });
+  if (DESKTOP) {
+    // F11 vale em qualquer lugar do app, até com um diálogo aberto ou digitando num campo.
+    window.addEventListener(
+      'keydown',
+      (e) => {
+        if (e.key !== 'F11') return;
+        e.preventDefault();
+        executar('telaCheia');
+      },
+      true,
+    );
+    // O app chama isto antes de fechar a janela (Alt+F4 ou o X), para o rascunho não perder os últimos traços.
+    window.__crivoAntesDeFechar = guardarRascunhoAgora;
+  }
   const rascunho = await lerRascunho();
   if (rascunho?.dados) {
     try {

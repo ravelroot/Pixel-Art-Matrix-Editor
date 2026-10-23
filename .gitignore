@@ -15,3 +15,8 @@ ferramentas/java/out-teste/
 .DS_Store
 Thumbs.db
 .ruff_cache/
+# gerados por scripts/gerar-desktop.js a cada build do Crivo.exe
+desktop/Crivo.html
+desktop/crivo.ico
+desktop/versioninfo.json
+desktop/*.syso

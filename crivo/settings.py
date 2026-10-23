@@ -19,7 +19,7 @@ def env_lista(nome, padrao=""):
     return [item.strip() for item in str(env(nome, padrao)).split(",") if item.strip()]
 
 
-VERSAO = (BASE_DIR / "VERSION").read_text(encoding="utf-8").strip() if (BASE_DIR / "VERSION").exists() else "1.1.0"
+VERSAO = (BASE_DIR / "VERSION").read_text(encoding="utf-8").strip() if (BASE_DIR / "VERSION").exists() else "1.2.0"
 
 CHAVE_DE_DESENVOLVIMENTO = "crivo-chave-local-de-desenvolvimento-troque-em-producao"
 CHAVES_DE_EXEMPLO = {CHAVE_DE_DESENVOLVIMENTO, "troque-esta-chave"}

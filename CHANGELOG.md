@@ -1,5 +1,19 @@
 # Histórico de versões
 
+## 1.2.0 — 23/10/2026
+
+**Três maneiras de rodar:** app desktop para Windows (`Crivo.exe`), servidor local com backend (Django e banco de dados) e arquivo único no navegador (`Crivo.html`). O editor é o mesmo nas três, e os arquivos `.crivo` passam de uma para outra.
+
+**App desktop:** o `Crivo.exe` (cerca de 3 MB, sem instalação) abre o Crivo numa janela própria do Windows 10 e 11, já maximizada. **F11** alterna a tela cheia e **Alt+F4** (ou **Arquivo → Sair do Crivo**) fecha gravando o rascunho antes. Projetos e paletas ficam em `%LOCALAPPDATA%\Crivo`. Na primeira abertura, cria um atalho no menu Iniciar, para o Crivo aparecer na pesquisa do Windows. O ícone é o logo do projeto. Feito em Go com o Microsoft Edge WebView2, que já vem no Windows; roda sem permissão de administrador e sem abrir portas de rede. Gerado por `npm run desktop`, com build reproduzível conferido no CI.
+
+**Arquivo único:** o `Crivo.html` traz o editor inteiro num só arquivo, que abre com dois cliques direto da pasta, sem servidor local, sem backend e sem internet, com Content-Security-Policy própria. Gerado por `npm run portatil` (`scripts/gerar-portatil.js`, sem bibliotecas).
+
+**Editor:** aberto do disco, não tenta procurar a API; no app desktop, ganha **Exibir → Tela cheia**, **Arquivo → Sair do Crivo** e o rótulo **Desktop (este computador)** na barra de status.
+
+**Testes:** 21 testes ponta a ponta (10 com o servidor e 11 no `Crivo.html`, incluindo a integração com o app desktop), 111 no total. O CI confere se o `Crivo.html` e o `Crivo.exe` estão em dia com o código e roda o `go vet`.
+
+**Documentação:** README e manual em PDF mostram as três maneiras de rodar e explicam o app desktop.
+
 ## 1.1.0 — 23/10/2026
 
 **Ferramentas novas:** seleção retangular (S), mover pixels (V, com setas), pontilhado com padrão de Bayer (D), degradê pontilhado linear e radial (U) e clarear e escurecer pela rampa da paleta ou pela luminosidade OKLCH (Q).

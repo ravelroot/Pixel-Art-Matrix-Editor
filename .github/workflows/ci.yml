@@ -27,6 +27,30 @@ jobs:
           node-version: 24
       - name: Testes do núcleo do editor
         run: npm test
+      - name: Crivo.html em dia com o código do editor
+        run: npm run portatil -- --verificar
+
+  desktop:
+    name: App desktop (Crivo.exe)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.7"
+          cache-dependency-path: desktop/go.sum
+      - name: Crivo.exe em dia com o código (build reproduzível)
+        run: npm run desktop -- --verificar
+      - name: Análise do código Go
+        working-directory: desktop
+        env:
+          GOOS: windows
+          GOARCH: amd64
+        run: go vet ./...
 
   qualidade:
     name: Qualidade e segurança (Ruff + Bandit)

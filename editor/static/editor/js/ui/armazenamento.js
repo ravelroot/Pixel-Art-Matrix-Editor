@@ -45,6 +45,8 @@ export class ArmazenamentoServidor {
   }
 
   static async detectar() {
+    // Aberto direto do disco (Crivo.html): não há servidor, tudo fica no navegador.
+    if (location.protocol === 'file:') return null;
     try {
       const info = await pedir('/saude', { tempo: 2500 });
       if (info && info.status === 'ok') return new ArmazenamentoServidor(info);
@@ -125,9 +127,9 @@ async function transacao(loja, modo, fn) {
 }
 
 export class ArmazenamentoLocal {
-  constructor() {
+  constructor(nome = 'este navegador') {
     this.tipo = 'local';
-    this.nome = 'este navegador';
+    this.nome = nome;
   }
 
   async listarProjetos() {
