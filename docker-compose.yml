@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: ${CRIVO_DB_USER:-crivo}
       POSTGRES_PASSWORD: ${CRIVO_DB_PASSWORD:?Defina CRIVO_DB_PASSWORD no arquivo .env}
     volumes:
-      - dados-postgres:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -23,16 +23,17 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      # Renamed variables fall back to their 1.x names, so an existing .env keeps working.
       CRIVO_DEBUG: "false"
       CRIVO_SECRET_KEY: ${CRIVO_SECRET_KEY:?Defina CRIVO_SECRET_KEY no arquivo .env}
       CRIVO_ALLOWED_HOSTS: ${CRIVO_ALLOWED_HOSTS:-localhost,127.0.0.1}
       CRIVO_CSRF_TRUSTED_ORIGINS: ${CRIVO_CSRF_TRUSTED_ORIGINS:-}
       CRIVO_HTTPS: ${CRIVO_HTTPS:-false}
       CRIVO_API_TOKEN: ${CRIVO_API_TOKEN:-}
-      CRIVO_MAX_REVISOES: ${CRIVO_MAX_REVISOES:-20}
-      CRIVO_LIMITE_ESCRITAS: ${CRIVO_LIMITE_ESCRITAS:-120}
-      CRIVO_PROXY_CONFIAVEL: ${CRIVO_PROXY_CONFIAVEL:-false}
-      CRIVO_HSTS_SEGUNDOS: ${CRIVO_HSTS_SEGUNDOS:-31536000}
+      CRIVO_MAX_REVISIONS: ${CRIVO_MAX_REVISIONS:-${CRIVO_MAX_REVISOES:-20}}
+      CRIVO_WRITE_LIMIT: ${CRIVO_WRITE_LIMIT:-${CRIVO_LIMITE_ESCRITAS:-120}}
+      CRIVO_TRUSTED_PROXY: ${CRIVO_TRUSTED_PROXY:-${CRIVO_PROXY_CONFIAVEL:-false}}
+      CRIVO_HSTS_SECONDS: ${CRIVO_HSTS_SECONDS:-${CRIVO_HSTS_SEGUNDOS:-31536000}}
       CRIVO_WORKERS: ${CRIVO_WORKERS:-2}
       CRIVO_DB_ENGINE: postgresql
       CRIVO_DB_HOST: postgres
@@ -44,4 +45,6 @@ services:
       - "${CRIVO_PORT:-8080}:8000"
 
 volumes:
-  dados-postgres:
+  postgres-data:
+    # Volume name used by Crivo 1.x, kept so existing databases are reused after the upgrade.
+    name: crivo_dados-postgres

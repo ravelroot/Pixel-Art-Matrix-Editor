@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR" data-tema="claro">
+<html lang="pt-BR" data-theme="light">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,57 +13,57 @@
   </head>
   <body>
     <div class="app">
-      <header class="topo">
-        <div class="marca">
+      <header class="topbar">
+        <div class="brand">
           <span id="logo" class="logo" aria-hidden="true"></span>
-          <span class="marca-nome">Crivo</span>
+          <span class="brand-name">Crivo</span>
         </div>
         <nav id="menus" class="menus" aria-label="Menu principal"></nav>
-        <input id="nome-projeto" class="nome-projeto" type="text" maxlength="120" aria-label="Nome do projeto" spellcheck="false">
-        <div class="topo-acoes">
-          <button id="desfazer" type="button" class="botao-icone" aria-label="Desfazer"></button>
-          <button id="refazer" type="button" class="botao-icone" aria-label="Refazer"></button>
-          <button id="salvar" type="button" class="botao-icone" title="Salvar (Ctrl+S)" aria-label="Salvar"></button>
-          <button id="tema" type="button" class="botao-icone" aria-label="Alternar tema"></button>
+        <input id="project-name" class="project-name" type="text" maxlength="120" aria-label="Nome do projeto" spellcheck="false">
+        <div class="topbar-actions">
+          <button id="undo" type="button" class="icon-button" aria-label="Desfazer"></button>
+          <button id="redo" type="button" class="icon-button" aria-label="Refazer"></button>
+          <button id="save" type="button" class="icon-button" title="Salvar (Ctrl+S)" aria-label="Salvar"></button>
+          <button id="theme" type="button" class="icon-button" aria-label="Alternar tema"></button>
         </div>
       </header>
-      <nav id="ferramentas" class="ferramentas" aria-label="Ferramentas"></nav>
-      <div class="barra-opcoes">
-        <div id="opcoes" class="opcoes" aria-label="Opções da ferramenta"></div>
+      <nav id="tools" class="tools" aria-label="Ferramentas"></nav>
+      <div class="options-bar">
+        <div id="options" class="options" aria-label="Opções da ferramenta"></div>
       </div>
       <main class="area">
-        <div id="visao" class="visao" aria-label="Visualização"></div>
-        <canvas id="visor" aria-label="Matriz de pixels. Use as ferramentas da barra lateral para desenhar."></canvas>
+        <div id="view" class="view" aria-label="Visualização"></div>
+        <canvas id="viewport" aria-label="Matriz de pixels. Use as ferramentas da barra lateral para desenhar."></canvas>
       </main>
-      <aside class="lateral" aria-label="Cores, paletas e camadas">
-        <section class="painel">
+      <aside class="sidebar" aria-label="Cores, paletas e camadas">
+        <section class="panel">
           <h2>Cor</h2>
-          <div id="painel-cor"></div>
+          <div id="color-panel"></div>
         </section>
-        <section class="painel">
+        <section class="panel">
           <h2>Paleta</h2>
-          <div id="painel-paleta"></div>
+          <div id="palette-panel"></div>
         </section>
-        <section class="painel">
+        <section class="panel">
           <h2>Tons</h2>
-          <div id="painel-tons"></div>
+          <div id="ramp-panel"></div>
         </section>
-        <section class="painel painel-camadas">
+        <section class="panel layers-panel">
           <h2>Camadas</h2>
-          <div id="painel-camadas"></div>
+          <div id="layers-panel"></div>
         </section>
       </aside>
-      <section id="linha-tempo" class="linha-tempo" aria-label="Linha do tempo"></section>
+      <section id="timeline" class="timeline" aria-label="Linha do tempo"></section>
       <footer class="status">
-        <span id="status-posicao" class="mono">–</span>
-        <span id="status-cor" class="mono status-cor"></span>
-        <span id="status-tamanho"></span>
+        <span id="status-position" class="mono">–</span>
+        <span id="status-color" class="mono status-color"></span>
+        <span id="status-size"></span>
         <span id="status-zoom" class="mono"></span>
-        <span id="status-selecao" class="mono"></span>
-        <span id="status-historico"></span>
-        <span id="status-armazenamento" class="status-armazenamento"></span>
+        <span id="status-selection" class="mono"></span>
+        <span id="status-history"></span>
+        <span id="status-storage" class="status-storage"></span>
       </footer>
     </div>
-    <div id="avisos" class="avisos" aria-live="polite"></div>
+    <div id="toasts" class="toasts" aria-live="polite"></div>
   </body>
 </html>

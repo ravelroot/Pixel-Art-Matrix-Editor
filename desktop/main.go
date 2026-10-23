@@ -1,12 +1,12 @@
 //go:build windows
 
-// Crivo para desktop: abre o editor (o mesmo do Crivo.html) numa janela própria do Windows, já
-// maximizada (F11 alterna a tela cheia), sem servidor, sem backend e sem navegador. A janela usa o Microsoft Edge WebView2,
-// que já vem no Windows 10 e 11. Projetos, paletas e o rascunho ficam em %LOCALAPPDATA%\Crivo.
+// Crivo for desktop: opens the editor (the same one as Crivo.html) in its own Windows window, already
+// maximized (F11 toggles fullscreen), with no server, no backend and no browser. The window uses Microsoft Edge WebView2,
+// which ships with Windows 10 and 11. Projects, palettes and the draft are kept in %LOCALAPPDATA%\Crivo.
 //
-// Na primeira abertura, cria um atalho no menu Iniciar (atalho_windows.go) para o Crivo aparecer na pesquisa.
+// On first run, it creates a Start Menu shortcut (shortcut_windows.go) so Crivo shows up in Windows search.
 //
-// Para gerar o Crivo.exe da raiz do repositório: npm run desktop (precisa do Go e do Node).
+// To build Crivo.exe from the repository root: npm run desktop (needs Go and Node).
 package main
 
 import (
@@ -24,26 +24,26 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// O editor inteiro, gerado por scripts/gerar-portatil.js e copiado para cá por scripts/gerar-desktop.js.
+// The whole editor, built by scripts/build-portable.js and copied here by scripts/build-desktop.js.
 //
 //go:embed Crivo.html
-var pagina []byte
+var page []byte
 
-// Preenchida no build com a versão do arquivo VERSION (-ldflags "-X main.versao=...").
-var versao = "dev"
+// Set at build time from the VERSION file (-ldflags "-X main.version=...").
+var version = "dev"
 
 const (
-	// Recurso gravado pelo goversioninfo: o manifesto é o 1 e o grupo de ícones, o 2.
-	idIcone = 2
+	// Resource written by goversioninfo: the manifest is 1 and the icon group is 2.
+	iconID = 2
 
-	linkWebView2 = "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+	webView2DownloadURL = "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
 
 	wmClose              = 0x0010
 	wmSetIcon            = 0x0080
-	swMaximizar          = 3
-	iconeGrande          = 1
-	iconePequeno         = 0
-	imagemIcone          = 1
+	swMaximize           = 3
+	iconBig              = 1
+	iconSmall            = 0
+	imageIcon            = 1
 	smCxIcon             = 11
 	smCyIcon             = 12
 	smCxSmIcon           = 49
@@ -61,7 +61,7 @@ const (
 )
 
 var (
-	// GWL_STYLE (-16) e GWLP_WNDPROC (-4) em complemento de dois.
+	// GWL_STYLE (-16) and GWLP_WNDPROC (-4) in two's complement.
 	gwlStyle    = ^uintptr(15)
 	gwlpWndProc = ^uintptr(3)
 
@@ -83,273 +83,274 @@ var (
 	procGetSysMetricsDpi   = user32.NewProc("GetSystemMetricsForDpi")
 )
 
-type retangulo struct{ Esquerda, Topo, Direita, Base int32 }
+type rect struct{ Left, Top, Right, Bottom int32 }
 
-type ponto struct{ X, Y int32 }
+type point struct{ X, Y int32 }
 
-type infoMonitor struct {
-	Tamanho  uint32
-	Monitor  retangulo
-	Trabalho retangulo
-	Flags    uint32
+type monitorInfo struct {
+	Size    uint32
+	Monitor rect
+	Work    rect
+	Flags   uint32
 }
 
-type posicaoJanela struct {
-	Tamanho       uint32
-	Flags         uint32
-	Mostrar       uint32
-	Minimizada    ponto
-	Maximizada    ponto
-	PosicaoNormal retangulo
+type windowPlacement struct {
+	Length         uint32
+	Flags          uint32
+	ShowCmd        uint32
+	MinPosition    point
+	MaxPosition    point
+	NormalPosition rect
 }
 
-// app guarda o estado da janela. Tudo aqui roda na thread da interface (a do laço de mensagens).
+// app holds the window state. Everything here runs on the UI thread (the message loop thread).
 type app struct {
-	w          webview2.WebView
-	hwnd       uintptr
-	procAntigo uintptr
+	w       webview2.WebView
+	hwnd    uintptr
+	oldProc uintptr
 
-	telaCheia bool
-	estilo    uintptr
-	posicao   posicaoJanela
+	fullscreen bool
+	style      uintptr
+	placement  windowPlacement
 
-	fechamentoPedido bool
-	podeFechar       bool
+	closeRequested bool
+	canClose       bool
 }
 
-var aberto *app
+var current *app
 
 func init() {
-	// A janela e o WebView2 precisam ficar sempre na mesma thread do sistema.
+	// The window and WebView2 must always stay on the same OS thread.
 	runtime.LockOSThread()
 }
 
 func main() {
-	pasta, err := prepararPasta()
+	dir, err := prepareDataDir()
 	if err != nil {
-		avisar("Não foi possível preparar a pasta do Crivo:\n\n" + err.Error())
+		warn("Não foi possível preparar a pasta do Crivo:\n\n" + err.Error())
 		return
 	}
-	registrarNoMenuIniciar(pasta)
+	registerInStartMenu(dir)
 
 	w := webview2.NewWithOptions(webview2.WebViewOptions{
 		AutoFocus: true,
-		DataPath:  filepath.Join(pasta, "WebView2"),
+		DataPath:  filepath.Join(dir, "WebView2"),
 		WindowOptions: webview2.WindowOptions{
 			Title:  "Crivo",
 			Width:  1280,
 			Height: 800,
-			IconId: idIcone,
+			IconId: iconID,
 			Center: true,
 		},
 	})
 	if w == nil {
-		semWebView2()
+		missingWebView2()
 		return
 	}
 
 	a := &app{w: w, hwnd: uintptr(w.Window())}
-	aberto = a
-	a.icones()
-	a.interceptarFechamento()
+	current = a
+	a.loadIcons()
+	a.interceptClose()
 
-	must(w.Bind("__crivoTelaCheia", func() bool {
-		w.Dispatch(a.alternarTelaCheia)
-		return !a.telaCheia
+	must(w.Bind("__crivoToggleFullscreen", func() bool {
+		w.Dispatch(a.toggleFullscreen)
+		return !a.fullscreen
 	}))
-	must(w.Bind("__crivoSair", func() {
-		w.Dispatch(a.fecharAgora)
+	must(w.Bind("__crivoQuit", func() {
+		w.Dispatch(a.closeNow)
 	}))
-	must(w.Bind("__crivoTitulo", func(titulo string) {
-		if titulo == "" {
-			titulo = "Crivo"
+	must(w.Bind("__crivoTitle", func(title string) {
+		if title == "" {
+			title = "Crivo"
 		}
-		w.SetTitle(titulo)
+		w.SetTitle(title)
 	}))
 	w.Init(fmt.Sprintf(`
 window.crivoDesktop = Object.freeze({
-  versao: %q,
-  alternarTelaCheia: () => window.__crivoTelaCheia(),
-  sair: () => window.__crivoSair(),
+  version: %q,
+  toggleFullscreen: () => window.__crivoToggleFullscreen(),
+  quit: () => window.__crivoQuit(),
 });
 document.addEventListener('DOMContentLoaded', () => {
-  const enviar = () => window.__crivoTitulo(document.title);
-  enviar();
-  const titulo = document.querySelector('title');
-  if (titulo) new MutationObserver(enviar).observe(titulo, { childList: true, characterData: true, subtree: true });
-});`, versao))
+  const send = () => window.__crivoTitle(document.title);
+  send();
+  const title = document.querySelector('title');
+  if (title) new MutationObserver(send).observe(title, { childList: true, characterData: true, subtree: true });
+});`, version))
 
-	a.janelaNormalCentralizada()
-	procShowWindow.Call(a.hwnd, swMaximizar) // abre maximizado; F11 leva à tela cheia e volta
-	w.Navigate(enderecoDoArquivo(filepath.Join(pasta, "Crivo.html")))
+	a.centerNormalWindow()
+	procShowWindow.Call(a.hwnd, swMaximize) // opens maximized; F11 goes to fullscreen and back
+	w.Navigate(fileURL(filepath.Join(dir, "Crivo.html")))
 	w.Run()
 }
 
-// prepararPasta cria %LOCALAPPDATA%\Crivo e grava nela a página do editor, se ela mudou.
-// A página é aberta como arquivo (file://) para os projetos ficarem guardados entre uma abertura e outra.
-func prepararPasta() (string, error) {
-	base, err := os.UserCacheDir() // no Windows, %LOCALAPPDATA%
+// prepareDataDir creates %LOCALAPPDATA%\Crivo and writes the editor page into it, if the page changed.
+// The page is opened as a file (file://) so projects are kept from one run to the next.
+func prepareDataDir() (string, error) {
+	base, err := os.UserCacheDir() // on Windows, %LOCALAPPDATA%
 	if err != nil {
 		return "", err
 	}
-	pasta := filepath.Join(base, "Crivo")
-	if err := os.MkdirAll(pasta, 0o755); err != nil {
+	dir := filepath.Join(base, "Crivo")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
-	destino := filepath.Join(pasta, "Crivo.html")
-	if atual, err := os.ReadFile(destino); err == nil && bytes.Equal(atual, pagina) {
-		return pasta, nil
+	target := filepath.Join(dir, "Crivo.html")
+	if existing, err := os.ReadFile(target); err == nil && bytes.Equal(existing, page) {
+		return dir, nil
 	}
-	temporario := destino + ".novo"
-	if err := os.WriteFile(temporario, pagina, 0o644); err != nil {
+	temporary := target + ".new"
+	if err := os.WriteFile(temporary, page, 0o644); err != nil {
 		return "", err
 	}
-	return pasta, os.Rename(temporario, destino)
+	return dir, os.Rename(temporary, target)
 }
 
-func enderecoDoArquivo(caminho string) string {
-	return (&url.URL{Scheme: "file", Path: "/" + filepath.ToSlash(caminho)}).String()
+func fileURL(path string) string {
+	return (&url.URL{Scheme: "file", Path: "/" + filepath.ToSlash(path)}).String()
 }
 
-// icones carrega o ícone grande (barra de tarefas, Alt+Tab) e o pequeno (barra de título) no tamanho
-// certo para o DPI do monitor. Sem isso, o Windows reduz o ícone grande e o ponteiro fica desproporcional.
-func (a *app) icones() {
-	var modulo windows.Handle
-	if windows.GetModuleHandleEx(0, nil, &modulo) != nil { // sem nome = o próprio Crivo.exe
+// loadIcons loads the big icon (taskbar, Alt+Tab) and the small one (title bar) at the right size
+// for the monitor DPI. Without this, Windows shrinks the big icon and the pointer looks out of proportion.
+func (a *app) loadIcons() {
+	var module windows.Handle
+	if windows.GetModuleHandleEx(0, nil, &module) != nil { // no name = Crivo.exe itself
 		return
 	}
-	medida := func(indice uintptr) uintptr {
+	metric := func(index uintptr) uintptr {
 		if procGetDpiForWindow.Find() == nil && procGetSysMetricsDpi.Find() == nil {
 			if dpi, _, _ := procGetDpiForWindow.Call(a.hwnd); dpi != 0 {
-				v, _, _ := procGetSysMetricsDpi.Call(indice, dpi)
+				v, _, _ := procGetSysMetricsDpi.Call(index, dpi)
 				return v
 			}
 		}
-		v, _, _ := procGetSystemMetrics.Call(indice)
+		v, _, _ := procGetSystemMetrics.Call(index)
 		return v
 	}
-	for _, t := range []struct{ tipo, largura, altura uintptr }{
-		{iconeGrande, smCxIcon, smCyIcon},
-		{iconePequeno, smCxSmIcon, smCySmIcon},
+	for _, icon := range []struct{ kind, width, height uintptr }{
+		{iconBig, smCxIcon, smCyIcon},
+		{iconSmall, smCxSmIcon, smCySmIcon},
 	} {
-		h, _, _ := procLoadImageW.Call(uintptr(modulo), idIcone, imagemIcone, medida(t.largura), medida(t.altura), 0)
+		h, _, _ := procLoadImageW.Call(uintptr(module), iconID, imageIcon, metric(icon.width), metric(icon.height), 0)
 		if h != 0 {
-			procSendMessageW.Call(a.hwnd, wmSetIcon, t.tipo, h)
+			procSendMessageW.Call(a.hwnd, wmSetIcon, icon.kind, h)
 		}
 	}
 }
 
-// janelaNormalCentralizada deixa a janela com 85% da área útil do monitor. É o tamanho que ela
-// tem quando a pessoa tira a janela do modo maximizado.
-func (a *app) janelaNormalCentralizada() {
+// centerNormalWindow sizes the window to 85% of the monitor work area. That is the size it
+// has when the user takes the window out of the maximized state.
+func (a *app) centerNormalWindow() {
 	m, ok := a.monitor()
 	if !ok {
 		return
 	}
-	area := m.Trabalho
-	largura := (area.Direita - area.Esquerda) * 85 / 100
-	altura := (area.Base - area.Topo) * 85 / 100
-	x := area.Esquerda + (area.Direita-area.Esquerda-largura)/2
-	y := area.Topo + (area.Base-area.Topo-altura)/2
-	procSetWindowPos.Call(a.hwnd, 0, uintptr(x), uintptr(y), uintptr(largura), uintptr(altura), swpNoZOrder|swpNoOwnerZOrder)
+	area := m.Work
+	width := (area.Right - area.Left) * 85 / 100
+	height := (area.Bottom - area.Top) * 85 / 100
+	x := area.Left + (area.Right-area.Left-width)/2
+	y := area.Top + (area.Bottom-area.Top-height)/2
+	procSetWindowPos.Call(a.hwnd, 0, uintptr(x), uintptr(y), uintptr(width), uintptr(height), swpNoZOrder|swpNoOwnerZOrder)
 }
 
-func (a *app) monitor() (infoMonitor, bool) {
-	m := infoMonitor{Tamanho: uint32(unsafe.Sizeof(infoMonitor{}))}
+func (a *app) monitor() (monitorInfo, bool) {
+	m := monitorInfo{Size: uint32(unsafe.Sizeof(monitorInfo{}))}
 	h, _, _ := procMonitorFromWindow.Call(a.hwnd, monitorDefaultToNear)
 	ok, _, _ := procGetMonitorInfoW.Call(h, uintptr(unsafe.Pointer(&m)))
 	return m, ok != 0
 }
 
-// entrarEmTelaCheia tira a borda e a barra de título e cobre o monitor inteiro, como o F11 de um navegador.
-func (a *app) entrarEmTelaCheia() {
-	if a.telaCheia {
+// enterFullscreen removes the border and the title bar and covers the whole monitor, like a browser's F11.
+func (a *app) enterFullscreen() {
+	if a.fullscreen {
 		return
 	}
 	m, ok := a.monitor()
 	if !ok {
 		return
 	}
-	a.posicao = posicaoJanela{Tamanho: uint32(unsafe.Sizeof(posicaoJanela{}))}
-	procGetWindowPlacement.Call(a.hwnd, uintptr(unsafe.Pointer(&a.posicao)))
-	a.estilo, _, _ = procGetWindowLongPtrW.Call(a.hwnd, gwlStyle)
-	procSetWindowLongPtrW.Call(a.hwnd, gwlStyle, a.estilo&^wsOverlappedWindow)
+	a.placement = windowPlacement{Length: uint32(unsafe.Sizeof(windowPlacement{}))}
+	procGetWindowPlacement.Call(a.hwnd, uintptr(unsafe.Pointer(&a.placement)))
+	a.style, _, _ = procGetWindowLongPtrW.Call(a.hwnd, gwlStyle)
+	procSetWindowLongPtrW.Call(a.hwnd, gwlStyle, a.style&^wsOverlappedWindow)
 	r := m.Monitor
-	procSetWindowPos.Call(a.hwnd, 0, uintptr(r.Esquerda), uintptr(r.Topo), uintptr(r.Direita-r.Esquerda), uintptr(r.Base-r.Topo), swpNoOwnerZOrder|swpFrameChanged)
-	a.telaCheia = true
+	procSetWindowPos.Call(a.hwnd, 0, uintptr(r.Left), uintptr(r.Top), uintptr(r.Right-r.Left), uintptr(r.Bottom-r.Top), swpNoOwnerZOrder|swpFrameChanged)
+	a.fullscreen = true
 }
 
-// sairDaTelaCheia devolve a borda, a barra de título e o tamanho que a janela tinha antes.
-func (a *app) sairDaTelaCheia() {
-	if !a.telaCheia {
+// exitFullscreen brings back the border, the title bar and the size the window had before.
+func (a *app) exitFullscreen() {
+	if !a.fullscreen {
 		return
 	}
-	procSetWindowLongPtrW.Call(a.hwnd, gwlStyle, a.estilo|wsOverlappedWindow)
-	procSetWindowPlacement.Call(a.hwnd, uintptr(unsafe.Pointer(&a.posicao)))
+	procSetWindowLongPtrW.Call(a.hwnd, gwlStyle, a.style|wsOverlappedWindow)
+	procSetWindowPlacement.Call(a.hwnd, uintptr(unsafe.Pointer(&a.placement)))
 	procSetWindowPos.Call(a.hwnd, 0, 0, 0, 0, 0, swpNoMove|swpNoSize|swpNoZOrder|swpNoOwnerZOrder|swpFrameChanged)
-	a.telaCheia = false
+	a.fullscreen = false
 }
 
-func (a *app) alternarTelaCheia() {
-	if a.telaCheia {
-		a.sairDaTelaCheia()
+func (a *app) toggleFullscreen() {
+	if a.fullscreen {
+		a.exitFullscreen()
 	} else {
-		a.entrarEmTelaCheia()
+		a.enterFullscreen()
 	}
 }
 
-// interceptarFechamento faz o Alt+F4 (e o X da janela) esperar o editor gravar o rascunho antes de fechar.
-func (a *app) interceptarFechamento() {
-	a.procAntigo, _, _ = procSetWindowLongPtrW.Call(a.hwnd, gwlpWndProc, windows.NewCallback(procJanela))
+// interceptClose makes Alt+F4 (and the window's X) wait for the editor to save the draft before closing.
+func (a *app) interceptClose() {
+	a.oldProc, _, _ = procSetWindowLongPtrW.Call(a.hwnd, gwlpWndProc, windows.NewCallback(windowProc))
 }
 
-func procJanela(hwnd, msg, wp, lp uintptr) uintptr {
-	if a := aberto; a != nil && msg == wmClose && !a.podeFechar {
-		a.pedirFechamento()
+func windowProc(hwnd, msg, wp, lp uintptr) uintptr {
+	if a := current; a != nil && msg == wmClose && !a.canClose {
+		a.requestClose()
 		return 0
 	}
-	r, _, _ := procCallWindowProcW.Call(aberto.procAntigo, hwnd, msg, wp, lp)
+	r, _, _ := procCallWindowProcW.Call(current.oldProc, hwnd, msg, wp, lp)
 	return r
 }
 
-func (a *app) pedirFechamento() {
-	if a.fechamentoPedido {
-		// Segundo Alt+F4 seguido: fecha na hora.
-		a.fecharAgora()
+func (a *app) requestClose() {
+	if a.closeRequested {
+		// Second Alt+F4 in a row: close right away.
+		a.closeNow()
 		return
 	}
-	a.fechamentoPedido = true
-	a.w.Eval(`Promise.resolve(window.__crivoAntesDeFechar && window.__crivoAntesDeFechar()).catch(() => {}).finally(() => window.__crivoSair())`)
-	// Se a página não responder (travada ou ainda carregando), fecha mesmo assim.
-	time.AfterFunc(3*time.Second, func() { a.w.Dispatch(a.fecharAgora) })
+	a.closeRequested = true
+	a.w.Eval(`Promise.resolve(window.__crivoBeforeClose && window.__crivoBeforeClose()).catch(() => {}).finally(() => window.__crivoQuit())`)
+	// If the page does not answer (frozen or still loading), close anyway.
+	time.AfterFunc(3*time.Second, func() { a.w.Dispatch(a.closeNow) })
 }
 
-func (a *app) fecharAgora() {
-	if a.podeFechar {
+func (a *app) closeNow() {
+	if a.canClose {
 		return
 	}
-	a.podeFechar = true
+	a.canClose = true
 	procPostMessageW.Call(a.hwnd, wmClose, 0, 0)
 }
 
-func semWebView2() {
-	texto := "O Crivo precisa do Microsoft Edge WebView2 Runtime, que já vem no Windows 10 e 11 atualizados.\n\n" +
+// missingWebView2 offers to open the WebView2 Runtime download page.
+func missingWebView2() {
+	text := "O Crivo precisa do Microsoft Edge WebView2 Runtime, que já vem no Windows 10 e 11 atualizados.\n\n" +
 		"Quer abrir a página de download da Microsoft agora? Depois de instalar, abra o Crivo de novo."
-	if mensagem(texto, mbYesNo|mbIconWarning) == idYes {
-		_ = windows.ShellExecute(0, windows.StringToUTF16Ptr("open"), windows.StringToUTF16Ptr(linkWebView2), nil, nil, windows.SW_SHOWNORMAL)
+	if messageBox(text, mbYesNo|mbIconWarning) == idYes {
+		_ = windows.ShellExecute(0, windows.StringToUTF16Ptr("open"), windows.StringToUTF16Ptr(webView2DownloadURL), nil, nil, windows.SW_SHOWNORMAL)
 	}
 }
 
-func avisar(texto string) { mensagem(texto, mbIconWarning) }
+func warn(text string) { messageBox(text, mbIconWarning) }
 
-func mensagem(texto string, tipo uint32) int32 {
-	r, _ := windows.MessageBox(0, windows.StringToUTF16Ptr(texto), windows.StringToUTF16Ptr("Crivo"), tipo)
+func messageBox(text string, flags uint32) int32 {
+	r, _ := windows.MessageBox(0, windows.StringToUTF16Ptr(text), windows.StringToUTF16Ptr("Crivo"), flags)
 	return r
 }
 
 func must(err error) {
 	if err != nil {
-		avisar("Erro ao preparar o Crivo: " + err.Error())
+		warn("Erro ao preparar o Crivo: " + err.Error())
 		os.Exit(1)
 	}
 }

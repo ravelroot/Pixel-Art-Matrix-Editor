@@ -2,118 +2,123 @@ import base64
 import struct
 from array import array
 
+# Pixels are packed RGBA integers (R in the low byte, A in the high byte), the same layout as the JavaScript editor.
+# RLE format: each run is a varint length (7 bits per byte, low bits first) followed by the 4-byte little-endian color.
+# The error messages below reach the user through the API, so they stay in Portuguese.
 
-class ErroRLE(ValueError):
+
+class RLEError(ValueError):
     pass
 
 
-def codificar(pixels):
-    saida = bytearray()
+def encode(pixels):
+    output = bytearray()
     n = len(pixels)
     i = 0
     while i < n:
-        cor = pixels[i]
+        color = pixels[i]
         j = i + 1
-        while j < n and pixels[j] == cor:
+        while j < n and pixels[j] == color:
             j += 1
-        corrida = j - i
-        while corrida >= 128:
-            saida.append((corrida & 127) | 128)
-            corrida >>= 7
-        saida.append(corrida)
-        saida += struct.pack("<I", cor)
+        run = j - i
+        while run >= 128:
+            output.append((run & 127) | 128)
+            run >>= 7
+        output.append(run)
+        output += struct.pack("<I", color)
         i = j
-    return bytes(saida)
+    return bytes(output)
 
 
-def decodificar(dados, total):
+def decode(data, total):
     pixels = array("I", bytes(4 * total)) if total else array("I")
     p = 0
     i = 0
-    n = len(dados)
+    n = len(data)
     while p < n:
-        corrida = 0
-        deslocamento = 0
+        run = 0
+        shift = 0
         while True:
             if p >= n:
-                raise ErroRLE("RLE truncado")
-            b = dados[p]
+                raise RLEError("RLE truncado")
+            b = data[p]
             p += 1
-            corrida |= (b & 127) << deslocamento
+            run |= (b & 127) << shift
             if b < 128:
                 break
-            deslocamento += 7
-            if deslocamento > 35:
-                raise ErroRLE("Corrida inválida")
+            shift += 7
+            if shift > 35:
+                raise RLEError("Corrida inválida")
         if p + 4 > n:
-            raise ErroRLE("RLE truncado")
-        cor = struct.unpack_from("<I", dados, p)[0]
+            raise RLEError("RLE truncado")
+        color = struct.unpack_from("<I", data, p)[0]
         p += 4
-        if i + corrida > total:
-            raise ErroRLE("RLE maior que a matriz")
-        if cor:
-            pixels[i : i + corrida] = array("I", [cor]) * corrida
-        i += corrida
+        if i + run > total:
+            raise RLEError("RLE maior que a matriz")
+        if color:
+            pixels[i : i + run] = array("I", [color]) * run
+        i += run
     if i != total:
-        raise ErroRLE("RLE menor que a matriz")
+        raise RLEError("RLE menor que a matriz")
     return pixels
 
 
-def de_base64(texto):
+def from_base64(text):
     try:
-        return base64.b64decode(texto, validate=True)
-    except (ValueError, TypeError) as erro:
-        raise ErroRLE("Base64 inválido") from erro
+        return base64.b64decode(text, validate=True)
+    except (ValueError, TypeError) as error:
+        raise RLEError("Base64 inválido") from error
 
 
-def para_base64(dados):
-    return base64.b64encode(dados).decode("ascii")
+def to_base64(data):
+    return base64.b64encode(data).decode("ascii")
 
 
-def canais(cor):
-    return cor & 255, (cor >> 8) & 255, (cor >> 16) & 255, (cor >> 24) & 255
+def channels(color):
+    return color & 255, (color >> 8) & 255, (color >> 16) & 255, (color >> 24) & 255
 
 
-def empacotar(r, g, b, a=255):
+def pack(r, g, b, a=255):
     return (a << 24) | (b << 16) | (g << 8) | r
 
 
-def sobrepor(fundo, frente, opacidade=1.0):
-    fr, fg, fb, fa = canais(frente)
-    sa = fa / 255 * opacidade
+def blend(background, foreground, opacity=1.0):
+    fr, fg, fb, fa = channels(foreground)
+    sa = fa / 255 * opacity
     if sa <= 0:
-        return fundo
-    br, bg, bb, ba = canais(fundo)
+        return background
+    br, bg, bb, ba = channels(background)
     da = ba / 255
     if sa >= 1:
-        return frente
+        return foreground
     if da == 0:
-        return empacotar(fr, fg, fb, round(sa * 255))
+        return pack(fr, fg, fb, round(sa * 255))
     oa = sa + da * (1 - sa)
 
-    def mistura(s, d):
+    def mix(s, d):
         return round((s * sa + d * da * (1 - sa)) / oa)
 
-    return empacotar(mistura(fr, br), mistura(fg, bg), mistura(fb, bb), round(oa * 255))
+    return pack(mix(fr, br), mix(fg, bg), mix(fb, bb), round(oa * 255))
 
 
-def compor(largura, altura, camadas):
-    total = largura * altura
-    destino = array("I", bytes(4 * total))
-    for pixels, opacidade in camadas:
-        if opacidade <= 0:
+def composite(width, height, layers):
+    """Flatten (pixels, opacity) layers, bottom first, into one frame."""
+    total = width * height
+    target = array("I", bytes(4 * total))
+    for pixels, opacity in layers:
+        if opacity <= 0:
             continue
         for i, c in enumerate(pixels):
             if not c >> 24:
                 continue
-            if c >> 24 == 255 and opacidade >= 1:
-                destino[i] = c
+            if c >> 24 == 255 and opacity >= 1:
+                target[i] = c
             else:
-                destino[i] = sobrepor(destino[i], c, opacidade)
-    return destino
+                target[i] = blend(target[i], c, opacity)
+    return target
 
 
-def para_hex(cor):
-    r, g, b, a = canais(cor)
-    texto = f"#{r:02x}{g:02x}{b:02x}"
-    return texto if a == 255 else texto + f"{a:02x}"
+def to_hex(color):
+    r, g, b, a = channels(color)
+    text = f"#{r:02x}{g:02x}{b:02x}"
+    return text if a == 255 else text + f"{a:02x}"

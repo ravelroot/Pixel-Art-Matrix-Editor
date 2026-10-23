@@ -25,13 +25,13 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-      - name: Testes do núcleo do editor
+      - name: Editor core tests
         run: npm test
-      - name: Crivo.html em dia com o código do editor
-        run: npm run portatil -- --verificar
+      - name: Crivo.html up to date with the editor code
+        run: npm run portable -- --check
 
   desktop:
-    name: App desktop (Crivo.exe)
+    name: Desktop app (Crivo.exe)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -43,17 +43,17 @@ jobs:
         with:
           go-version: "1.24.7"
           cache-dependency-path: desktop/go.sum
-      - name: Crivo.exe em dia com o código (build reproduzível)
-        run: npm run desktop -- --verificar
-      - name: Análise do código Go
+      - name: Crivo.exe up to date with the code (reproducible build)
+        run: npm run desktop -- --check
+      - name: Go code analysis
         working-directory: desktop
         env:
           GOOS: windows
           GOARCH: amd64
         run: go vet ./...
 
-  qualidade:
-    name: Qualidade e segurança (Ruff + Bandit)
+  quality:
+    name: Quality and security (Ruff + Bandit)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -63,14 +63,14 @@ jobs:
           python-version: "3.13"
           cache: pip
       - run: pip install -r requirements.txt ruff bandit
-      - name: Ruff (estilo, bugs e segurança)
+      - name: Ruff (style, bugs and security)
         run: ruff check .
-      - name: Bandit (segurança do Python)
+      - name: Bandit (Python security)
         run: bandit -q -r editor crivo -x editor/tests
-      - name: Checagem de produção do Django
+      - name: Django production check
         env:
           CRIVO_DEBUG: "false"
-          CRIVO_SECRET_KEY: ci-chave-aleatoria-com-mais-de-trinta-e-dois-caracteres
+          CRIVO_SECRET_KEY: ci-random-key-with-more-than-thirty-two-characters
           CRIVO_HTTPS: "true"
         run: python manage.py check --deploy --fail-level ERROR
 
@@ -86,7 +86,7 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt playwright
       - run: python -m playwright install --with-deps chromium
-      - name: Teste ponta a ponta do editor
+      - name: Editor end-to-end test
         run: python -m unittest discover -s tests/e2e -v
 
   django:
@@ -120,13 +120,13 @@ jobs:
           python-version: "3.13"
           cache: pip
       - run: pip install -r requirements.txt
-      - name: Verificar migrações
+      - name: Check migrations
         run: python manage.py makemigrations --check --dry-run
-      - name: Testes da API
+      - name: API tests
         run: python manage.py test editor -v 2
 
   java:
-    name: Ferramenta (Java)
+    name: Command-line tool (Java)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -135,24 +135,24 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - name: Testes da linha de comando
-        run: bash ferramentas/java/testar.sh
-      - name: Gerar as folhas dos exemplos
+      - name: Command-line tests
+        run: bash tools/java/test.sh
+      - name: Render the example sheets
         run: |
-          for arquivo in exemplos/*.crivo; do
-            bash ferramentas/java/crivo.sh folha "$arquivo" "saida/$(basename "$arquivo" .crivo).png" --escala 4 --espaco 2
+          for file in examples/*.crivo; do
+            bash tools/java/crivo.sh sheet "$file" "sheets/$(basename "$file" .crivo).png" --scale 4 --spacing 2
           done
       - uses: actions/upload-artifact@v4
         with:
-          name: exemplos-png
-          path: saida/
+          name: example-sheets
+          path: sheets/
           retention-days: 7
 
   docker:
-    name: Imagem Docker
+    name: Docker image
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
-      - name: Construir a imagem
+      - name: Build the image
         run: docker build -t crivo:ci .

@@ -20,6 +20,8 @@
 
 > **Banco de dados:** [`Banco-de-Dados-Crivo.pdf`](Banco-de-Dados-Crivo.pdf) traz o diagrama de relacionamentos, todas as tabelas com campos, tipos, chaves e restrições, o formato binário das células, o controle de versões, consultas prontas, como preparar o PostgreSQL e as regras de integridade e segurança dos dados.
 
+> **Versão 2.0.0, código em inglês:** desde a 2.0.0, todo o código do Crivo está em inglês (identificadores, nomes de arquivos e pastas, rotas e campos da API, chaves do formato `.crivo`, tabelas do banco, variáveis de ambiente, comandos da linha de comando e scripts do npm), enquanto a interface e a documentação continuam em português. Nada muda para quem desenha: arquivos `.crivo`, bancos de dados e projetos guardados no navegador ou no app desktop pela 1.x continuam abrindo e são convertidos sozinhos. Quem integra com o Crivo deve ver o [CHANGELOG](CHANGELOG.md): a API passou para `/api/v2` e algumas variáveis de ambiente mudaram de nome (os nomes antigos ainda funcionam).
+
 <p align="center">
   <img src="docs/images/tela-editor.png" alt="Editor com a poção de exemplo aberta, três camadas e a linha do tempo com quatro quadros">
 </p>
@@ -61,18 +63,18 @@ flowchart LR
     UI["Navegador<br/>JavaScript + Canvas 2D"] -- "HTTP / JSON (CSRF)" --> WEB["web<br/>Django 6.1 + Gunicorn"]
     UI -- "sem servidor" --> IDB[("IndexedDB<br/>do navegador")]
     WEB --> PG[("PostgreSQL 17<br/>ou SQLite")]
-    CLI["ferramentas/java<br/>CLI Java 21"] -- "lê .crivo" --> ARQ["arquivos .crivo"]
+    CLI["tools/java<br/>CLI Java 21"] -- "lê .crivo" --> ARQ["arquivos .crivo"]
     UI -- "baixa e abre" --> ARQ
 ```
 
 | Parte | Linguagem | Responsabilidade |
 |---|---|---|
-| `editor/static/editor/js/nucleo` | JavaScript | Núcleo sem DOM: cores e OKLCH, geometria (Bresenham, elipse, pincel, simetria, pixel perfect), flood fill, pontilhado de Bayer e degradês, seleção e regiões, filtros (contorno, paleta, inverter, cinza, clarear/escurecer), codificador GIF com LZW, RLE, documento, histórico, formato `.crivo`, exportação e paletas |
+| `editor/static/editor/js/core` | JavaScript | Núcleo sem DOM: cores e OKLCH, geometria (Bresenham, elipse, pincel, simetria, pixel perfect), flood fill, pontilhado de Bayer e degradês, seleção e regiões, filtros (contorno, paleta, inverter, cinza, clarear/escurecer), codificador GIF com LZW, RLE, documento, histórico, formato `.crivo`, exportação e paletas |
 | `editor/static/editor/js/ui` | JavaScript | Visor em canvas, ferramentas, painéis, diálogos, armazenamento e atalhos |
-| `Crivo.exe` e `desktop/` | Go | App desktop para Windows, gerado por `scripts/gerar-desktop.js`: janela própria com o WebView2, maximizada (F11 alterna a tela cheia), com o `Crivo.html` embutido e atalho no menu Iniciar |
-| `Crivo.html` | HTML + JavaScript | O editor inteiro num arquivo só, gerado por `scripts/gerar-portatil.js`: abre direto do disco, sem servidor nem backend |
+| `Crivo.exe` e `desktop/` | Go | App desktop para Windows, gerado por `scripts/build-desktop.js`: janela própria com o WebView2, maximizada (F11 alterna a tela cheia), com o `Crivo.html` embutido e atalho no menu Iniciar |
+| `Crivo.html` | HTML + JavaScript | O editor inteiro num arquivo só, gerado por `scripts/build-portable.js`: abre direto do disco, sem servidor nem backend |
 | `editor/` | Python (Django) | API REST, validação, versões dos projetos, paletas, exportação pelo servidor (dados e PNG), cabeçalhos de segurança e limite de escritas |
-| `ferramentas/java` | Java 21 | Linha de comando: informações, paleta, PNG, sprite sheet e matriz em Java a partir de um `.crivo` |
+| `tools/java` | Java 21 | Linha de comando: informações, paleta, PNG, sprite sheet e matriz em Java a partir de um `.crivo` |
 | `postgres` | — | Fonte da verdade quando há servidor: projetos, camadas, quadros, células, versões e paletas |
 
 ### Como a matriz é guardada
@@ -106,7 +108,7 @@ O Crivo sobe de **três maneiras**. O editor é o mesmo nas três; o que muda é
 | Maneira | Como subir | Precisa de | Onde ficam os projetos |
 |---|---|---|---|
 | **1. App desktop** (`Crivo.exe`) | Dois cliques no `Crivo.exe` (ou pesquise **Crivo** no menu Iniciar depois da primeira vez); abre **maximizado** | Windows 10 ou 11 (64 bits); nada para instalar | Neste computador, em `%LOCALAPPDATA%\Crivo` |
-| **2. Servidor local e backend** (Django + banco) | `iniciar.cmd`, `./iniciar.sh` ou `python manage.py runserver` | Docker Desktop, ou Python 3.12+ | No banco de dados (PostgreSQL ou SQLite), com histórico de versões e API |
+| **2. Servidor local e backend** (Django + banco) | `start.cmd`, `./start.sh` ou `python manage.py runserver` | Docker Desktop, ou Python 3.12+ | No banco de dados (PostgreSQL ou SQLite), com histórico de versões e API |
 | **3. Arquivo único** (`Crivo.html`) | Dois cliques no `Crivo.html`; abre no navegador | Um navegador atual; nada para instalar | No navegador em que foi aberto (IndexedDB) |
 
 Para só desenhar no Windows, o app desktop é o caminho mais direto. Para usar a API, o histórico de versões ou guardar os projetos num banco, suba o servidor. Para abrir em qualquer sistema sem instalar nada, use o `Crivo.html`.
@@ -126,7 +128,7 @@ Para gerar o `Crivo.exe` a partir do código (precisa do Node.js 20 e do Go; a v
 
 ```bash
 npm run desktop                   # atualiza o Crivo.html e gera o Crivo.exe na raiz
-npm run desktop -- --verificar    # confere se o Crivo.exe do repositório corresponde ao código
+npm run desktop -- --check        # confere se o Crivo.exe do repositório corresponde ao código
 ```
 
 O build é reproduzível: o mesmo código gera sempre o mesmo `Crivo.exe`, byte a byte, de qualquer sistema. O ícone é o logo do projeto ([`docs/images/logo.svg`](docs/images/logo.svg)), desenhado com pixels inteiros em cada tamanho do Windows, e as propriedades do arquivo trazem a versão e o copyright.
@@ -137,12 +139,12 @@ O build é reproduzível: o mesmo código gera sempre o mesmo `Crivo.exe`, byte 
 
 Você só precisa do **Docker** com Docker Compose.
 
-**Windows:** dê dois cliques em `iniciar.cmd`.
+**Windows:** dê dois cliques em `start.cmd`.
 
 **Linux ou macOS:**
 
 ```bash
-./iniciar.sh
+./start.sh
 ```
 
 Na primeira vez o script cria o arquivo `.env` com uma senha aleatória para o banco e uma chave secreta aleatória, sobe o PostgreSQL e a aplicação e abre **http://localhost:8080**.
@@ -150,8 +152,8 @@ Na primeira vez o script cria o arquivo `.env` com uma senha aleatória para o b
 | Endereço | O que é |
 |---|---|
 | http://localhost:8080 | Editor |
-| http://localhost:8080/api/v1 | Lista das rotas da API |
-| http://localhost:8080/api/v1/saude | Saúde do banco |
+| http://localhost:8080/api/v2 | Lista das rotas da API |
+| http://localhost:8080/api/v2/health | Saúde do banco |
 
 #### Sem Docker (Python)
 
@@ -163,12 +165,12 @@ python manage.py migrate
 python manage.py runserver        # http://localhost:8000
 ```
 
-Sem configurar nada, o Django usa um arquivo SQLite (`crivo.sqlite3`). Para usar PostgreSQL, defina `CRIVO_DB_ENGINE=postgresql` e as variáveis `CRIVO_DB_*`.
+Sem configurar nada, o Django usa um arquivo SQLite (`crivo.sqlite3`). Para usar PostgreSQL, defina `CRIVO_DB_ENGINE=postgresql` e as variáveis `CRIVO_DB_*`. Ao atualizar uma instalação da 1.x, rode `python manage.py migrate` de novo: a migração `0003_english_schema` renomeia as tabelas e colunas para o inglês sem perder dados (com Docker, as migrações rodam sozinhas ao subir).
 
 #### Só o editor, num servidor de arquivos (Node.js)
 
 ```bash
-npm run servir                    # http://localhost:5173
+npm run serve                     # http://localhost:5173
 ```
 
 Nesse modo não há API: projetos e paletas ficam no IndexedDB do navegador. Qualquer servidor de arquivos estáticos apontado para `editor/static/editor/` também funciona.
@@ -179,61 +181,78 @@ Baixe o [`Crivo.html`](Crivo.html) e dê dois cliques. O editor abre no navegado
 
 Os projetos e as paletas ficam guardados no navegador em que o arquivo foi aberto. Para guardar uma cópia ou levar um desenho para outro computador, use **Arquivo → Baixar arquivo .crivo** e, depois, **Arquivo → Abrir arquivo .crivo…**.
 
-O `Crivo.html` existe porque os navegadores não carregam módulos JavaScript de páginas abertas direto do disco: ele junta os módulos do editor num script só, embute o CSS e o ícone e traz a própria Content-Security-Policy. Depois de mudar o editor, rode `npm run portatil` (o `npm run desktop` também faz isso).
+O `Crivo.html` existe porque os navegadores não carregam módulos JavaScript de páginas abertas direto do disco: ele junta os módulos do editor num script só, embute o CSS e o ícone e traz a própria Content-Security-Policy. Depois de mudar o editor, rode `npm run portable` (o `npm run desktop` também faz isso).
 
 ## Usando a API
 
 ```bash
 # listar projetos
-curl http://localhost:8080/api/v1/projetos
+curl http://localhost:8080/api/v2/projects
 
 # criar um projeto a partir de um arquivo .crivo (com CRIVO_API_TOKEN definido no .env)
 curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-     -d "{\"dados\": $(cat exemplos/pocao.crivo)}" http://localhost:8080/api/v1/projetos
+     -d "{\"data\": $(cat examples/potion.crivo)}" http://localhost:8080/api/v2/projects
 
 # baixar a matriz do quadro 1 como módulo Python, pronta para o seu jogo
-curl -o pocao.py "http://localhost:8080/api/v1/projetos/<id>/exportar?formato=py&quadro=1&baixar=1"
+curl -o potion.py "http://localhost:8080/api/v2/projects/<id>/export?format=py&frame=1&download=1"
 
 # ou como cabeçalho C e classe Java
-curl -o pocao.h "http://localhost:8080/api/v1/projetos/<id>/exportar?formato=c&baixar=1"
-curl -o Pocao.java "http://localhost:8080/api/v1/projetos/<id>/exportar?formato=java&modo=hex&baixar=1"
+curl -o potion.h "http://localhost:8080/api/v2/projects/<id>/export?format=c&download=1"
+curl -o Pocao.java "http://localhost:8080/api/v2/projects/<id>/export?format=java&mode=hex&download=1"
 
 # PNG do quadro 2 ampliado 8 vezes, gerado no servidor
-curl -o pocao.png "http://localhost:8080/api/v1/projetos/<id>/png?quadro=2&escala=8"
+curl -o potion.png "http://localhost:8080/api/v2/projects/<id>/png?frame=2&scale=8"
 ```
 
 | Rota | O que faz |
 |---|---|
-| `GET /api/v1/projetos` | Lista os projetos (`q` filtra pelo nome) |
-| `POST /api/v1/projetos` | Cria um projeto (`dados` no formato `.crivo`, `miniatura` PNG opcional) |
-| `GET/PUT/DELETE /api/v1/projetos/{id}` | Abre, salva (com `revisao` para detectar conflitos) e exclui |
-| `GET /api/v1/projetos/{id}/miniatura` | Miniatura PNG |
-| `GET /api/v1/projetos/{id}/exportar` | Matriz em `json`, `csv`, `js`, `py`, `c` ou `java`, por `indices` ou `hex`, de um quadro ou de todos |
-| `GET /api/v1/projetos/{id}/png` | PNG de um quadro composto (`quadro`, `escala` de 1 a 32, até 2048 px de lado), gerado em Python puro |
-| `GET /api/v1/projetos/{id}/revisoes` | Versões anteriores guardadas a cada salvamento |
-| `POST /api/v1/projetos/{id}/revisoes/{n}/restaurar` | Volta para uma versão |
-| `GET/POST /api/v1/paletas` | Lista as paletas (predefinidas e suas) e cria uma nova |
-| `GET/PUT/DELETE /api/v1/paletas/{id}` | Abre, altera e exclui uma paleta sua |
+| `GET /api/v2` | Nome, versão e lista das rotas |
+| `GET /api/v2/health` | Saúde do servidor e do banco (`{"status", "version", "database"}`; 503 se o banco não responder) |
+| `GET /api/v2/projects` | Lista os projetos (`{"projects": [...]}`; `q` filtra pelo nome) |
+| `POST /api/v2/projects` | Cria um projeto (`data` no formato `.crivo`, `thumbnail` PNG opcional, `name`) |
+| `GET/PUT/DELETE /api/v2/projects/{id}` | Abre (resumo + `data`), salva (com `revision` para detectar conflitos) e exclui |
+| `GET /api/v2/projects/{id}/thumbnail` | Miniatura PNG |
+| `GET /api/v2/projects/{id}/export` | Matriz em `format=json`, `csv`, `js`, `py`, `c` ou `java`, com `mode=indices` ou `hex`, de um quadro (`frame=N`) ou de todos (`frame=all`); `download=1` baixa o arquivo |
+| `GET /api/v2/projects/{id}/png` | PNG de um quadro composto (`frame`, `scale` de 1 a 32, até 2048 px de lado, `download=1`), gerado em Python puro |
+| `GET /api/v2/projects/{id}/revisions` | Versões anteriores guardadas a cada salvamento (`{"current_revision", "revisions": [...]}`) |
+| `POST /api/v2/projects/{id}/revisions/{number}/restore` | Volta para uma versão |
+| `GET/POST /api/v2/palettes` | Lista as paletas (`{"palettes": [...]}`; `presets=0` esconde as predefinidas) e cria uma nova (`name`, `colors`) |
+| `GET/PUT/DELETE /api/v2/palettes/{id}` | Abre, altera e exclui uma paleta sua |
 
-Pedidos que alteram dados exigem o cookie CSRF do Django (o editor cuida disso) ou o cabeçalho `Authorization: Bearer <CRIVO_API_TOKEN>`. Acima de `CRIVO_LIMITE_ESCRITAS` alterações por minuto vindas do mesmo IP, a API responde **429** com `Retry-After`; JSON inválido responde **422** e corpo acima do limite, **413**.
+O resumo de um projeto traz `id`, `name`, `width`, `height`, `fps`, `revision`, `frames` e `layers` (quantidades), `thumbnail_url`, `created_at` e `updated_at`. Os erros vêm como `{"error": "mensagem"}`, com a mensagem em português; o conflito (409) inclui `current_revision`.
+
+> **Desde a 2.0.0**, a API fica em `/api/v2`, com rotas, parâmetros e campos em inglês. A `/api/v1` foi removida: scripts feitos para a 1.x precisam trocar o endereço e os nomes dos campos (veja o [CHANGELOG](CHANGELOG.md)). A API continua aceitando projetos no formato `.crivo` antigo no campo `data`.
+
+Pedidos que alteram dados exigem o cookie CSRF do Django (o editor cuida disso) ou o cabeçalho `Authorization: Bearer <CRIVO_API_TOKEN>`. Acima de `CRIVO_WRITE_LIMIT` alterações por minuto vindas do mesmo IP, a API responde **429** com `Retry-After`; JSON inválido responde **422** e corpo acima do limite, **413**.
 
 ## Ferramenta em Java
 
-A pasta [`ferramentas/java`](ferramentas/java) traz uma linha de comando sem dependências externas, só com o JDK 21:
+A pasta [`tools/java`](tools/java) traz uma linha de comando sem dependências externas, só com o JDK 21:
 
 ```bash
-cd ferramentas/java
-./crivo.sh info ../../exemplos/pocao.crivo
-./crivo.sh paleta ../../exemplos/coracao.crivo
-./crivo.sh png ../../exemplos/pocao.crivo pocao.png --escala 8 --quadro 2
-./crivo.sh folha ../../exemplos/coracao.crivo coracao.png --disposicao grade --colunas 2 --espaco 2
-./crivo.sh matriz ../../exemplos/gosma-game-boy.crivo --classe Gosma > Gosma.java
-./testar.sh
+cd tools/java
+./crivo.sh info ../../examples/potion.crivo
+./crivo.sh palette ../../examples/heart.crivo
+./crivo.sh png ../../examples/potion.crivo potion.png --scale 8 --frame 2
+./crivo.sh sheet ../../examples/heart.crivo heart.png --layout grid --columns 2 --spacing 2
+./crivo.sh matrix ../../examples/game-boy-slime.crivo --class Slime > Slime.java
+./test.sh
 ```
 
-No Windows, use `crivo.cmd` no lugar de `./crivo.sh`. A primeira execução compila as classes em `ferramentas/java/out`.
+No Windows, use `crivo.cmd` no lugar de `./crivo.sh`. A primeira execução compila as classes em `tools/java/out`.
 
-Sprites grandes (mais de 4096 valores) saem numa classe compacta: a matriz vai em texto e é lida quando a classe carrega, porque um literal desse tamanho passaria do limite de 64 KB por método do Java. Quem usa a classe continua acessando `PALETA` e `QUADROS` do mesmo jeito. O editor e a API geram o mesmo formato.
+| Comando | O que faz |
+|---|---|
+| `info <projeto>` | Nome, tamanho, quadros, FPS, camadas e quantidade de cores |
+| `palette <projeto>` | Cores usadas, da mais usada para a menos usada |
+| `png <projeto> <saida.png> [--frame N] [--scale N]` | Um quadro em PNG, ampliado por vizinho mais próximo |
+| `sheet <projeto> <saida.png> [--layout horizontal\|vertical\|grid] [--columns N] [--spacing N] [--scale N]` | Sprite sheet |
+| `matrix <projeto> [--frame N\|all] [--mode indices\|argb] [--class Nome]` | Classe Java com a matriz, na saída padrão |
+| `check <projeto>` | Confere se o arquivo é um projeto válido |
+
+Desde a 2.0.0, os comandos e as opções estão em inglês. Os nomes da 1.x (`paleta`, `folha`, `matriz`, `verificar`, `--quadro`, `--escala`, `--disposicao` com `grade`, `--colunas`, `--espaco`, `--modo`, `--classe` e o valor `todos`) continuam funcionando como apelidos, e a ajuda e as mensagens seguem em português. A ferramenta lê arquivos `.crivo` das versões 1 e 2.
+
+Sprites grandes (mais de 4096 valores) saem numa classe compacta: a matriz vai em texto e é lida quando a classe carrega, porque um literal desse tamanho passaria do limite de 64 KB por método do Java. Quem usa a classe continua acessando `PALETTE` e `FRAMES` do mesmo jeito. O editor e a API geram o mesmo formato.
 
 ## Formato `.crivo`
 
@@ -241,20 +260,22 @@ Sprites grandes (mais de 4096 valores) saem numa classe compacta: a matriz vai e
 
 ```json
 {
-  "formato": "crivo",
-  "versao": 1,
-  "nome": "Poção",
-  "largura": 16,
-  "altura": 16,
+  "format": "crivo",
+  "version": 2,
+  "name": "Poção",
+  "width": 16,
+  "height": 16,
   "fps": 6,
-  "paleta": ["#5d1c16", "#a3b4be"],
-  "camadas": [{ "id": "c1", "nome": "Vidro", "visivel": true, "opacidade": 100, "bloqueada": false }],
-  "quadros": [{ "id": "q1", "duracao": null }],
-  "celulas": [{ "quadro": "q1", "camada": "c1", "rle": "<RLE em base64>" }]
+  "palette": ["#5d1c16", "#a3b4be"],
+  "layers": [{ "id": "c1", "name": "Vidro", "visible": true, "opacity": 100, "locked": false }],
+  "frames": [{ "id": "q1", "duration": null }],
+  "cells": [{ "frame": "q1", "layer": "c1", "rle": "<RLE em base64>" }]
 }
 ```
 
-A pasta [`exemplos/`](exemplos) tem três projetos para abrir e estudar: uma poção com o líquido animado, um coração batendo e uma gosma na paleta do Game Boy.
+Esta é a versão 2 do formato, usada desde o Crivo 2.0.0, com as chaves em inglês. Arquivos da versão 1 (salvos pela 1.x, com `"formato"`, `"versao"`, `"largura"`, `"camadas"` etc.) continuam abrindo no editor, na API e na ferramenta em Java: são convertidos na leitura, e o próximo salvamento já grava a versão 2. Um arquivo com `version` maior que 2 foi salvo por um Crivo mais novo e é recusado.
+
+A pasta [`examples/`](examples) tem três projetos para abrir e estudar: uma poção com o líquido animado (`potion.crivo`), um coração batendo (`heart.crivo`) e uma gosma na paleta do Game Boy (`game-boy-slime.crivo`).
 
 ## Configuração
 
@@ -267,12 +288,16 @@ As principais variáveis do `.env` (a lista completa está no manual):
 | `CRIVO_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Endereços pelos quais o Crivo é acessado |
 | `CRIVO_HTTPS` / `CRIVO_CSRF_TRUSTED_ORIGINS` | `false` / vazio | Use atrás de um proxy com HTTPS |
 | `CRIVO_API_TOKEN` | vazio | Token para scripts alterarem dados pela API sem o cookie CSRF |
-| `CRIVO_MAX_REVISOES` | `20` | Quantas versões anteriores de cada projeto ficam guardadas |
-| `CRIVO_LIMITE_ESCRITAS` | `120` | Alterações por minuto aceitas de cada IP na API, contadas em cada processo do Gunicorn (`0` desliga) |
-| `CRIVO_PROXY_CONFIAVEL` | `false` | Atrás de um proxy confiável, usa o último endereço de `X-Forwarded-For` como IP do cliente |
-| `CRIVO_HSTS_SEGUNDOS` | `31536000` | Duração do HSTS quando `CRIVO_HTTPS=true` |
+| `CRIVO_MAX_REVISIONS` | `20` | Quantas versões anteriores de cada projeto ficam guardadas |
+| `CRIVO_WRITE_LIMIT` | `120` | Alterações por minuto aceitas de cada IP na API, contadas em cada processo do Gunicorn (`0` desliga) |
+| `CRIVO_TRUSTED_PROXY` | `false` | Atrás de um proxy confiável, usa o último endereço de `X-Forwarded-For` como IP do cliente |
+| `CRIVO_MAX_UPLOAD_MB` | `24` | Tamanho máximo do corpo dos pedidos |
+| `CRIVO_HSTS_SECONDS` | `31536000` | Duração do HSTS quando `CRIVO_HTTPS=true` |
+| `CRIVO_HSTS_SUBDOMAINS` / `CRIVO_HTTPS_REDIRECT` | `false` / `false` | Estende o HSTS aos subdomínios / faz o Django redirecionar HTTP para HTTPS |
 | `CRIVO_DB_NAME` / `CRIVO_DB_USER` / `CRIVO_DB_PASSWORD` | `crivo` / `crivo` / — | PostgreSQL |
 | `CRIVO_WORKERS` | `2` | Processos do Gunicorn |
+
+Na 2.0.0, sete variáveis ganharam nomes em inglês: `CRIVO_TAMANHO_MAXIMO_MB` → `CRIVO_MAX_UPLOAD_MB`, `CRIVO_HSTS_SEGUNDOS` → `CRIVO_HSTS_SECONDS`, `CRIVO_HSTS_SUBDOMINIOS` → `CRIVO_HSTS_SUBDOMAINS`, `CRIVO_REDIRECIONAR_HTTPS` → `CRIVO_HTTPS_REDIRECT`, `CRIVO_MAX_REVISOES` → `CRIVO_MAX_REVISIONS`, `CRIVO_LIMITE_ESCRITAS` → `CRIVO_WRITE_LIMIT` e `CRIVO_PROXY_CONFIAVEL` → `CRIVO_TRUSTED_PROXY`. Os nomes antigos ainda funcionam quando o novo não está definido, mas estão obsoletos e podem sair numa versão futura: troque-os no seu `.env`.
 
 <p align="center">
   <img src="docs/images/tela-redimensionar.png" width="49%" alt="Mudança do tamanho da matriz com âncora">
@@ -285,37 +310,37 @@ O projeto foi organizado para ser fácil de adaptar:
 
 | Quero... | Onde mexer |
 |---|---|
-| Incluir uma paleta fixa | `PALETAS_PREDEFINIDAS` em `editor/static/editor/js/nucleo/paletas.js` (e em `editor/paletas.py`, para a API) |
-| Criar uma ferramenta | Lista `FERRAMENTAS` e métodos `baixar`/`moverPonteiro`/`soltar` em `editor/static/editor/js/ui/ferramentas.js` |
-| Novo filtro ou comando de imagem | Função pura em `editor/static/editor/js/nucleo/filtros.js` (devolve pares `[índice, cor]`) e uma entrada em `COMANDOS`/`MENUS` em `main.js` |
-| Outro padrão de pontilhado | `BAYER` e `limiarBayer` em `editor/static/editor/js/nucleo/pontilhado.js` |
-| Novo formato de exportação | `gerarDados` em `editor/static/editor/js/nucleo/exportar.js` |
+| Incluir uma paleta fixa | `PRESET_PALETTES` em `editor/static/editor/js/core/palettes.js` (e `PRESET_PALETTES` em `editor/palettes.py`, para a API) |
+| Criar uma ferramenta | Lista `TOOLS` e métodos `download`/`pointerMove`/`pointerUp` em `editor/static/editor/js/ui/tools.js` |
+| Novo filtro ou comando de imagem | Função pura em `editor/static/editor/js/core/filters.js` (devolve pares `[índice, cor]`) e uma entrada em `COMMANDS`/`MENUS` em `main.js` |
+| Outro padrão de pontilhado | `BAYER` e `bayerThreshold` em `editor/static/editor/js/core/dither.js` |
+| Novo formato de exportação | `generateData` em `editor/static/editor/js/core/export.js` |
 | Trocar cores e tema | Variáveis no início de `editor/static/editor/css/crivo.css` |
-| Novo ícone | Desenhe o bitmap em `BITMAPS` (`editor/static/editor/js/ui/icones.js`), um `#` por pixel |
-| Atalhos de teclado | Função `atalhos` em `editor/static/editor/js/main.js` |
+| Novo ícone | Desenhe o bitmap em `BITMAPS` (`editor/static/editor/js/ui/icons.js`), um `#` por pixel |
+| Atalhos de teclado | Função `shortcuts` em `editor/static/editor/js/main.js` |
 
 ## Desenvolvimento e testes
 
 ```bash
 npm test                                   # 40 testes do núcleo em JavaScript (Node 20+)
 python manage.py test editor               # 39 testes da API Django (11 de funcionamento + 28 de segurança e rotas novas)
-bash ferramentas/java/testar.sh            # 11 testes da ferramenta em Java
+bash tools/java/test.sh                    # 11 testes da ferramenta em Java
 python -m unittest discover -s tests/e2e   # 21 testes ponta a ponta no Chromium (Playwright): 10 com o Django e 11 no Crivo.html
-npm run portatil                           # gera o Crivo.html de novo a partir do código do editor
-npm run desktop                            # gera o Crivo.exe (precisa do Go); -- --verificar só confere
+npm run portable                           # gera o Crivo.html de novo a partir do código do editor
+npm run desktop                            # gera o Crivo.exe (precisa do Go); -- --check só confere
 ruff check .                               # estilo, bugs prováveis e regras de segurança no Python
 bandit -q -r editor crivo -x editor/tests  # análise de segurança do Python
 ```
 
 Para o teste ponta a ponta, instale antes `pip install playwright` e `python -m playwright install chromium`.
 
-O `Crivo.html` é gerado a partir de `editor/static/editor/` por `scripts/gerar-portatil.js`, sem bibliotecas: os módulos viram um único script embutido, o CSS e o ícone vão junto e a página ganha uma Content-Security-Policy própria. Ele existe porque o navegador não carrega módulos JavaScript de páginas abertas direto do disco. Depois de mudar o editor, rode `npm run portatil`; o CI confere se o arquivo está em dia (`npm run portatil -- --verificar`).
+O `Crivo.html` é gerado a partir de `editor/static/editor/` por `scripts/build-portable.js`, sem bibliotecas: os módulos viram um único script embutido, o CSS e o ícone vão junto e a página ganha uma Content-Security-Policy própria. Ele existe porque o navegador não carrega módulos JavaScript de páginas abertas direto do disco. Depois de mudar o editor, rode `npm run portable`; o CI confere se o arquivo está em dia (`npm run portable -- --check`).
 
-O `Crivo.exe` é gerado por `scripts/gerar-desktop.js`, que copia o `Crivo.html` para `desktop/`, desenha o ícone, grava a versão nas propriedades do arquivo e compila o código Go de `desktop/` para Windows de 64 bits. O build é reproduzível, e o CI gera o `.exe` de novo e compara byte a byte com o do repositório (`npm run desktop -- --verificar`), além de rodar o `go vet`. O GitHub Actions roda tudo isso a cada push (a API contra um PostgreSQL de verdade), além de `manage.py check --deploy`, gera os PNGs dos exemplos com a ferramenta em Java e constrói a imagem Docker.
+O `Crivo.exe` é gerado por `scripts/build-desktop.js`, que copia o `Crivo.html` para `desktop/`, desenha o ícone, grava a versão nas propriedades do arquivo e compila o código Go de `desktop/` para Windows de 64 bits. O build é reproduzível, e o CI gera o `.exe` de novo e compara byte a byte com o do repositório (`npm run desktop -- --check`), além de rodar o `go vet`. O GitHub Actions roda tudo isso a cada push (a API contra um PostgreSQL de verdade), além de `manage.py check --deploy`, gera os PNGs dos exemplos com a ferramenta em Java e constrói a imagem Docker.
 
 ## Qualidade e segurança
 
-Resultado da rodada de testes da versão 1.2.0: **111 testes, todos passando**, e nenhum problema apontado pelas ferramentas de análise. Na versão 1.1.0, uma revisão de código independente apontou 10 problemas (entre eles, desfazer durante um arraste embaralhava o histórico, a colagem furava o fundo ao ser movida e a classe Java de sprites médios não compilava); todos foram corrigidos e ganharam testes.
+Resultado da rodada de testes da versão 2.0.0: **111 testes, todos passando**, e nenhum problema apontado pelas ferramentas de análise. Na versão 1.1.0, uma revisão de código independente apontou 10 problemas (entre eles, desfazer durante um arraste embaralhava o histórico, a colagem furava o fundo ao ser movida e a classe Java de sprites médios não compilava); todos foram corrigidos e ganharam testes.
 
 | Verificação | O que cobre | Resultado |
 |---|---|---|
@@ -327,7 +352,7 @@ Resultado da rodada de testes da versão 1.2.0: **111 testes, todos passando**, 
 | App desktop | Build reproduzível do `Crivo.exe` (gerado de novo e comparado byte a byte) e `go vet` no código Go | Idêntico; 0 problemas |
 | `check --deploy` | Configuração de produção do Django | Só avisos opcionais (HSTS em subdomínios, preload e redirecionamento HTTPS, que ficam a cargo do proxy) |
 
-Os testes de segurança (`editor/tests/test_seguranca.py`) conferem:
+Os testes de segurança (`editor/tests/test_security.py`) conferem:
 
 - **Cabeçalhos** em todas as respostas: `Content-Security-Policy` (só scripts do próprio site, sem `eval`, sem objetos, sem ser embutido em outras páginas), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Cross-Origin-Opener-Policy`, `Permissions-Policy` e `Cache-Control: no-store` nas respostas JSON; HSTS só quando há HTTPS.
 - **Autenticação das escritas:** sem cookie CSRF ou token a API recusa (403); tokens errados, vazios, sem `Bearer` ou com um caractere a menos também; o token não vale fora de `/api/`.
@@ -335,7 +360,7 @@ Os testes de segurança (`editor/tests/test_seguranca.py`) conferem:
 - **Nome com HTML ou comandos:** volta como texto no JSON e vira um nome de arquivo seguro (`[A-Za-z0-9_-]`) nos downloads.
 - **Limite de escritas por IP** (429 com `Retry-After`; leituras e pedidos já recusados pelo CSRF não contam; atrás de proxy confiável o IP vem do `X-Forwarded-For` sem aceitar endereços forjados pelo cliente) e **chave secreta fraca**: com `CRIVO_DEBUG=false`, o servidor não inicia com a chave de exemplo ou com menos de 32 caracteres.
 
-No editor, nenhum dado do usuário passa por `innerHTML`, preferências gravadas no navegador só são aceitas se estiverem na lista de valores válidos, e os atalhos do teclado ficam bloqueados enquanto um gesto do mouse está em andamento (só o Esc vale, para cancelar): nomes de projetos, camadas e paletas entram sempre como texto, e o servidor de arquivos em Node (`npm run servir`) envia os mesmos cabeçalhos de segurança do Django. O `Crivo.html` leva a própria Content-Security-Policy numa tag `<meta>`: só executa o script embutido nele (conferido por hash SHA-256), não carrega nada de fora e não abre nenhuma conexão de rede (`connect-src 'none'`). O app desktop carrega esse mesmo arquivo, roda sem permissão de administrador, não abre portas e desliga as ferramentas de desenvolvedor e o menu de contexto do navegador.
+No editor, nenhum dado do usuário passa por `innerHTML`, preferências gravadas no navegador só são aceitas se estiverem na lista de valores válidos, e os atalhos do teclado ficam bloqueados enquanto um gesto do mouse está em andamento (só o Esc vale, para cancelar): nomes de projetos, camadas e paletas entram sempre como texto, e o servidor de arquivos em Node (`npm run serve`) envia os mesmos cabeçalhos de segurança do Django. O `Crivo.html` leva a própria Content-Security-Policy numa tag `<meta>`: só executa o script embutido nele (conferido por hash SHA-256), não carrega nada de fora e não abre nenhuma conexão de rede (`connect-src 'none'`). O app desktop carrega esse mesmo arquivo, roda sem permissão de administrador, não abre portas e desliga as ferramentas de desenvolvedor e o menu de contexto do navegador.
 
 ### Estrutura
 
@@ -345,15 +370,15 @@ Crivo.html                  o editor inteiro num arquivo só, que abre sem servi
 desktop/                    código do app desktop em Go (janela WebView2, tela cheia, atalho no menu Iniciar, manifesto)
 editor/                     aplicação Django (modelos, API, validação, exportação, versões)
   static/editor/            o editor: index.html, css/, img/ e js/
-    js/nucleo/              núcleo em JavaScript, sem DOM, testado no Node
+    js/core/                núcleo em JavaScript, sem DOM, testado no Node
     js/ui/                  interface: visor, ferramentas, painéis, diálogos, armazenamento
-  migrations/               esquema do banco e paletas predefinidas
+  migrations/               esquema do banco, paletas predefinidas e a migração para os nomes em inglês (0003)
   tests/                    testes da API e de segurança
 crivo/                      configurações do projeto Django
-ferramentas/java/           linha de comando em Java 21
+tools/java/                 linha de comando em Java 21
 tests/js/                   testes do núcleo em JavaScript
 tests/e2e/                  teste ponta a ponta da interface (Playwright)
-exemplos/                   projetos .crivo de exemplo
+examples/                   projetos .crivo de exemplo (formato 2)
 scripts/                    servidor estático em Node, geradores do Crivo.html e do Crivo.exe e criação do .env no Windows
 docs/                       manuais em PDF e imagens do README
 .github/workflows/          CI (testes, Ruff, Bandit, check --deploy, Playwright, Docker e build do Crivo.exe)

@@ -1,312 +1,312 @@
-import { Documento } from '../nucleo/documento.js';
-import { Historico, Traco } from '../nucleo/historico.js';
-import { hexParaCor, corParaHex } from '../nucleo/cores.js';
-import { recortarAoDocumento } from '../nucleo/selecao.js';
-import { avisar, lerPreferencia, gravarPreferencia } from './util.js';
+import { PixelDocument } from '../core/document.js';
+import { History, Stroke } from '../core/history.js';
+import { hexToColor, colorToHex } from '../core/colors.js';
+import { clipToDocument } from '../core/selection.js';
+import { notify, readPreference, writePreference } from './util.js';
 
-const PREFERENCIAS = [
-  'ferramenta', 'tamanho', 'forma', 'simetria', 'grade', 'preenchido', 'conectividade', 'tolerancia', 'contiguo', 'amostra', 'modoBorracha', 'cebola', 'paleta',
-  'pixelPerfect', 'densidade', 'fundoPontilhado', 'tipoDegrade', 'matrizDegrade', 'modoSombra', 'intensidadeSombra', 'gradeForte', 'ladrilho',
+const PREFERENCES = [
+  'tool', 'size', 'shape', 'symmetry', 'grid', 'filled', 'connectivity', 'tolerance', 'contiguous', 'sample', 'eraserMode', 'onionSkin', 'palette',
+  'pixelPerfect', 'density', 'ditherBackground', 'gradientType', 'gradientMatrix', 'shadeMode', 'shadeIntensity', 'majorGrid', 'tile',
 ];
 
-// Valores aceitos para cada preferência lida do localStorage (que pode ter sido editado à mão).
-const PERMITIDOS = {
-  forma: ['quadrado', 'circulo'],
-  simetria: ['nenhuma', 'horizontal', 'vertical', 'ambas'],
-  conectividade: [4, 8],
-  amostra: ['camada', 'todas'],
-  modoBorracha: ['transparente', 'fundo'],
-  densidade: [12.5, 25, 37.5, 50, 62.5, 75, 87.5],
-  fundoPontilhado: ['secundaria', 'manter'],
-  tipoDegrade: ['linear', 'radial'],
-  matrizDegrade: [2, 4, 8],
-  modoSombra: ['paleta', 'luz'],
-  gradeForte: [0, 4, 8, 16, 32],
+// Accepted values for each preference read from localStorage (which may have been edited by hand).
+const ALLOWED = {
+  shape: ['square', 'circle'],
+  symmetry: ['none', 'horizontal', 'vertical', 'both'],
+  connectivity: [4, 8],
+  sample: ['layer', 'all'],
+  eraserMode: ['transparent', 'background'],
+  density: [12.5, 25, 37.5, 50, 62.5, 75, 87.5],
+  ditherBackground: ['secondary', 'keep'],
+  gradientType: ['linear', 'radial'],
+  gradientMatrix: [2, 4, 8],
+  shadeMode: ['palette', 'light'],
+  majorGrid: [0, 4, 8, 16, 32],
 };
-const FAIXAS = { tamanho: [1, 32], tolerancia: [0, 100], intensidadeSombra: [2, 30] };
-const BOOLEANOS = ['grade', 'preenchido', 'contiguo', 'cebola', 'pixelPerfect', 'ladrilho'];
+const RANGES = { size: [1, 32], tolerance: [0, 100], shadeIntensity: [2, 30] };
+const BOOLEANS = ['grid', 'filled', 'contiguous', 'onionSkin', 'pixelPerfect', 'tile'];
 
-function preferenciaValida(chave, valor) {
-  if (chave === 'ferramenta') return FERRAMENTAS_VALIDAS.includes(valor);
-  if (chave === 'paleta') return typeof valor === 'string' && valor.length <= 80;
-  if (PERMITIDOS[chave]) return PERMITIDOS[chave].includes(valor);
-  if (FAIXAS[chave]) return Number.isInteger(valor) && valor >= FAIXAS[chave][0] && valor <= FAIXAS[chave][1];
-  if (BOOLEANOS.includes(chave)) return typeof valor === 'boolean';
+function isValidPreference(key, value) {
+  if (key === 'tool') return VALID_TOOLS.includes(value);
+  if (key === 'palette') return typeof value === 'string' && value.length <= 80;
+  if (ALLOWED[key]) return ALLOWED[key].includes(value);
+  if (RANGES[key]) return Number.isInteger(value) && value >= RANGES[key][0] && value <= RANGES[key][1];
+  if (BOOLEANS.includes(key)) return typeof value === 'boolean';
   return false;
 }
 
-export const FERRAMENTAS_VALIDAS = ['lapis', 'borracha', 'balde', 'linha', 'retangulo', 'elipse', 'contaGotas', 'mover', 'selecao', 'moverPixels', 'pontilhado', 'degrade', 'sombra'];
+export const VALID_TOOLS = ['pencil', 'eraser', 'bucket', 'line', 'rectangle', 'ellipse', 'eyedropper', 'move', 'selection', 'movePixels', 'dither', 'gradient', 'shade'];
 
 export class Editor extends EventTarget {
   constructor() {
     super();
-    this.historico = new Historico();
-    this.estado = {
-      ferramenta: 'lapis',
-      corPrimaria: hexParaCor('#5d1c16'),
-      corSecundaria: hexParaCor('#e6ddce'),
-      tamanho: 1,
-      forma: 'quadrado',
-      simetria: 'nenhuma',
-      grade: true,
-      preenchido: false,
-      conectividade: 4,
-      tolerancia: 0,
-      contiguo: true,
-      amostra: 'camada',
-      modoBorracha: 'transparente',
-      cebola: false,
-      paleta: 'crivo',
+    this.history = new History();
+    this.state = {
+      tool: 'pencil',
+      primaryColor: hexToColor('#5d1c16'),
+      secondaryColor: hexToColor('#e6ddce'),
+      size: 1,
+      shape: 'square',
+      symmetry: 'none',
+      grid: true,
+      filled: false,
+      connectivity: 4,
+      tolerance: 0,
+      contiguous: true,
+      sample: 'layer',
+      eraserMode: 'transparent',
+      onionSkin: false,
+      palette: 'crivo',
       pixelPerfect: false,
-      densidade: 50,
-      fundoPontilhado: 'secundaria',
-      tipoDegrade: 'linear',
-      matrizDegrade: 4,
-      modoSombra: 'paleta',
-      intensidadeSombra: 8,
-      gradeForte: 8,
-      ladrilho: false,
-      quadro: 0,
-      camadaId: null,
-      tocando: false,
+      density: 50,
+      ditherBackground: 'secondary',
+      gradientType: 'linear',
+      gradientMatrix: 4,
+      shadeMode: 'palette',
+      shadeIntensity: 8,
+      majorGrid: 8,
+      tile: false,
+      frame: 0,
+      layerId: null,
+      playing: false,
     };
-    for (const k of PREFERENCIAS) {
-      const padrao = this.estado[k];
-      const lido = lerPreferencia(k, padrao);
-      this.estado[k] = preferenciaValida(k, lido) ? lido : padrao;
+    for (const k of PREFERENCES) {
+      const fallback = this.state[k];
+      const stored = readPreference(k, fallback);
+      this.state[k] = isValidPreference(k, stored) ? stored : fallback;
     }
-    if (!FERRAMENTAS_VALIDAS.includes(this.estado.ferramenta)) this.estado.ferramenta = 'lapis';
-    this.estado.tamanho = Math.max(1, Math.min(32, Math.round(this.estado.tamanho) || 1));
-    this.selecao = null;
-    this.flutuante = null;
-    this.areaTransferencia = null;
-    this.recentes = lerPreferencia('recentes', []).map(hexParaCor).filter((c) => c !== null);
-    this.projeto = { id: null, local: null, revisao: null };
-    this.modificado = false;
-    this.versaoSalva = 0;
-    this.carregar(new Documento(32, 32, { nome: 'Sem título' }));
+    if (!VALID_TOOLS.includes(this.state.tool)) this.state.tool = 'pencil';
+    this.state.size = Math.max(1, Math.min(32, Math.round(this.state.size) || 1));
+    this.selection = null;
+    this.floating = null;
+    this.clipboard = null;
+    this.recent = readPreference('recent', []).map(hexToColor).filter((c) => c !== null);
+    this.project = { id: null, local: null, revision: null };
+    this.modified = false;
+    this.savedVersion = 0;
+    this.load(new PixelDocument(32, 32, { name: 'Sem título' }));
   }
 
-  emitir(tipo, detalhe = {}) {
-    this.dispatchEvent(new CustomEvent(tipo, { detail: detalhe }));
+  emit(type, detail = {}) {
+    this.dispatchEvent(new CustomEvent(type, { detail: detail }));
   }
 
-  ao(tipo, fn) {
-    this.addEventListener(tipo, (e) => fn(e.detail));
+  on(type, fn) {
+    this.addEventListener(type, (e) => fn(e.detail));
   }
 
-  carregar(doc, projeto = { id: null, local: null, revisao: null }) {
+  load(doc, project = { id: null, local: null, revision: null }) {
     this.doc = doc;
-    this.projeto = { ...projeto };
-    this.historico.limpar();
-    this.estado.quadro = 0;
-    this.estado.camadaId = doc.camadas.at(-1).id;
-    this.modificado = false;
-    this.versaoSalva = this.historico.versao;
-    this.selecao = null;
-    this.emitir('selecao', null);
-    this.emitir('documento', { novo: true });
-    this.emitir('historico');
+    this.project = { ...project };
+    this.history.clear();
+    this.state.frame = 0;
+    this.state.layerId = doc.layers.at(-1).id;
+    this.modified = false;
+    this.savedVersion = this.history.version;
+    this.selection = null;
+    this.emit('selection', null);
+    this.emit('document', { isNew: true });
+    this.emit('history');
   }
 
-  get quadroAtual() {
-    return this.doc.quadros[Math.min(this.estado.quadro, this.doc.quadros.length - 1)];
+  get currentFrame() {
+    return this.doc.frames[Math.min(this.state.frame, this.doc.frames.length - 1)];
   }
 
-  get camadaAtual() {
-    return this.doc.camada(this.estado.camadaId) ?? this.doc.camadas.at(-1);
+  get currentLayer() {
+    return this.doc.layer(this.state.layerId) ?? this.doc.layers.at(-1);
   }
 
-  get chaveAtiva() {
-    return this.doc.chave(this.quadroAtual.id, this.camadaAtual.id);
+  get activeKey() {
+    return this.doc.key(this.currentFrame.id, this.currentLayer.id);
   }
 
-  celulaAtiva() {
-    return this.doc.celula(this.quadroAtual.id, this.camadaAtual.id);
+  activeCell() {
+    return this.doc.cell(this.currentFrame.id, this.currentLayer.id);
   }
 
-  definir(chave, valor) {
-    if (this.estado[chave] === valor) return;
-    this.estado[chave] = valor;
-    if (PREFERENCIAS.includes(chave)) gravarPreferencia(chave, valor);
-    this.emitir('estado', { chave, valor });
+  setState(key, value) {
+    if (this.state[key] === value) return;
+    this.state[key] = value;
+    if (PREFERENCES.includes(key)) writePreference(key, value);
+    this.emit('state', { key, value });
   }
 
-  definirCor(qual, cor) {
-    const chave = qual === 'secundaria' ? 'corSecundaria' : 'corPrimaria';
-    this.estado[chave] = cor >>> 0;
-    this.emitir('cor', { qual });
+  setColor(which, color) {
+    const key = which === 'secondary' ? 'secondaryColor' : 'primaryColor';
+    this.state[key] = color >>> 0;
+    this.emit('color', { which });
   }
 
-  trocarCores() {
-    [this.estado.corPrimaria, this.estado.corSecundaria] = [this.estado.corSecundaria, this.estado.corPrimaria];
-    this.emitir('cor', { qual: 'ambas' });
+  swapColors() {
+    [this.state.primaryColor, this.state.secondaryColor] = [this.state.secondaryColor, this.state.primaryColor];
+    this.emit('color', { which: 'both' });
   }
 
-  lembrarCor(cor) {
-    if (!(cor >>> 24)) return;
-    this.recentes = [cor, ...this.recentes.filter((c) => c !== cor)].slice(0, 16);
-    gravarPreferencia('recentes', this.recentes.map((c) => corParaHex(c, true)));
-    this.emitir('recentes');
+  rememberColor(color) {
+    if (!(color >>> 24)) return;
+    this.recent = [color, ...this.recent.filter((c) => c !== color)].slice(0, 16);
+    writePreference('recent', this.recent.map((c) => colorToHex(c, true)));
+    this.emit('recent');
   }
 
-  podeEditarCamada(avisarUsuario = true) {
-    const c = this.camadaAtual;
-    if (c.bloqueada) {
-      if (avisarUsuario) avisar(`A camada "${c.nome}" está bloqueada.`, 'alerta');
+  canEditLayer(warn = true) {
+    const c = this.currentLayer;
+    if (c.locked) {
+      if (warn) notify(`A camada "${c.name}" está bloqueada.`, 'warning');
       return false;
     }
-    if (!c.visivel) {
-      if (avisarUsuario) avisar(`A camada "${c.nome}" está oculta. Mostre a camada para desenhar nela.`, 'alerta');
+    if (!c.visible) {
+      if (warn) notify(`A camada "${c.name}" está oculta. Mostre a camada para desenhar nela.`, 'warning');
       return false;
     }
     return true;
   }
 
-  novoTraco() {
-    if (this.estado.tocando) this.parar();
-    if (!this.podeEditarCamada()) return null;
-    return new Traco(this.chaveAtiva, this.celulaAtiva());
+  newStroke() {
+    if (this.state.playing) this.stop();
+    if (!this.canEditLayer()) return null;
+    return new Stroke(this.activeKey, this.activeCell());
   }
 
-  concluirTraco(traco, rotulo) {
-    const entrada = traco.concluir(rotulo);
-    if (!entrada) return false;
-    this.historico.registrar(entrada, { quadro: this.estado.quadro, camadaId: this.estado.camadaId });
-    this.marcarModificado();
-    this.emitir('pixels', { miniaturas: true });
+  finishStroke(stroke, label) {
+    const entry = stroke.finish(label);
+    if (!entry) return false;
+    this.history.record(entry, { frame: this.state.frame, layerId: this.state.layerId });
+    this.markModified();
+    this.emit('pixels', { thumbnails: true });
     return true;
   }
 
-  estrutura(rotulo, fn) {
-    if (this.estado.tocando) this.parar();
-    const antes = this.doc.instantaneo();
-    let resultado;
+  editStructure(label, fn) {
+    if (this.state.playing) this.stop();
+    const before = this.doc.snapshot();
+    let result;
     try {
-      resultado = fn(this.doc);
-    } catch (erro) {
-      this.doc.restaurar(antes);
-      throw erro;
+      result = fn(this.doc);
+    } catch (error) {
+      this.doc.restore(before);
+      throw error;
     }
-    if (resultado === false) return false;
-    this.historico.registrarEstado(rotulo, antes, this.doc.instantaneo(), { quadro: this.estado.quadro, camadaId: this.estado.camadaId });
-    this.corrigirSelecao();
-    this.marcarModificado();
-    this.emitir('documento');
-    return resultado ?? true;
+    if (result === false) return false;
+    this.history.recordState(label, before, this.doc.snapshot(), { frame: this.state.frame, layerId: this.state.layerId });
+    this.fixSelection();
+    this.markModified();
+    this.emit('document');
+    return result ?? true;
   }
 
-  corrigirSelecao() {
-    if (this.estado.quadro >= this.doc.quadros.length) this.estado.quadro = this.doc.quadros.length - 1;
-    if (!this.doc.camada(this.estado.camadaId)) this.estado.camadaId = this.doc.camadas.at(-1).id;
-    if (this.selecao) {
-      const r = recortarAoDocumento(this.selecao, this.doc.largura, this.doc.altura);
-      if (r?.x !== this.selecao.x || r?.y !== this.selecao.y || r?.largura !== this.selecao.largura || r?.altura !== this.selecao.altura) this.definirSelecao(r);
+  fixSelection() {
+    if (this.state.frame >= this.doc.frames.length) this.state.frame = this.doc.frames.length - 1;
+    if (!this.doc.layer(this.state.layerId)) this.state.layerId = this.doc.layers.at(-1).id;
+    if (this.selection) {
+      const r = clipToDocument(this.selection, this.doc.width, this.doc.height);
+      if (r?.x !== this.selection.x || r?.y !== this.selection.y || r?.width !== this.selection.width || r?.height !== this.selection.height) this.setSelection(r);
     }
   }
 
-  definirSelecao(r, { manterFlutuante = false } = {}) {
-    this.selecao = r ? { x: r.x, y: r.y, largura: r.largura, altura: r.altura } : null;
-    if (!manterFlutuante) this.flutuante = null;
-    this.emitir('selecao', this.selecao);
+  setSelection(r, { keepFloating = false } = {}) {
+    this.selection = r ? { x: r.x, y: r.y, width: r.width, height: r.height } : null;
+    if (!keepFloating) this.floating = null;
+    this.emit('selection', this.selection);
   }
 
-  // A seleção pode sair da matriz enquanto o conteúdo flutua; comandos usam sempre a parte que cabe nela.
-  get selecaoRecortada() {
-    return this.selecao ? recortarAoDocumento(this.selecao, this.doc.largura, this.doc.altura) : null;
+  // The selection may leave the matrix while the content floats; commands always use the part that fits in it.
+  get clippedSelection() {
+    return this.selection ? clipToDocument(this.selection, this.doc.width, this.doc.height) : null;
   }
 
-  // Conteúdo levantado por Mover pixels ou por Colar, válido só se nada mudou no documento desde então.
-  flutuanteValido() {
-    const f = this.flutuante;
-    if (!f || f.versao !== this.historico.versao || f.chave !== this.chaveAtiva) return null;
+  // Content lifted by Move pixels or by Paste, valid only if nothing changed in the document since then.
+  floatingValid() {
+    const f = this.floating;
+    if (!f || f.version !== this.history.version || f.key !== this.activeKey) return null;
     return f;
   }
 
-  // Aplica uma lista de pares [índice, cor] na célula ativa como um único passo do histórico.
-  aplicarMudancas(rotulo, mudancas, { silencioso = false } = {}) {
-    const traco = this.novoTraco();
-    if (!traco) return false;
-    for (const [i, cor] of mudancas) traco.pintar(i, cor);
-    const ok = this.concluirTraco(traco, rotulo);
-    if (!ok && !silencioso) avisar('Nada mudou.', 'info', 1200);
+  // Applies a list of [index, color] pairs to the active cell as a single history step.
+  applyChanges(label, changes, { silent = false } = {}) {
+    const stroke = this.newStroke();
+    if (!stroke) return false;
+    for (const [i, color] of changes) stroke.paint(i, color);
+    const ok = this.finishStroke(stroke, label);
+    if (!ok && !silent) notify('Nada mudou.', 'info', 1200);
     return ok;
   }
 
-  marcarModificado() {
-    this.modificado = true;
-    this.emitir('historico');
+  markModified() {
+    this.modified = true;
+    this.emit('history');
   }
 
-  desfazer() {
-    if (this.estado.tocando) this.parar();
-    const e = this.historico.desfazer(this.doc);
+  undo() {
+    if (this.state.playing) this.stop();
+    const e = this.history.undo(this.doc);
     if (!e) return;
-    this.aposViagem(e);
-    avisar(`Desfeito: ${e.rotulo}`, 'info', 1400);
+    this.afterTimeTravel(e);
+    notify(`Desfeito: ${e.label}`, 'info', 1400);
   }
 
-  refazer() {
-    if (this.estado.tocando) this.parar();
-    const e = this.historico.refazer(this.doc);
+  redo() {
+    if (this.state.playing) this.stop();
+    const e = this.history.redo(this.doc);
     if (!e) return;
-    this.aposViagem(e);
-    avisar(`Refeito: ${e.rotulo}`, 'info', 1400);
+    this.afterTimeTravel(e);
+    notify(`Refeito: ${e.label}`, 'info', 1400);
   }
 
-  aposViagem(e) {
-    if (e.contexto && e.tipo !== 'estado') {
-      this.estado.quadro = e.contexto.quadro;
-      if (this.doc.camada(e.contexto.camadaId)) this.estado.camadaId = e.contexto.camadaId;
+  afterTimeTravel(e) {
+    if (e.context && e.type !== 'state') {
+      this.state.frame = e.context.frame;
+      if (this.doc.layer(e.context.layerId)) this.state.layerId = e.context.layerId;
     }
-    this.corrigirSelecao();
-    this.modificado = this.historico.versao !== this.versaoSalva;
-    this.emitir(e.tipo === 'estado' ? 'documento' : 'pixels', { miniaturas: true });
-    this.emitir('historico');
+    this.fixSelection();
+    this.modified = this.history.version !== this.savedVersion;
+    this.emit(e.type === 'state' ? 'document' : 'pixels', { thumbnails: true });
+    this.emit('history');
   }
 
-  marcarSalvo(projeto) {
-    this.projeto = { ...this.projeto, ...projeto };
-    this.modificado = false;
-    this.versaoSalva = this.historico.versao;
-    this.emitir('historico');
-    this.emitir('salvo');
+  markSaved(project) {
+    this.project = { ...this.project, ...project };
+    this.modified = false;
+    this.savedVersion = this.history.version;
+    this.emit('history');
+    this.emit('saved');
   }
 
-  selecionarQuadro(i) {
-    this.estado.quadro = Math.max(0, Math.min(this.doc.quadros.length - 1, i));
-    this.emitir('quadro');
-    this.emitir('pixels');
+  selectFrame(i) {
+    this.state.frame = Math.max(0, Math.min(this.doc.frames.length - 1, i));
+    this.emit('frame');
+    this.emit('pixels');
   }
 
-  selecionarCamada(id) {
-    this.estado.camadaId = id;
-    this.emitir('camada');
+  selectLayer(id) {
+    this.state.layerId = id;
+    this.emit('layer');
   }
 
-  tocar() {
-    if (this.estado.tocando || this.doc.quadros.length < 2) return;
-    this.estado.tocando = true;
-    this.quadroAntesDeTocar = this.estado.quadro;
-    const passo = () => {
-      if (!this.estado.tocando) return;
-      this.estado.quadro = (this.estado.quadro + 1) % this.doc.quadros.length;
-      this.emitir('quadro');
-      this.emitir('pixels');
-      const q = this.quadroAtual;
-      this.temporizador = setTimeout(passo, q.duracao || 1000 / this.doc.fps);
+  play() {
+    if (this.state.playing || this.doc.frames.length < 2) return;
+    this.state.playing = true;
+    this.frameBeforePlay = this.state.frame;
+    const step = () => {
+      if (!this.state.playing) return;
+      this.state.frame = (this.state.frame + 1) % this.doc.frames.length;
+      this.emit('frame');
+      this.emit('pixels');
+      const q = this.currentFrame;
+      this.timer = setTimeout(step, q.duration || 1000 / this.doc.fps);
     };
-    this.temporizador = setTimeout(passo, this.quadroAtual.duracao || 1000 / this.doc.fps);
-    this.emitir('estado', { chave: 'tocando', valor: true });
+    this.timer = setTimeout(step, this.currentFrame.duration || 1000 / this.doc.fps);
+    this.emit('state', { key: 'playing', value: true });
   }
 
-  parar() {
-    if (!this.estado.tocando) return;
-    clearTimeout(this.temporizador);
-    this.estado.tocando = false;
-    this.estado.quadro = this.quadroAntesDeTocar ?? this.estado.quadro;
-    this.emitir('estado', { chave: 'tocando', valor: false });
-    this.emitir('quadro');
-    this.emitir('pixels');
+  stop() {
+    if (!this.state.playing) return;
+    clearTimeout(this.timer);
+    this.state.playing = false;
+    this.state.frame = this.frameBeforePlay ?? this.state.frame;
+    this.emit('state', { key: 'playing', value: false });
+    this.emit('frame');
+    this.emit('pixels');
   }
 }

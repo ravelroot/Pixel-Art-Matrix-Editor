@@ -4,125 +4,125 @@ from django.db import models
 from django.db.models import Q
 
 
-class Projeto(models.Model):
+class Project(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    nome = models.CharField(max_length=120)
-    largura = models.PositiveSmallIntegerField()
-    altura = models.PositiveSmallIntegerField()
+    name = models.CharField(max_length=120)
+    width = models.PositiveSmallIntegerField()
+    height = models.PositiveSmallIntegerField()
     fps = models.PositiveSmallIntegerField(default=8)
-    versao_formato = models.PositiveSmallIntegerField(default=1)
-    revisao = models.PositiveIntegerField(default=1)
-    paleta = models.JSONField(default=list, blank=True)
-    miniatura = models.BinaryField(null=True, blank=True)
-    criado_em = models.DateTimeField(auto_now_add=True)
-    atualizado_em = models.DateTimeField(auto_now=True)
+    format_version = models.PositiveSmallIntegerField(default=2)
+    revision = models.PositiveIntegerField(default=1)
+    palette = models.JSONField(default=list, blank=True)
+    thumbnail = models.BinaryField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "projeto"
-        ordering = ["-atualizado_em"]
-        indexes = [models.Index(fields=["-atualizado_em"], name="projeto_atualizado_idx")]
+        db_table = "project"
+        ordering = ["-updated_at"]
+        indexes = [models.Index(fields=["-updated_at"], name="project_updated_idx")]
         constraints = [
-            models.CheckConstraint(condition=Q(largura__gte=1, largura__lte=1024), name="projeto_largura_valida"),
-            models.CheckConstraint(condition=Q(altura__gte=1, altura__lte=1024), name="projeto_altura_valida"),
-            models.CheckConstraint(condition=Q(fps__gte=1, fps__lte=60), name="projeto_fps_valido"),
+            models.CheckConstraint(condition=Q(width__gte=1, width__lte=1024), name="project_width_valid"),
+            models.CheckConstraint(condition=Q(height__gte=1, height__lte=1024), name="project_height_valid"),
+            models.CheckConstraint(condition=Q(fps__gte=1, fps__lte=60), name="project_fps_valid"),
         ]
 
     def __str__(self):
-        return f"{self.nome} ({self.largura}x{self.altura})"
+        return f"{self.name} ({self.width}x{self.height})"
 
 
-class Camada(models.Model):
-    projeto = models.ForeignKey(Projeto, on_delete=models.CASCADE, related_name="camadas")
-    chave = models.CharField(max_length=40)
-    posicao = models.PositiveSmallIntegerField()
-    nome = models.CharField(max_length=80)
-    visivel = models.BooleanField(default=True)
-    opacidade = models.PositiveSmallIntegerField(default=100)
-    bloqueada = models.BooleanField(default=False)
+class Layer(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="layers")
+    key = models.CharField(max_length=40)
+    position = models.PositiveSmallIntegerField()
+    name = models.CharField(max_length=80)
+    visible = models.BooleanField(default=True)
+    opacity = models.PositiveSmallIntegerField(default=100)
+    locked = models.BooleanField(default=False)
 
     class Meta:
-        db_table = "camada"
-        ordering = ["projeto", "posicao"]
+        db_table = "layer"
+        ordering = ["project", "position"]
         constraints = [
-            models.UniqueConstraint(fields=["projeto", "chave"], name="camada_chave_unica"),
-            models.UniqueConstraint(fields=["projeto", "posicao"], name="camada_posicao_unica"),
-            models.CheckConstraint(condition=Q(opacidade__lte=100), name="camada_opacidade_valida"),
+            models.UniqueConstraint(fields=["project", "key"], name="layer_key_unique"),
+            models.UniqueConstraint(fields=["project", "position"], name="layer_position_unique"),
+            models.CheckConstraint(condition=Q(opacity__lte=100), name="layer_opacity_valid"),
         ]
 
     def __str__(self):
-        return self.nome
+        return self.name
 
 
-class Quadro(models.Model):
-    projeto = models.ForeignKey(Projeto, on_delete=models.CASCADE, related_name="quadros")
-    chave = models.CharField(max_length=40)
-    posicao = models.PositiveSmallIntegerField()
-    duracao_ms = models.PositiveIntegerField(null=True, blank=True)
+class Frame(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="frames")
+    key = models.CharField(max_length=40)
+    position = models.PositiveSmallIntegerField()
+    duration_ms = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
-        db_table = "quadro"
-        ordering = ["projeto", "posicao"]
+        db_table = "frame"
+        ordering = ["project", "position"]
         constraints = [
-            models.UniqueConstraint(fields=["projeto", "chave"], name="quadro_chave_unica"),
-            models.UniqueConstraint(fields=["projeto", "posicao"], name="quadro_posicao_unica"),
+            models.UniqueConstraint(fields=["project", "key"], name="frame_key_unique"),
+            models.UniqueConstraint(fields=["project", "position"], name="frame_position_unique"),
         ]
 
     def __str__(self):
-        return f"Quadro {self.posicao + 1}"
+        return f"Frame {self.position + 1}"
 
 
-class Celula(models.Model):
-    quadro = models.ForeignKey(Quadro, on_delete=models.CASCADE, related_name="celulas")
-    camada = models.ForeignKey(Camada, on_delete=models.CASCADE, related_name="celulas")
-    formato = models.CharField(max_length=16, default="rle-rgba")
+class Cell(models.Model):
+    frame = models.ForeignKey(Frame, on_delete=models.CASCADE, related_name="cells")
+    layer = models.ForeignKey(Layer, on_delete=models.CASCADE, related_name="cells")
+    encoding = models.CharField(max_length=16, default="rle-rgba")
     pixels = models.BinaryField()
-    tamanho_bytes = models.PositiveIntegerField()
+    size_bytes = models.PositiveIntegerField()
 
     class Meta:
-        db_table = "celula"
-        constraints = [models.UniqueConstraint(fields=["quadro", "camada"], name="celula_unica")]
+        db_table = "cell"
+        constraints = [models.UniqueConstraint(fields=["frame", "layer"], name="cell_unique")]
 
 
-class Revisao(models.Model):
-    projeto = models.ForeignKey(Projeto, on_delete=models.CASCADE, related_name="revisoes")
-    numero = models.PositiveIntegerField()
-    nome = models.CharField(max_length=120)
-    conteudo = models.BinaryField()
-    tamanho_bytes = models.PositiveIntegerField()
-    criado_em = models.DateTimeField(auto_now_add=True)
+class Revision(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="revisions")
+    number = models.PositiveIntegerField()
+    name = models.CharField(max_length=120)
+    content = models.BinaryField()
+    size_bytes = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "revisao"
-        ordering = ["projeto", "-numero"]
-        constraints = [models.UniqueConstraint(fields=["projeto", "numero"], name="revisao_numero_unico")]
+        db_table = "revision"
+        ordering = ["project", "-number"]
+        constraints = [models.UniqueConstraint(fields=["project", "number"], name="revision_number_unique")]
 
 
-class Paleta(models.Model):
+class Palette(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     slug = models.SlugField(max_length=60, unique=True, null=True, blank=True)
-    nome = models.CharField(max_length=80)
-    descricao = models.CharField(max_length=240, blank=True, default="")
-    predefinida = models.BooleanField(default=False)
-    criado_em = models.DateTimeField(auto_now_add=True)
-    atualizado_em = models.DateTimeField(auto_now=True)
+    name = models.CharField(max_length=80)
+    description = models.CharField(max_length=240, blank=True, default="")
+    preset = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "paleta"
-        ordering = ["-predefinida", "nome"]
+        db_table = "palette"
+        ordering = ["-preset", "name"]
 
     def __str__(self):
-        return self.nome
+        return self.name
 
 
-class CorPaleta(models.Model):
-    paleta = models.ForeignKey(Paleta, on_delete=models.CASCADE, related_name="cores")
-    posicao = models.PositiveSmallIntegerField()
+class PaletteColor(models.Model):
+    palette = models.ForeignKey(Palette, on_delete=models.CASCADE, related_name="colors")
+    position = models.PositiveSmallIntegerField()
     hex = models.CharField(max_length=9)
 
     class Meta:
-        db_table = "cor_paleta"
-        ordering = ["paleta", "posicao"]
+        db_table = "palette_color"
+        ordering = ["palette", "position"]
         constraints = [
-            models.UniqueConstraint(fields=["paleta", "posicao"], name="cor_posicao_unica"),
-            models.CheckConstraint(condition=Q(hex__regex=r"^#[0-9a-f]{6}([0-9a-f]{2})?$"), name="cor_hex_valido"),
+            models.UniqueConstraint(fields=["palette", "position"], name="palette_color_position_unique"),
+            models.CheckConstraint(condition=Q(hex__regex=r"^#[0-9a-f]{6}([0-9a-f]{2})?$"), name="palette_color_hex_valid"),
         ]

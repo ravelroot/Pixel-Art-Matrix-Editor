@@ -1,5 +1,31 @@
 # Histórico de versões
 
+## 2.0.0 — 23/10/2026
+
+**Código em inglês:** todo o código foi traduzido do português para o inglês: identificadores, comentários, nomes de arquivos e pastas, rotas e campos da API, chaves do formato `.crivo`, tabelas e colunas do banco, variáveis de ambiente, comandos da linha de comando e scripts do npm. A interface continua em português: menus, diálogos, avisos, mensagens de erro da API e textos da linha de comando não mudaram, e o editor funciona do mesmo jeito. Por ser uma mudança que quebra integrações, a versão passa a 2.0.0. Projetos, arquivos e bancos da 1.x continuam abrindo.
+
+**API (mudança incompatível):** `/api/v1` foi removida. As rotas agora ficam em `/api/v2`, com nomes, parâmetros e campos em inglês: `/api/v2/health`, `/api/v2/projects`, `/api/v2/projects/{id}/thumbnail`, `/export?format=&mode=&frame=all|N&download=1`, `/png?frame=N&scale=N&download=1`, `/revisions` e `/revisions/{number}/restore`, e `/api/v2/palettes` (`?presets=0`). Os corpos usam `name`, `data`, `thumbnail` e `revision`; as paletas, `name` e `colors`. Os erros continuam como `{"error": "mensagem em português"}`, e o conflito 409 traz `current_revision`. Scripts que chamavam a v1 precisam trocar o endereço e os nomes dos campos.
+
+**Formato `.crivo` versão 2:** as chaves passaram para o inglês (`format`, `version`, `name`, `width`, `height`, `palette`, `layers`, `frames`, `cells`…). Arquivos da versão 1 (com chaves em português) continuam abrindo no editor, na API e na ferramenta em Java, e são convertidos na leitura; ao salvar, o Crivo sempre grava a versão 2. Um arquivo de versão maior que 2 é recusado com o aviso de que foi salvo por um Crivo mais novo. O RLE das células não mudou. A exportação de dados da matriz também usa chaves em inglês (`width`, `height`, `mode`, `transparent`, `palette`, `frames`).
+
+**Banco de dados:** a migração `0003_english_schema` renomeia tabelas, colunas, restrições e índices para o inglês (`project`, `layer`, `frame`, `cell`, `revision`, `palette`, `palette_color`) sem copiar nem perder dados. Ao atualizar, rode `python manage.py migrate` (com Docker, as migrações rodam sozinhas ao subir). Versões antigas guardadas no formato 1 são convertidas quando restauradas.
+
+**Variáveis de ambiente:** sete variáveis ganharam nomes em inglês: `CRIVO_TAMANHO_MAXIMO_MB` → `CRIVO_MAX_UPLOAD_MB`, `CRIVO_HSTS_SEGUNDOS` → `CRIVO_HSTS_SECONDS`, `CRIVO_HSTS_SUBDOMINIOS` → `CRIVO_HSTS_SUBDOMAINS`, `CRIVO_REDIRECIONAR_HTTPS` → `CRIVO_HTTPS_REDIRECT`, `CRIVO_MAX_REVISOES` → `CRIVO_MAX_REVISIONS`, `CRIVO_LIMITE_ESCRITAS` → `CRIVO_WRITE_LIMIT` e `CRIVO_PROXY_CONFIAVEL` → `CRIVO_TRUSTED_PROXY`. Os nomes antigos ainda são lidos quando o novo não está definido, mas estão obsoletos: troque-os no seu `.env`. As demais variáveis não mudaram.
+
+**Pastas e arquivos:** `ferramentas/java` → `tools/java`, `exemplos` → `examples` (`heart.crivo`, `game-boy-slime.crivo` e `potion.crivo`, já no formato 2), `iniciar.cmd` e `iniciar.sh` → `start.cmd` e `start.sh`, `editor/static/editor/js/nucleo` → `js/core`, e os scripts `servir.js`, `gerar-portatil.js`, `gerar-desktop.js` e `criar-env.ps1` → `serve.js`, `build-portable.js`, `build-desktop.js` e `create-env.ps1`. Os módulos do editor e do servidor também têm nomes em inglês.
+
+**Scripts do npm:** `npm run servir` → `npm run serve`, `npm run portatil` → `npm run portable` (o `npm run desktop` não mudou) e a opção `--verificar` → `--check`.
+
+**Ferramenta em Java:** comandos `info`, `palette`, `png`, `sheet`, `matrix` e `check`, com as opções `--frame`, `--scale`, `--layout` (`horizontal`, `vertical` ou `grid`), `--columns`, `--spacing`, `--mode` e `--class`. Os comandos e as opções em português (`paleta`, `folha`, `matriz`, `verificar`, `--quadro`, `--escala`, `--disposicao`, `--colunas`, `--espaco`, `--modo`, `--classe`, `todos`, `grade`) continuam funcionando como apelidos. A ajuda e as mensagens seguem em português.
+
+**Dados do editor no navegador:** na primeira abertura da 2.0.0, os projetos e o rascunho guardados no IndexedDB e as preferências e paletas do `localStorage` são migrados sozinhos para os nomes novos, sem perder nada. No app desktop, os dados continuam em `%LOCALAPPDATA%\Crivo`.
+
+**App desktop:** a ponte entre o Go e a página foi renomeada (`window.crivoDesktop`, com `toggleFullscreen()` e `quit()`); o arquivo que registra o atalho do menu Iniciar passa a ser `shortcut.txt` (o `atalho.txt` antigo ainda é lido). Para quem só usa o Crivo, nada muda.
+
+**Testes:** 142 no total: 41 do núcleo do editor, 24 ponta a ponta (incluindo a migração dos dados do navegador da 1.x), 52 da API (incluindo a migração do banco e os arquivos da versão 1) e 25 da ferramenta em Java.
+
+**Documentação:** README, manual técnico e PDF de banco de dados atualizados com os nomes novos.
+
 ## 1.2.0 — 23/10/2026
 
 **Três maneiras de rodar:** app desktop para Windows (`Crivo.exe`), servidor local com backend (Django e banco de dados) e arquivo único no navegador (`Crivo.html`). O editor é o mesmo nas três, e os arquivos `.crivo` passam de uma para outra.

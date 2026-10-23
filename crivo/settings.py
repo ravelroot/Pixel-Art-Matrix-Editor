@@ -5,35 +5,55 @@ from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Environment variables renamed in 2.0.0 (new name -> 1.x name). The old name is still read as a fallback,
+# and editor.apps reports it as deprecated through a system check (crivo.W001).
+LEGACY_ENV_NAMES = {
+    "CRIVO_MAX_UPLOAD_MB": "CRIVO_TAMANHO_MAXIMO_MB",
+    "CRIVO_HSTS_SECONDS": "CRIVO_HSTS_SEGUNDOS",
+    "CRIVO_HSTS_SUBDOMAINS": "CRIVO_HSTS_SUBDOMINIOS",
+    "CRIVO_HTTPS_REDIRECT": "CRIVO_REDIRECIONAR_HTTPS",
+    "CRIVO_MAX_REVISIONS": "CRIVO_MAX_REVISOES",
+    "CRIVO_WRITE_LIMIT": "CRIVO_LIMITE_ESCRITAS",
+    "CRIVO_TRUSTED_PROXY": "CRIVO_PROXY_CONFIAVEL",
+}
 
-def env(nome, padrao=None):
-    valor = os.environ.get(nome)
-    return padrao if valor is None or valor == "" else valor
+# (old name, new name) for every deprecated variable that was actually used to configure this process.
+DEPRECATED_ENV_VARS = []
 
 
-def env_bool(nome, padrao=False):
-    return str(env(nome, str(padrao))).strip().lower() in {"1", "true", "sim", "yes", "on"}
+def env(name, default=None):
+    value = os.environ.get(name)
+    if (value is None or value == "") and name in LEGACY_ENV_NAMES:
+        legacy_name = LEGACY_ENV_NAMES[name]
+        value = os.environ.get(legacy_name)
+        if value is not None and value != "":
+            DEPRECATED_ENV_VARS.append((legacy_name, name))
+    return default if value is None or value == "" else value
 
 
-def env_lista(nome, padrao=""):
-    return [item.strip() for item in str(env(nome, padrao)).split(",") if item.strip()]
+def env_bool(name, default=False):
+    return str(env(name, str(default))).strip().lower() in {"1", "true", "sim", "yes", "on"}
 
 
-VERSAO = (BASE_DIR / "VERSION").read_text(encoding="utf-8").strip() if (BASE_DIR / "VERSION").exists() else "1.2.0"
+def env_list(name, default=""):
+    return [item.strip() for item in str(env(name, default)).split(",") if item.strip()]
 
-CHAVE_DE_DESENVOLVIMENTO = "crivo-chave-local-de-desenvolvimento-troque-em-producao"
-CHAVES_DE_EXEMPLO = {CHAVE_DE_DESENVOLVIMENTO, "troque-esta-chave"}
+
+VERSION = (BASE_DIR / "VERSION").read_text(encoding="utf-8").strip() if (BASE_DIR / "VERSION").exists() else "2.0.0"
+
+DEVELOPMENT_KEY = "crivo-chave-local-de-desenvolvimento-troque-em-producao"
+EXAMPLE_KEYS = {DEVELOPMENT_KEY, "troque-esta-chave"}
 
 DEBUG = env_bool("CRIVO_DEBUG", True)
-SECRET_KEY = env("CRIVO_SECRET_KEY", CHAVE_DE_DESENVOLVIMENTO)
+SECRET_KEY = env("CRIVO_SECRET_KEY", DEVELOPMENT_KEY)
 
-if not DEBUG and (SECRET_KEY in CHAVES_DE_EXEMPLO or len(SECRET_KEY) < 32):
+if not DEBUG and (SECRET_KEY in EXAMPLE_KEYS or len(SECRET_KEY) < 32):
     raise ImproperlyConfigured(
         "CRIVO_SECRET_KEY insegura: com CRIVO_DEBUG=false defina uma chave aleatória com pelo menos 32 caracteres "
-        "(os scripts iniciar.sh e iniciar.cmd geram uma no .env)."
+        "(os scripts start.sh e start.cmd geram uma no .env)."
     )
-ALLOWED_HOSTS = env_lista("CRIVO_ALLOWED_HOSTS", "localhost,127.0.0.1,[::1]")
-CSRF_TRUSTED_ORIGINS = env_lista("CRIVO_CSRF_TRUSTED_ORIGINS")
+ALLOWED_HOSTS = env_list("CRIVO_ALLOWED_HOSTS", "localhost,127.0.0.1,[::1]")
+CSRF_TRUSTED_ORIGINS = env_list("CRIVO_CSRF_TRUSTED_ORIGINS")
 
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
@@ -43,12 +63,12 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "editor.seguranca.CabecalhosDeSegurancaMiddleware",
+    "editor.security.SecurityHeadersMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "editor.seguranca.TokenDaApiMiddleware",
+    "editor.security.ApiTokenMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
-    "editor.seguranca.LimiteDeEscritasMiddleware",
+    "editor.security.WriteLimitMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
@@ -91,7 +111,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 WHITENOISE_USE_FINDERS = True
 WHITENOISE_AUTOREFRESH = DEBUG
 
-DATA_UPLOAD_MAX_MEMORY_SIZE = int(env("CRIVO_TAMANHO_MAXIMO_MB", "24")) * 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(env("CRIVO_MAX_UPLOAD_MB", "24")) * 1024 * 1024
 
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = "Strict"
@@ -105,20 +125,20 @@ if env_bool("CRIVO_HTTPS", False):
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = int(env("CRIVO_HSTS_SEGUNDOS", "31536000"))
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("CRIVO_HSTS_SUBDOMINIOS", False)
-    SECURE_SSL_REDIRECT = env_bool("CRIVO_REDIRECIONAR_HTTPS", False)
+    SECURE_HSTS_SECONDS = int(env("CRIVO_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("CRIVO_HSTS_SUBDOMAINS", False)
+    SECURE_SSL_REDIRECT = env_bool("CRIVO_HTTPS_REDIRECT", False)
 
 CRIVO = {
-    "VERSAO": VERSAO,
-    "TOKEN_API": env("CRIVO_API_TOKEN", ""),
-    "MAX_REVISOES": int(env("CRIVO_MAX_REVISOES", "20")),
-    "LIMITE_ESCRITAS": int(env("CRIVO_LIMITE_ESCRITAS", "120")),
-    "PROXY_CONFIAVEL": env_bool("CRIVO_PROXY_CONFIAVEL", False),
-    "LIMITE_LADO": 1024,
-    "LIMITE_CAMADAS": 64,
-    "LIMITE_QUADROS": 512,
-    "LIMITE_MINIATURA": 512 * 1024,
+    "VERSION": VERSION,
+    "API_TOKEN": env("CRIVO_API_TOKEN", ""),
+    "MAX_REVISIONS": int(env("CRIVO_MAX_REVISIONS", "20")),
+    "WRITE_LIMIT": int(env("CRIVO_WRITE_LIMIT", "120")),
+    "TRUSTED_PROXY": env_bool("CRIVO_TRUSTED_PROXY", False),
+    "MAX_SIDE": 1024,
+    "MAX_LAYERS": 64,
+    "MAX_FRAMES": 512,
+    "MAX_THUMBNAIL_BYTES": 512 * 1024,
 }
 
 LOGGING = {

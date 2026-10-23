@@ -1,65 +1,65 @@
-export function el(tag, atributos = {}, ...filhos) {
+export function el(tag, attrs = {}, ...children) {
   const n = document.createElement(tag);
-  for (const [k, v] of Object.entries(atributos || {})) {
+  for (const [k, v] of Object.entries(attrs || {})) {
     if (v === undefined || v === null || v === false) continue;
     if (k === 'class') n.className = v;
     else if (k === 'html') n.innerHTML = v;
-    else if (k === 'texto') n.textContent = v;
-    else if (k === 'estilo') {
-      for (const [prop, valor] of Object.entries(v)) {
-        if (prop.startsWith('--')) n.style.setProperty(prop, valor);
-        else n.style[prop] = valor;
+    else if (k === 'text') n.textContent = v;
+    else if (k === 'style') {
+      for (const [prop, value] of Object.entries(v)) {
+        if (prop.startsWith('--')) n.style.setProperty(prop, value);
+        else n.style[prop] = value;
       }
     }
-    else if (k === 'dados') Object.assign(n.dataset, v);
+    else if (k === 'data') Object.assign(n.dataset, v);
     else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v);
     else if (v === true) n.setAttribute(k, '');
     else n.setAttribute(k, v);
   }
-  for (const f of filhos.flat()) {
+  for (const f of children.flat()) {
     if (f === null || f === undefined || f === false) continue;
     n.append(f instanceof Node ? f : document.createTextNode(String(f)));
   }
   return n;
 }
 
-export const $ = (seletor, raiz = document) => raiz.querySelector(seletor);
-export const $$ = (seletor, raiz = document) => [...raiz.querySelectorAll(seletor)];
+export const $ = (selector, root = document) => root.querySelector(selector);
+export const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
-export function avisar(texto, tipo = 'info', duracao = 3200) {
-  const area = document.getElementById('avisos');
+export function notify(text, type = 'info', duration = 3200) {
+  const area = document.getElementById('toasts');
   if (!area) return;
-  const aviso = el('div', { class: `aviso aviso-${tipo}`, role: tipo === 'erro' ? 'alert' : 'status' }, texto);
-  area.append(aviso);
+  const toast = el('div', { class: `toast toast-${type}`, role: type === 'error' ? 'alert' : 'status' }, text);
+  area.append(toast);
   while (area.children.length > 3) area.firstElementChild.remove();
   setTimeout(() => {
-    aviso.classList.add('saindo');
-    setTimeout(() => aviso.remove(), 300);
-  }, duracao);
+    toast.classList.add('leaving');
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
 }
 
-export function baixarBlob(blob, nome) {
+export function downloadBlob(blob, name) {
   const url = URL.createObjectURL(blob);
-  const a = el('a', { href: url, download: nome });
+  const a = el('a', { href: url, download: name });
   document.body.append(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
-export function baixarTexto(texto, nome, tipo = 'text/plain') {
-  baixarBlob(new Blob([texto], { type: `${tipo};charset=utf-8` }), nome);
+export function downloadText(text, name, type = 'text/plain') {
+  downloadBlob(new Blob([text], { type: `${type};charset=utf-8` }), name);
 }
 
-export function escolherArquivo(aceita, multiplos = false) {
-  return new Promise((resolver) => {
-    const input = el('input', { type: 'file', accept: aceita, multiple: multiplos, estilo: { display: 'none' } });
+export function pickFile(accepts, multiples = false) {
+  return new Promise((resolve) => {
+    const input = el('input', { type: 'file', accept: accepts, multiple: multiples, style: { display: 'none' } });
     input.addEventListener('change', () => {
-      resolver(multiplos ? [...input.files] : input.files[0] ?? null);
+      resolve(multiples ? [...input.files] : input.files[0] ?? null);
       input.remove();
     });
     input.addEventListener('cancel', () => {
-      resolver(multiplos ? [] : null);
+      resolve(multiples ? [] : null);
       input.remove();
     });
     document.body.append(input);
@@ -67,17 +67,17 @@ export function escolherArquivo(aceita, multiplos = false) {
   });
 }
 
-export function lerTexto(arquivo) {
-  return arquivo.text();
+export function readText(file) {
+  return file.text();
 }
 
-export function formatarBytes(n) {
+export function formatBytes(n) {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1).replace('.', ',')} KB`;
   return `${(n / 1024 / 1024).toFixed(1).replace('.', ',')} MB`;
 }
 
-export function formatarData(iso) {
+export function formatDate(iso) {
   try {
     return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
   } catch {
@@ -85,45 +85,78 @@ export function formatarData(iso) {
   }
 }
 
-export function atrasar(fn, ms) {
+export function delay(fn, ms) {
   let t = null;
-  const chamada = (...args) => {
+  const wrapped = (...args) => {
     clearTimeout(t);
     t = setTimeout(() => fn(...args), ms);
   };
-  chamada.cancelar = () => clearTimeout(t);
-  return chamada;
+  wrapped.cancel = () => clearTimeout(t);
+  return wrapped;
 }
 
-export function lerPreferencia(chave, padrao) {
+// Crivo 1.x stored the preferences under Portuguese keys and values. They move to the English keys on first read.
+const LEGACY_KEYS = {
+  tool: 'ferramenta', size: 'tamanho', shape: 'forma', symmetry: 'simetria', grid: 'grade', filled: 'preenchido',
+  connectivity: 'conectividade', tolerance: 'tolerancia', contiguous: 'contiguo', sample: 'amostra', eraserMode: 'modoBorracha',
+  onionSkin: 'cebola', palette: 'paleta', density: 'densidade', ditherBackground: 'fundoPontilhado', gradientType: 'tipoDegrade',
+  gradientMatrix: 'matrizDegrade', shadeMode: 'modoSombra', shadeIntensity: 'intensidadeSombra', majorGrid: 'gradeForte',
+  tile: 'ladrilho', recent: 'recentes', theme: 'tema', ramp: 'tons',
+};
+const LEGACY_VALUES = {
+  lapis: 'pencil', borracha: 'eraser', balde: 'bucket', linha: 'line', retangulo: 'rectangle', elipse: 'ellipse',
+  contaGotas: 'eyedropper', mover: 'move', selecao: 'selection', moverPixels: 'movePixels', pontilhado: 'dither',
+  degrade: 'gradient', sombra: 'shade', quadrado: 'square', circulo: 'circle', nenhuma: 'none', ambas: 'both',
+  camada: 'layer', todas: 'all', transparente: 'transparent', fundo: 'background', secundaria: 'secondary', manter: 'keep',
+  paleta: 'palette', luz: 'light', claro: 'light', escuro: 'dark', sistema: 'system',
+};
+const LEGACY_FIELDS = { passos: 'steps', intensidade: 'intensity', desvio: 'shift' };
+
+function upgradePreference(key, value) {
+  if (key === 'palette' || key === 'recent') return value;
+  if (typeof value === 'string') return LEGACY_VALUES[value] ?? value;
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [LEGACY_FIELDS[k] ?? k, v]));
+  }
+  return value;
+}
+
+export function readPreference(key, fallback) {
   try {
-    const v = localStorage.getItem('crivo.' + chave);
-    return v === null ? padrao : JSON.parse(v);
+    let v = localStorage.getItem('crivo.' + key);
+    if (v === null && LEGACY_KEYS[key]) {
+      const legacy = localStorage.getItem('crivo.' + LEGACY_KEYS[key]);
+      if (legacy === null) return fallback;
+      v = JSON.stringify(upgradePreference(key, JSON.parse(legacy)));
+      localStorage.setItem('crivo.' + key, v);
+      localStorage.removeItem('crivo.' + LEGACY_KEYS[key]);
+    }
+    return v === null ? fallback : JSON.parse(v);
   } catch {
-    return padrao;
+    return fallback;
   }
 }
 
-export function gravarPreferencia(chave, valor) {
+export function writePreference(key, value) {
   try {
-    localStorage.setItem('crivo.' + chave, JSON.stringify(valor));
+    localStorage.setItem('crivo.' + key, JSON.stringify(value));
   } catch {
     return false;
   }
   return true;
 }
 
-export function campoNumero(rotulo, valor, { min = 1, max = 1024, passo = 1, id } = {}) {
-  const input = el('input', { type: 'number', value: valor, min, max, step: passo, id, inputmode: 'numeric' });
-  return { rotulo: el('label', { class: 'campo' }, el('span', {}, rotulo), input), input };
+export function numberField(label, value, { min = 1, max = 1024, step = 1, id } = {}) {
+  const input = el('input', { type: 'number', value: value, min, max, step: step, id, inputmode: 'numeric' });
+  return { label: el('label', { class: 'field' }, el('span', {}, label), input), input };
 }
 
-export function campoSelecao(rotulo, opcoes, valor) {
-  const select = el('select', {}, opcoes.map(([v, t]) => el('option', { value: v, selected: v === valor }, t)));
-  return { rotulo: el('label', { class: 'campo' }, el('span', {}, rotulo), select), select };
+export function selectField(label, options, value) {
+  const select = el('select', {}, options.map(([v, t]) => el('option', { value: v, selected: v === value }, t)));
+  return { label: el('label', { class: 'field' }, el('span', {}, label), select), select };
 }
 
-export function campoMarcar(rotulo, marcado) {
-  const input = el('input', { type: 'checkbox', checked: marcado });
-  return { rotulo: el('label', { class: 'campo campo-marcar' }, input, el('span', {}, rotulo)), input };
+export function checkboxField(label, checked) {
+  const input = el('input', { type: 'checkbox', checked: checked });
+  return { label: el('label', { class: 'field check-field' }, input, el('span', {}, label)), input };
 }

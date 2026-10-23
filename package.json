@@ -1,6 +1,6 @@
 {
   "name": "crivo",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "Editor de pixel art baseado em matrizes, com camadas, quadros, histórico ilimitado e exportação para jogos.",
   "private": true,
   "type": "module",
@@ -15,8 +15,8 @@
   },
   "scripts": {
     "test": "node --test tests/js/*.test.js",
-    "servir": "node scripts/servir.js",
-    "portatil": "node scripts/gerar-portatil.js",
-    "desktop": "node scripts/gerar-desktop.js"
+    "serve": "node scripts/serve.js",
+    "portable": "node scripts/build-portable.js",
+    "desktop": "node scripts/build-desktop.js"
   }
 }

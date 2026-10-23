@@ -1,13 +1,13 @@
-"""Teste ponta a ponta da interface com Playwright (Chromium), nos dois jeitos de abrir o editor:
+"""End-to-end tests of the interface with Playwright (Chromium), in both ways of opening the editor:
 
-- InterfaceTeste: contra o servidor Django de verdade (API + banco);
-- ArquivoUnicoTeste: o Crivo.html aberto direto do disco (file://), sem servidor e sem backend,
-  inclusive a integração com o app desktop (o Crivo.exe abre esse mesmo arquivo).
+- ServerInterfaceTest: against the real Django server (API + database);
+- SingleFileTest: Crivo.html opened straight from disk (file://), with no server and no backend,
+  including the integration with the desktop app (Crivo.exe opens this same file).
 
-Os testes de desenho valem para os dois e ficam em TestesDoEditor.
+The drawing tests apply to both and live in EditorTests.
 
-Rodar:  pip install playwright && python -m playwright install chromium
-        python -m unittest discover -s tests/e2e -v
+Run:  pip install playwright && python -m playwright install chromium
+      python -m unittest discover -s tests/e2e -v
 """
 
 import json
@@ -23,355 +23,428 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-RAIZ = Path(__file__).resolve().parents[2]
-VERSAO = (RAIZ / "VERSION").read_text(encoding="utf-8").strip()
+ROOT = Path(__file__).resolve().parents[2]
+VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 
 
-def porta_livre():
+def free_port():
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
 
 
-class TestesDoEditor:
-    """Testes que valem para o editor servido pelo Django e para o Crivo.html aberto do disco."""
+class EditorTests:
+    """Tests that apply to the editor served by Django and to Crivo.html opened from disk."""
 
     url = ""
-    navegador = None
+    browser = None
 
     def setUp(self):
-        self.contexto = self.navegador.new_context(viewport={"width": 1440, "height": 900})
-        self.pagina = self.contexto.new_page()
-        self.erros = []
-        self.pagina.on("console", lambda m: self.erros.append(m.text) if m.type == "error" else None)
-        self.pagina.on("pageerror", lambda e: self.erros.append(str(e)))
-        self.pagina.goto(self.url)
-        self.pagina.wait_for_selector("body.pronto")
-        self.pagina.evaluate("() => { const e = window.crivo.editor; e.definirCor('primaria', 0xff161c5d); e.definirCor('secundaria', 0xffcedde6); }")
+        self.context = self.browser.new_context(viewport={"width": 1440, "height": 900})
+        self.page = self.context.new_page()
+        self.errors = []
+        self.page.on("console", lambda m: self.errors.append(m.text) if m.type == "error" else None)
+        self.page.on("pageerror", lambda e: self.errors.append(str(e)))
+        self.page.goto(self.url)
+        self.page.wait_for_selector("body.ready")
+        self.page.evaluate("() => { const e = window.crivo.editor; e.setColor('primary', 0xff161c5d); e.setColor('secondary', 0xffcedde6); }")
 
     def tearDown(self):
-        self.contexto.close()
-        self.assertEqual(self.erros, [], "a página não pode ter erros no console (inclusive violações de CSP)")
+        self.context.close()
+        self.assertEqual(self.errors, [], "the page must not log console errors (including CSP violations)")
 
-    # utilidades -------------------------------------------------------------------------------------------
-    def ponto(self, x, y):
-        return self.pagina.evaluate(
+    # helpers ----------------------------------------------------------------------------------------------
+    def point(self, x, y):
+        return self.page.evaluate(
             """([x, y]) => {
-                const v = window.crivo.visor;
+                const v = window.crivo.viewport;
                 const r = v.canvas.getBoundingClientRect();
                 return [r.left + v.panX + (x + 0.5) * v.zoom, r.top + v.panY + (y + 0.5) * v.zoom];
             }""",
             [x, y],
         )
 
-    def arrastar(self, de, para, botao="left", passos=8):
-        m = self.pagina.mouse
-        m.move(*self.ponto(*de))
-        m.down(button=botao)
-        m.move(*self.ponto(*para), steps=passos)
-        m.up(button=botao)
+    def drag(self, start, end, button="left", steps=8):
+        m = self.page.mouse
+        m.move(*self.point(*start))
+        m.down(button=button)
+        m.move(*self.point(*end), steps=steps)
+        m.up(button=button)
 
     def pixel(self, x, y):
-        return self.pagina.evaluate("([x, y]) => { const e = window.crivo.editor; return e.celulaAtiva()[y * e.doc.largura + x] >>> 0; }", [x, y])
+        return self.page.evaluate("([x, y]) => { const e = window.crivo.editor; return e.activeCell()[y * e.doc.width + x] >>> 0; }", [x, y])
 
-    def ferramenta(self, tecla, id_):
-        self.pagina.locator("#visor").hover()
-        self.pagina.keyboard.press(tecla)
-        self.assertEqual(self.pagina.evaluate("() => window.crivo.editor.estado.ferramenta"), id_)
+    def tool(self, key, id_):
+        self.page.locator("#viewport").hover()
+        self.page.keyboard.press(key)
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.state.tool"), id_)
 
-    def menu(self, titulo, item):
-        self.pagina.get_by_role("button", name=titulo, exact=True).click()
-        self.pagina.get_by_role("menuitem", name=item).click()
+    def menu(self, title, item):
+        self.page.get_by_role("button", name=title, exact=True).click()
+        self.page.get_by_role("menuitem", name=item).click()
 
-    # testes -----------------------------------------------------------------------------------------------
-    def test_pontilhado_desenha_o_padrao_de_xadrez(self):
-        self.ferramenta("d", "pontilhado")
-        self.pagina.evaluate("() => window.crivo.editor.definir('densidade', 50)")
-        self.arrastar((2, 4), (9, 4))
-        prim, sec = self.pixel(2, 4), self.pixel(3, 4)
-        self.assertNotEqual(prim, sec)
-        self.assertEqual(self.pixel(4, 4), prim)
-        self.assertEqual(self.pixel(5, 4), sec)
+    # tests ------------------------------------------------------------------------------------------------
+    def test_dither_draws_the_checkerboard_pattern(self):
+        self.tool("d", "dither")
+        self.page.evaluate("() => window.crivo.editor.setState('density', 50)")
+        self.drag((2, 4), (9, 4))
+        first, second = self.pixel(2, 4), self.pixel(3, 4)
+        self.assertNotEqual(first, second)
+        self.assertEqual(self.pixel(4, 4), first)
+        self.assertEqual(self.pixel(5, 4), second)
 
-    def test_selecao_copiar_colar_e_mover(self):
-        self.ferramenta("b", "lapis")
-        self.arrastar((3, 3), (3, 3), passos=1)
-        self.arrastar((20, 20), (20, 20), passos=1)
-        cor = self.pixel(3, 3)
-        self.assertNotEqual(cor, 0)
-        self.ferramenta("s", "selecao")
-        self.arrastar((2, 2), (4, 4))
-        self.assertEqual(self.pagina.evaluate("() => window.crivo.editor.selecao"), {"x": 2, "y": 2, "largura": 3, "altura": 3})
-        self.pagina.keyboard.press("Control+c")
-        self.pagina.keyboard.press("Control+v")
-        self.assertEqual(self.pagina.evaluate("() => window.crivo.editor.estado.ferramenta"), "moverPixels")
-        self.arrastar((3, 3), (13, 8))
-        self.assertEqual(self.pixel(13, 8), cor, "o conteúdo colado foi arrastado")
-        self.assertEqual(self.pixel(3, 3), cor, "a colagem flutua: o original continua no lugar")
-        self.pagina.keyboard.press("ArrowRight")
-        self.assertEqual(self.pixel(14, 8), cor, "as setas empurram 1 px")
-        self.pagina.keyboard.press("Delete")
-        self.assertEqual(self.pixel(14, 8), 0, "Delete apaga só a seleção")
-        self.assertEqual(self.pixel(20, 20), cor, "fora da seleção nada muda")
-        self.pagina.keyboard.press("Escape")
-        self.assertIsNone(self.pagina.evaluate("() => window.crivo.editor.selecao"))
+    def test_selection_copy_paste_and_move(self):
+        self.tool("b", "pencil")
+        self.drag((3, 3), (3, 3), steps=1)
+        self.drag((20, 20), (20, 20), steps=1)
+        color = self.pixel(3, 3)
+        self.assertNotEqual(color, 0)
+        self.tool("s", "selection")
+        self.drag((2, 2), (4, 4))
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.selection"), {"x": 2, "y": 2, "width": 3, "height": 3})
+        self.page.keyboard.press("Control+c")
+        self.page.keyboard.press("Control+v")
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.state.tool"), "movePixels")
+        self.drag((3, 3), (13, 8))
+        self.assertEqual(self.pixel(13, 8), color, "the pasted content was dragged")
+        self.assertEqual(self.pixel(3, 3), color, "the paste floats: the original stays in place")
+        self.page.keyboard.press("ArrowRight")
+        self.assertEqual(self.pixel(14, 8), color, "arrow keys push 1 px")
+        self.page.keyboard.press("Delete")
+        self.assertEqual(self.pixel(14, 8), 0, "Delete erases only the selection")
+        self.assertEqual(self.pixel(20, 20), color, "nothing changes outside the selection")
+        self.page.keyboard.press("Escape")
+        self.assertIsNone(self.page.evaluate("() => window.crivo.editor.selection"))
 
-    def test_degrade_e_clarear_escurecer(self):
-        self.ferramenta("u", "degrade")
-        self.arrastar((0, 0), (31, 0))
-        inicio, fim = self.pixel(0, 10), self.pixel(31, 10)
-        self.assertEqual(inicio, self.pagina.evaluate("() => window.crivo.editor.estado.corPrimaria"))
-        self.assertEqual(fim, self.pagina.evaluate("() => window.crivo.editor.estado.corSecundaria"))
-        self.ferramenta("q", "sombra")
-        self.pagina.evaluate("() => window.crivo.editor.definir('modoSombra', 'luz')")
-        antes = self.pixel(0, 10)
-        self.arrastar((0, 10), (0, 10), passos=1)
-        self.assertNotEqual(self.pixel(0, 10), antes)
-        self.arrastar((0, 12), (0, 12), botao="right", passos=1)
-        self.assertNotEqual(self.pixel(0, 12), antes)
+    def test_gradient_and_lighten_darken(self):
+        self.tool("u", "gradient")
+        self.drag((0, 0), (31, 0))
+        start, end = self.pixel(0, 10), self.pixel(31, 10)
+        self.assertEqual(start, self.page.evaluate("() => window.crivo.editor.state.primaryColor"))
+        self.assertEqual(end, self.page.evaluate("() => window.crivo.editor.state.secondaryColor"))
+        self.tool("q", "shade")
+        self.page.evaluate("() => window.crivo.editor.setState('shadeMode', 'light')")
+        before = self.pixel(0, 10)
+        self.drag((0, 10), (0, 10), steps=1)
+        self.assertNotEqual(self.pixel(0, 10), before)
+        self.drag((0, 12), (0, 12), button="right", steps=1)
+        self.assertNotEqual(self.pixel(0, 12), before)
 
-    def test_pixel_perfect_remove_cantos(self):
-        self.ferramenta("b", "lapis")
-        self.pagina.evaluate("() => { window.crivo.editor.definir('tamanho', 1); window.crivo.editor.definir('pixelPerfect', true); }")
-        m = self.pagina.mouse
-        m.move(*self.ponto(5, 5))
+    def test_pixel_perfect_removes_corners(self):
+        self.tool("b", "pencil")
+        self.page.evaluate("() => { window.crivo.editor.setState('size', 1); window.crivo.editor.setState('pixelPerfect', true); }")
+        m = self.page.mouse
+        m.move(*self.point(5, 5))
         m.down()
         for x, y in ((6, 5), (6, 6), (7, 6), (7, 7)):
-            m.move(*self.ponto(x, y), steps=2)
+            m.move(*self.point(x, y), steps=2)
         m.up()
-        self.assertEqual(self.pixel(6, 5), 0, "o canto em L foi removido")
+        self.assertEqual(self.pixel(6, 5), 0, "the L corner was removed")
         self.assertNotEqual(self.pixel(6, 6), 0)
 
-    def test_comandos_de_imagem_e_desfazer(self):
-        self.ferramenta("r", "retangulo")
-        self.pagina.evaluate("() => window.crivo.editor.definir('preenchido', true)")
-        self.arrastar((10, 10), (14, 12))
+    def test_image_commands_and_undo(self):
+        self.tool("r", "rectangle")
+        self.page.evaluate("() => window.crivo.editor.setState('filled', true)")
+        self.drag((10, 10), (14, 12))
         self.menu("Imagem", "Adicionar contorno (4 vizinhos)")
         self.assertNotEqual(self.pixel(9, 10), 0)
         self.menu("Imagem", "Aparar bordas transparentes")
-        tamanho = self.pagina.evaluate("() => [window.crivo.editor.doc.largura, window.crivo.editor.doc.altura]")
-        self.assertEqual(tamanho, [7, 5])
+        size = self.page.evaluate("() => [window.crivo.editor.doc.width, window.crivo.editor.doc.height]")
+        self.assertEqual(size, [7, 5])
         self.menu("Imagem", "Inverter cores")
         self.menu("Imagem", "Tons de cinza")
         self.menu("Imagem", "Converter para a paleta atual")
-        self.pagina.keyboard.press("t")
-        self.assertTrue(self.pagina.evaluate("() => window.crivo.editor.estado.ladrilho"))
-        self.pagina.keyboard.press("Shift+T")
+        self.page.keyboard.press("t")
+        self.assertTrue(self.page.evaluate("() => window.crivo.editor.state.tile"))
+        self.page.keyboard.press("Shift+T")
         for _ in range(10):
-            self.pagina.keyboard.press("Control+z")
-        self.assertEqual(self.pagina.evaluate("() => [window.crivo.editor.doc.largura, window.crivo.editor.historico.passado.length]"), [32, 0])
+            self.page.keyboard.press("Control+z")
+        self.assertEqual(self.page.evaluate("() => [window.crivo.editor.doc.width, window.crivo.editor.history.past.length]"), [32, 0])
 
-    def test_espelhar_selecao_substituir_cor_e_gif(self):
-        self.ferramenta("b", "lapis")
-        self.arrastar((0, 0), (0, 0), passos=1)
-        primaria = self.pixel(0, 0)
-        self.ferramenta("s", "selecao")
-        self.arrastar((0, 0), (3, 1))
-        self.pagina.keyboard.press("Shift+H")
-        self.assertEqual(self.pixel(3, 0), primaria, "espelhou só dentro da seleção")
+    def test_flip_selection_replace_color_and_gif(self):
+        self.tool("b", "pencil")
+        self.drag((0, 0), (0, 0), steps=1)
+        primary = self.pixel(0, 0)
+        self.tool("s", "selection")
+        self.drag((0, 0), (3, 1))
+        self.page.keyboard.press("Shift+H")
+        self.assertEqual(self.pixel(3, 0), primary, "flipped only inside the selection")
         self.assertEqual(self.pixel(0, 0), 0)
-        self.pagina.keyboard.press("Control+d")
+        self.page.keyboard.press("Control+d")
         self.menu("Imagem", "Substituir a cor primária pela secundária (todos os quadros)")
-        self.assertEqual(self.pixel(3, 0), self.pagina.evaluate("() => window.crivo.editor.estado.corSecundaria"))
-        self.pagina.locator("#visor").hover()
-        self.pagina.keyboard.press("Control+Shift+G")
-        with self.pagina.expect_download() as baixado:
-            self.pagina.get_by_role("button", name="Baixar").click()
-        caminho = baixado.value.path()
-        self.assertTrue(baixado.value.suggested_filename.endswith(".gif"))
-        self.assertEqual(Path(caminho).read_bytes()[:6], b"GIF89a")
+        self.assertEqual(self.pixel(3, 0), self.page.evaluate("() => window.crivo.editor.state.secondaryColor"))
+        self.page.locator("#viewport").hover()
+        self.page.keyboard.press("Control+Shift+G")
+        with self.page.expect_download() as download:
+            self.page.get_by_role("button", name="Baixar").click()
+        path = download.value.path()
+        self.assertTrue(download.value.suggested_filename.endswith(".gif"))
+        self.assertEqual(Path(path).read_bytes()[:6], b"GIF89a")
 
-    def test_colagem_nao_fura_o_fundo_e_gestos_sao_protegidos(self):
-        self.ferramenta("f", "balde")
-        self.pagina.mouse.click(*self.ponto(0, 0))
-        fundo = self.pixel(0, 0)
-        self.pagina.evaluate("() => { const e = window.crivo.editor; e.definirCor('primaria', 0xff0000ff); }")
-        self.ferramenta("b", "lapis")
-        self.arrastar((2, 2), (2, 2), passos=1)
-        vermelho = self.pixel(2, 2)
-        self.ferramenta("s", "selecao")
-        self.arrastar((2, 2), (4, 4))
-        self.pagina.keyboard.press("Control+c")
-        self.pagina.keyboard.press("Control+v")
-        self.arrastar((3, 3), (13, 3))
-        self.assertEqual(self.pixel(12, 2), vermelho)
-        self.assertEqual(self.pixel(13, 3), fundo, "o pixel transparente da colagem mostra o fundo, sem levar nada junto")
-        self.assertEqual(self.pixel(2, 2), vermelho, "onde estava a colagem o fundo continua inteiro")
+    def test_paste_keeps_the_background_and_gestures_are_protected(self):
+        self.tool("f", "bucket")
+        self.page.mouse.click(*self.point(0, 0))
+        background = self.pixel(0, 0)
+        self.page.evaluate("() => { const e = window.crivo.editor; e.setColor('primary', 0xff0000ff); }")
+        self.tool("b", "pencil")
+        self.drag((2, 2), (2, 2), steps=1)
+        red = self.pixel(2, 2)
+        self.tool("s", "selection")
+        self.drag((2, 2), (4, 4))
+        self.page.keyboard.press("Control+c")
+        self.page.keyboard.press("Control+v")
+        self.drag((3, 3), (13, 3))
+        self.assertEqual(self.pixel(12, 2), red)
+        self.assertEqual(self.pixel(13, 3), background, "a transparent pixel of the paste shows the background, carrying nothing along")
+        self.assertEqual(self.pixel(2, 2), red, "where the paste was, the background stays whole")
         for _ in range(40):
-            self.pagina.keyboard.press("ArrowLeft")
+            self.page.keyboard.press("ArrowLeft")
         for _ in range(40):
-            self.pagina.keyboard.press("ArrowRight")
-        self.assertEqual(self.pixel(12, 2), vermelho, "levar para fora da borda e trazer de volta não perde pixels")
-        passos = self.pagina.evaluate("() => window.crivo.editor.historico.passado.length")
-        m = self.pagina.mouse
-        m.move(*self.ponto(12, 2))
+            self.page.keyboard.press("ArrowRight")
+        self.assertEqual(self.pixel(12, 2), red, "moving past the edge and back loses no pixels")
+        steps = self.page.evaluate("() => window.crivo.editor.history.past.length")
+        m = self.page.mouse
+        m.move(*self.point(12, 2))
         m.down()
-        m.move(*self.ponto(20, 10), steps=3)
-        self.pagina.keyboard.press("Control+z")
+        m.move(*self.point(20, 10), steps=3)
+        self.page.keyboard.press("Control+z")
         m.up()
-        self.assertEqual(self.pagina.evaluate("() => window.crivo.editor.historico.passado.length"), passos + 1, "Ctrl+Z no meio do arraste é ignorado")
-        self.pagina.keyboard.press("Control+z")
-        self.assertEqual(self.pixel(12, 2), vermelho)
-        self.pagina.get_by_role("button", name="Editar", exact=True).click()
-        self.pagina.keyboard.press("ArrowDown")
-        self.pagina.keyboard.press("Escape")
-        self.assertEqual(self.pagina.evaluate("() => window.crivo.editor.historico.passado.length"), passos, "setas no menu não mexem nos pixels")
-        self.assertIsNotNone(self.pagina.evaluate("() => window.crivo.editor.selecao"), "Esc no menu fecha o menu sem desmarcar")
-        self.ferramenta("u", "degrade")
-        self.pagina.mouse.click(*self.ponto(25, 25))
-        self.assertEqual(self.pagina.evaluate("() => window.crivo.editor.historico.passado.length"), passos, "clique sem arrastar com o degradê não pinta nada")
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.history.past.length"), steps + 1, "Ctrl+Z in the middle of a drag is ignored")
+        self.page.keyboard.press("Control+z")
+        self.assertEqual(self.pixel(12, 2), red)
+        self.page.get_by_role("button", name="Editar", exact=True).click()
+        self.page.keyboard.press("ArrowDown")
+        self.page.keyboard.press("Escape")
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.history.past.length"), steps, "arrow keys in a menu do not move pixels")
+        self.assertIsNotNone(self.page.evaluate("() => window.crivo.editor.selection"), "Esc in a menu closes the menu without deselecting")
+        self.tool("u", "gradient")
+        self.page.mouse.click(*self.point(25, 25))
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.history.past.length"), steps, "a click without dragging with the gradient paints nothing")
 
-    def test_preferencias_invalidas_no_navegador_sao_ignoradas(self):
-        self.pagina.evaluate("() => { localStorage.setItem('crivo.matrizDegrade', '16'); localStorage.setItem('crivo.ferramenta', '\"<img>\"'); localStorage.setItem('crivo.tamanho', '999'); }")
-        self.pagina.reload()
-        self.pagina.wait_for_selector("body.pronto")
-        estado = self.pagina.evaluate("() => { const e = window.crivo.editor.estado; return [e.matrizDegrade, e.ferramenta, e.tamanho]; }")
-        self.assertEqual(estado, [4, "lapis", 1])
+    def test_invalid_browser_preferences_are_ignored(self):
+        self.page.evaluate("() => { localStorage.setItem('crivo.gradientMatrix', '16'); localStorage.setItem('crivo.tool', '\"<img>\"'); localStorage.setItem('crivo.size', '999'); }")
+        self.page.reload()
+        self.page.wait_for_selector("body.ready")
+        state = self.page.evaluate("() => { const e = window.crivo.editor.state; return [e.gradientMatrix, e.tool, e.size]; }")
+        self.assertEqual(state, [4, "pencil", 1])
+
+    def test_crivo_1_preferences_are_migrated(self):
+        self.page.evaluate(
+            """() => {
+                localStorage.clear();
+                localStorage.setItem('crivo.ferramenta', '"balde"');
+                localStorage.setItem('crivo.tema', '"escuro"');
+                localStorage.setItem('crivo.simetria', '"ambas"');
+                localStorage.setItem('crivo.tons', '{"passos":5,"intensidade":60,"desvio":10}');
+            }"""
+        )
+        self.page.reload()
+        self.page.wait_for_selector("body.ready")
+        state = self.page.evaluate("() => { const e = window.crivo.editor.state; return [e.tool, e.symmetry, document.documentElement.dataset.theme]; }")
+        self.assertEqual(state, ["bucket", "both", "dark"])
+        stored = self.page.evaluate("() => [localStorage.getItem('crivo.ferramenta'), JSON.parse(localStorage.getItem('crivo.ramp'))]")
+        self.assertEqual(stored, [None, {"steps": 5, "intensity": 60, "shift": 10}])
 
 
-class InterfaceTeste(TestesDoEditor, unittest.TestCase):
-    """O editor servido pelo Django, com a API e o banco de dados."""
+class ServerInterfaceTest(EditorTests, unittest.TestCase):
+    """The editor served by Django, with the API and the database."""
 
     @classmethod
     def setUpClass(cls):
-        cls.pasta = tempfile.TemporaryDirectory()
-        ambiente = {k: v for k, v in os.environ.items() if not k.startswith("CRIVO_")}
-        ambiente.update(CRIVO_SQLITE_PATH=str(Path(cls.pasta.name) / "e2e.sqlite3"), CRIVO_DEBUG="true", CRIVO_LIMITE_ESCRITAS="0")
-        subprocess.run([sys.executable, "manage.py", "migrate", "-v", "0"], cwd=RAIZ, env=ambiente, check=True)
-        cls.porta = porta_livre()
-        cls.servidor = subprocess.Popen(
-            [sys.executable, "manage.py", "runserver", f"127.0.0.1:{cls.porta}", "--noreload"],
-            cwd=RAIZ,
-            env=ambiente,
+        cls.folder = tempfile.TemporaryDirectory()
+        env = {k: v for k, v in os.environ.items() if not k.startswith("CRIVO_")}
+        env.update(CRIVO_SQLITE_PATH=str(Path(cls.folder.name) / "e2e.sqlite3"), CRIVO_DEBUG="true", CRIVO_WRITE_LIMIT="0")
+        subprocess.run([sys.executable, "manage.py", "migrate", "-v", "0"], cwd=ROOT, env=env, check=True)
+        cls.port = free_port()
+        cls.server = subprocess.Popen(
+            [sys.executable, "manage.py", "runserver", f"127.0.0.1:{cls.port}", "--noreload"],
+            cwd=ROOT,
+            env=env,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        cls.url = f"http://127.0.0.1:{cls.porta}/"
+        cls.url = f"http://127.0.0.1:{cls.port}/"
         for _ in range(100):
             try:
-                urllib.request.urlopen(cls.url + "api/v1/saude", timeout=1)
+                urllib.request.urlopen(cls.url + "api/v2/health", timeout=1)
                 break
             except OSError:
                 time.sleep(0.1)
         cls.pw = sync_playwright().start()
-        cls.navegador = cls.pw.chromium.launch()
+        cls.browser = cls.pw.chromium.launch()
 
     @classmethod
     def tearDownClass(cls):
-        cls.navegador.close()
+        cls.browser.close()
         cls.pw.stop()
-        cls.servidor.terminate()
-        cls.servidor.wait(10)
-        cls.pasta.cleanup()
+        cls.server.terminate()
+        cls.server.wait(10)
+        cls.folder.cleanup()
 
-    def test_carrega_com_a_versao_nova_e_todas_as_ferramentas(self):
-        self.assertEqual(self.pagina.evaluate("() => window.crivo.versao"), VERSAO)
-        self.assertEqual(self.pagina.locator("#ferramentas .ferramenta").count(), 13)
-        cabecalhos = self.pagina.request.get(self.url).headers
-        self.assertIn("default-src 'self'", cabecalhos["content-security-policy"])
+    def test_loads_the_new_version_and_every_tool(self):
+        self.assertEqual(self.page.evaluate("() => window.crivo.version"), VERSION)
+        self.assertEqual(self.page.locator("#tools .tool").count(), 13)
+        headers = self.page.request.get(self.url).headers
+        self.assertIn("default-src 'self'", headers["content-security-policy"])
 
-    def test_salvar_no_servidor_e_baixar_png(self):
-        self.ferramenta("b", "lapis")
-        self.arrastar((1, 1), (5, 1))
-        self.pagina.keyboard.press("Control+s")
-        self.pagina.wait_for_function("() => window.crivo.editor.projeto.id")
-        pid = self.pagina.evaluate("() => window.crivo.editor.projeto.id")
-        r = self.pagina.request.get(f"{self.url}api/v1/projetos/{pid}/png?escala=2")
+    def test_save_to_the_server_and_download_png(self):
+        self.tool("b", "pencil")
+        self.drag((1, 1), (5, 1))
+        self.page.keyboard.press("Control+s")
+        self.page.wait_for_function("() => window.crivo.editor.project.id")
+        pid = self.page.evaluate("() => window.crivo.editor.project.id")
+        r = self.page.request.get(f"{self.url}api/v2/projects/{pid}/png?scale=2")
         self.assertEqual(r.status, 200)
         self.assertEqual(r.body()[:8], b"\x89PNG\r\n\x1a\n")
+        data = self.page.request.get(f"{self.url}api/v2/projects/{pid}").json()["data"]
+        self.assertEqual((data["format"], data["version"]), ("crivo", 2))
 
 
-class ArquivoUnicoTeste(TestesDoEditor, unittest.TestCase):
-    """O mesmo editor no Crivo.html, aberto direto do disco (file://), sem servidor local e sem backend."""
+class SingleFileTest(EditorTests, unittest.TestCase):
+    """The same editor in Crivo.html, opened straight from disk (file://), with no local server and no backend."""
 
     @classmethod
     def setUpClass(cls):
-        cls.url = (RAIZ / "Crivo.html").as_uri()
+        cls.url = (ROOT / "Crivo.html").as_uri()
         cls.pw = sync_playwright().start()
-        cls.navegador = cls.pw.chromium.launch()
+        cls.browser = cls.pw.chromium.launch()
 
     @classmethod
     def tearDownClass(cls):
-        cls.navegador.close()
+        cls.browser.close()
         cls.pw.stop()
 
-    def test_abre_do_disco_sem_servidor_e_com_csp_embutida(self):
-        self.assertEqual(self.pagina.evaluate("() => location.protocol"), "file:")
-        self.assertEqual(self.pagina.evaluate("() => window.crivo.versao"), VERSAO)
-        self.assertEqual(self.pagina.locator("#ferramentas .ferramenta").count(), 13)
-        politica = self.pagina.get_attribute('meta[http-equiv="Content-Security-Policy"]', "content")
-        self.assertIn("default-src 'none'", politica)
-        self.assertIn("connect-src 'none'", politica, "sem servidor, a página não fala com a rede")
-        self.assertIn("Modo local", self.pagina.inner_text("#status-armazenamento"))
-        self.pagina.get_by_role("button", name="Arquivo", exact=True).click()
-        self.assertEqual(self.pagina.get_by_role("menuitem", name="Sair do Crivo").count(), 0, "fora do app desktop não há Sair")
-        self.pagina.keyboard.press("Escape")
+    def test_opens_from_disk_without_a_server_and_with_an_inline_csp(self):
+        self.assertEqual(self.page.evaluate("() => location.protocol"), "file:")
+        self.assertEqual(self.page.evaluate("() => window.crivo.version"), VERSION)
+        self.assertEqual(self.page.locator("#tools .tool").count(), 13)
+        policy = self.page.get_attribute('meta[http-equiv="Content-Security-Policy"]', "content")
+        self.assertIn("default-src 'none'", policy)
+        self.assertIn("connect-src 'none'", policy, "without a server, the page does not talk to the network")
+        self.assertIn("Modo local", self.page.inner_text("#status-storage"))
+        self.page.get_by_role("button", name="Arquivo", exact=True).click()
+        self.assertEqual(self.page.get_by_role("menuitem", name="Sair do Crivo").count(), 0, "outside the desktop app there is no Quit")
+        self.page.keyboard.press("Escape")
 
-    def test_salvar_no_navegador_reabrir_baixar_e_abrir_arquivo(self):
-        self.ferramenta("b", "lapis")
-        self.arrastar((1, 1), (5, 1))
-        cor = self.pixel(3, 1)
-        self.assertNotEqual(cor, 0)
-        self.pagina.keyboard.press("Control+s")
-        self.pagina.wait_for_function("() => window.crivo.editor.projeto.local")
-        self.assertTrue(self.pagina.evaluate("() => window.crivo.editor.projeto.local").startswith("local-"))
-        self.assertIsNone(self.pagina.evaluate("() => window.crivo.editor.projeto.id"), "nada foi para um servidor")
+    def test_save_in_the_browser_reopen_download_and_open_file(self):
+        self.tool("b", "pencil")
+        self.drag((1, 1), (5, 1))
+        color = self.pixel(3, 1)
+        self.assertNotEqual(color, 0)
+        self.page.keyboard.press("Control+s")
+        self.page.wait_for_function("() => window.crivo.editor.project.local")
+        self.assertTrue(self.page.evaluate("() => window.crivo.editor.project.local").startswith("local-"))
+        self.assertIsNone(self.page.evaluate("() => window.crivo.editor.project.id"), "nothing went to a server")
 
-        self.pagina.reload()
-        self.pagina.wait_for_selector("body.pronto")
+        self.page.reload()
+        self.page.wait_for_selector("body.ready")
         self.menu("Arquivo", "Projetos salvos…")
-        self.pagina.locator(".lista-projetos .projeto").first.wait_for()  # a lista carrega do IndexedDB sem bloquear
-        self.assertEqual(self.pagina.locator(".lista-projetos .projeto").count(), 1, "o projeto ficou salvo no navegador")
-        self.pagina.locator(".lista-projetos .projeto").get_by_role("button", name="Abrir").click()
-        self.pagina.wait_for_function("() => !document.querySelector('.lista-projetos')")
-        self.assertEqual(self.pixel(3, 1), cor)
+        self.page.locator(".project-list .project").first.wait_for()  # the list loads from IndexedDB without blocking
+        self.assertEqual(self.page.locator(".project-list .project").count(), 1, "the project stayed saved in the browser")
+        self.page.locator(".project-list .project").get_by_role("button", name="Abrir").click()
+        self.page.wait_for_function("() => !document.querySelector('.project-list')")
+        self.assertEqual(self.pixel(3, 1), color)
 
-        with self.pagina.expect_download() as baixado:
+        with self.page.expect_download() as download:
             self.menu("Arquivo", "Baixar arquivo .crivo")
-        caminho = baixado.value.path()
-        self.assertTrue(baixado.value.suggested_filename.endswith(".crivo"))
-        self.assertEqual(json.loads(Path(caminho).read_text(encoding="utf-8"))["formato"], "crivo")
+        path = download.value.path()
+        self.assertTrue(download.value.suggested_filename.endswith(".crivo"))
+        saved = json.loads(Path(path).read_text(encoding="utf-8"))
+        self.assertEqual((saved["format"], saved["version"]), ("crivo", 2))
 
-        self.pagina.locator("#visor").hover()
-        self.pagina.keyboard.press("Delete")
+        self.page.locator("#viewport").hover()
+        self.page.keyboard.press("Delete")
         self.assertEqual(self.pixel(3, 1), 0)
-        with self.pagina.expect_file_chooser() as escolha:
+        with self.page.expect_file_chooser() as chooser:
             self.menu("Arquivo", "Abrir arquivo .crivo…")
-        escolha.value.set_files(caminho)
-        confirmar = self.pagina.get_by_role("button", name="Abrir mesmo assim")
-        if confirmar.count():
-            confirmar.click()
-        self.pagina.wait_for_function("([x, y]) => { const e = window.crivo.editor; return e.celulaAtiva()[y * e.doc.largura + x] !== 0; }", arg=[3, 1])
-        self.assertEqual(self.pixel(3, 1), cor, "o arquivo .crivo baixado abre de volta no Crivo.html")
+        chooser.value.set_files(path)
+        confirm = self.page.get_by_role("button", name="Abrir mesmo assim")
+        if confirm.count():
+            confirm.click()
+        self.page.wait_for_function("([x, y]) => { const e = window.crivo.editor; return e.activeCell()[y * e.doc.width + x] !== 0; }", arg=[3, 1])
+        self.assertEqual(self.pixel(3, 1), color, "the downloaded .crivo file opens back in Crivo.html")
 
-    def test_integracao_com_o_app_desktop(self):
-        """Com o window.crivoDesktop que o Crivo.exe cria, aparecem a tela cheia (F11), o Sair e o rótulo do desktop."""
-        self.pagina.add_init_script(
+    def test_crivo_1_browser_data_is_migrated(self):
+        """Projects and the draft saved by Crivo 1.x (IndexedDB version 1, Portuguese stores and fields) survive the upgrade."""
+        self.page.evaluate(
+            """async () => {
+                await new Promise((resolve, reject) => {
+                    const del = indexedDB.deleteDatabase('crivo');
+                    del.onsuccess = resolve;
+                    del.onerror = () => reject(del.error);
+                });
+                const v1 = {
+                    formato: 'crivo', versao: 1, nome: 'Antigo', largura: 4, altura: 4, fps: 8, paleta: ['#ff0000'],
+                    camadas: [{ id: 'c1', nome: 'Camada 1', visivel: true, opacidade: 100, bloqueada: false }],
+                    quadros: [{ id: 'q1', duracao: null }],
+                    celulas: [],
+                };
+                const db = await new Promise((resolve, reject) => {
+                    const req = indexedDB.open('crivo', 1);
+                    req.onupgradeneeded = () => {
+                        req.result.createObjectStore('projetos', { keyPath: 'id' });
+                        req.result.createObjectStore('rascunho');
+                    };
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                });
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction(['projetos', 'rascunho'], 'readwrite');
+                    tx.objectStore('projetos').put({ id: 'local-antigo', nome: 'Antigo', dados: v1, miniatura: null, revisao: null, atualizado_em: '2026-01-01T00:00:00Z' });
+                    tx.objectStore('rascunho').put({ dados: { ...v1, nome: 'Rascunho antigo' }, projeto: { id: null, revisao: null, local: 'local-antigo' }, modificado: true, quando: '2026-01-01T00:00:00Z' }, 'atual');
+                    tx.oncomplete = resolve;
+                    tx.onerror = () => reject(tx.error);
+                });
+                db.close();
+                // Keep the page from saving its own draft on reload, which would open (and upgrade) the database first.
+                indexedDB.open = () => {
+                    throw new Error('blocked by the test');
+                };
+            }"""
+        )
+        self.page.reload()
+        self.page.wait_for_selector("body.ready")
+        restored = self.page.evaluate("() => { const e = window.crivo.editor; return [e.doc.name, e.doc.width, e.project.local, e.modified]; }")
+        self.assertEqual(restored, ["Rascunho antigo", 4, "local-antigo", True])
+        stores = self.page.evaluate(
+            """() => new Promise((resolve) => {
+                const req = indexedDB.open('crivo');
+                req.onsuccess = () => { const db = req.result; const names = [...db.objectStoreNames].sort(); db.close(); resolve([db.version, names]); };
+            })"""
+        )
+        self.assertEqual(stores, [2, ["draft", "projects"]])
+        self.menu("Arquivo", "Projetos salvos…")
+        self.page.locator(".project-list .project").first.wait_for()
+        self.assertIn("Antigo", self.page.inner_text(".project-list"))
+
+    def test_desktop_app_integration(self):
+        """With the window.crivoDesktop that Crivo.exe creates, fullscreen (F11), Quit and the desktop label show up."""
+        self.page.add_init_script(
             """
-            window.__chamadas = [];
+            window.__calls = [];
             window.crivoDesktop = Object.freeze({
-              versao: 'teste',
-              alternarTelaCheia: () => { window.__chamadas.push('telaCheia'); return Promise.resolve(false); },
-              sair: () => { window.__chamadas.push('sair'); return Promise.resolve(); },
+              version: 'test',
+              toggleFullscreen: () => { window.__calls.push('fullscreen'); return Promise.resolve(false); },
+              quit: () => { window.__calls.push('quit'); return Promise.resolve(); },
             });
             """
         )
-        self.pagina.reload()
-        self.pagina.wait_for_selector("body.pronto")
-        self.assertIn("Desktop", self.pagina.inner_text("#status-armazenamento"))
-        self.pagina.keyboard.press("F11")
-        self.assertEqual(self.pagina.evaluate("() => window.__chamadas"), ["telaCheia"])
+        self.page.reload()
+        self.page.wait_for_selector("body.ready")
+        self.assertIn("Desktop", self.page.inner_text("#status-storage"))
+        self.page.keyboard.press("F11")
+        self.assertEqual(self.page.evaluate("() => window.__calls"), ["fullscreen"])
         self.menu("Exibir", "Tela cheia")
-        self.assertEqual(self.pagina.evaluate("() => window.__chamadas"), ["telaCheia", "telaCheia"])
-        self.assertTrue(self.pagina.evaluate("() => typeof window.__crivoAntesDeFechar === 'function'"))
+        self.assertEqual(self.page.evaluate("() => window.__calls"), ["fullscreen", "fullscreen"])
+        self.assertTrue(self.page.evaluate("() => typeof window.__crivoBeforeClose === 'function'"))
 
-        self.ferramenta("b", "lapis")
-        self.arrastar((2, 2), (6, 2))
+        self.tool("b", "pencil")
+        self.drag((2, 2), (6, 2))
         self.menu("Arquivo", "Sair do Crivo")
-        self.pagina.wait_for_function("() => window.__chamadas.includes('sair')")
-        self.pagina.reload()
-        self.pagina.wait_for_selector("body.pronto")
-        self.assertNotEqual(self.pixel(4, 2), 0, "o rascunho foi gravado antes de sair e volta ao reabrir")
+        self.page.wait_for_function("() => window.__calls.includes('quit')")
+        self.page.reload()
+        self.page.wait_for_selector("body.ready")
+        self.assertNotEqual(self.pixel(4, 2), 0, "the draft was saved before quitting and comes back when reopening")
 
 
 if __name__ == "__main__":

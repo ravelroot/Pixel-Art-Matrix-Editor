@@ -1,162 +1,277 @@
 import base64
 import json
+import zlib
 
+from django.conf import settings
 from django.test import Client, TestCase, override_settings
 
-from editor.models import Celula, Paleta, Projeto, Revisao
-from editor.seguranca import LimiteDeEscritasMiddleware
-from editor.rle import codificar, decodificar, empacotar, para_base64, sobrepor
+from editor import services
+from editor.models import Cell, Palette, Project, Revision
+from editor.rle import blend, decode, encode, pack, to_base64
+from editor.security import WriteLimitMiddleware
 
-VERMELHO = empacotar(255, 0, 0)
-AZUL = empacotar(0, 0, 255)
-PNG_MINIMO = base64.b64encode(
-    bytes.fromhex(
-        "89504e470d0a1a0a0000000d4948445200000001000000010806000000"
-        "1f15c4890000000d49444154789c6360000002000154a24f5d0000000049454e44ae426082"
-    )
+RED = pack(255, 0, 0)
+BLUE = pack(0, 0, 255)
+MINIMAL_PNG = base64.b64encode(
+    bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360000002000154a24f5d0000000049454e44ae426082")
 ).decode()
 
 
-def documento(nome="Poção", largura=4, altura=4, cor=VERMELHO):
-    pixels = [0] * (largura * altura)
-    pixels[0] = cor
-    pixels[5] = AZUL
+def _pixels(width, height, color):
+    pixels = [0] * (width * height)
+    pixels[0] = color
+    pixels[5] = BLUE
+    return pixels
+
+
+def document(name="Poção", width=4, height=4, color=RED):
+    """A .crivo document in format version 2."""
     return {
-        "formato": "crivo",
-        "versao": 1,
-        "nome": nome,
-        "largura": largura,
-        "altura": altura,
+        "format": "crivo",
+        "version": 2,
+        "name": name,
+        "width": width,
+        "height": height,
         "fps": 6,
-        "paleta": ["#ff0000", "#0000ff"],
-        "camadas": [{"id": "c1", "nome": "Base", "visivel": True, "opacidade": 100, "bloqueada": False}],
-        "quadros": [{"id": "q1", "duracao": None}, {"id": "q2", "duracao": 200}],
-        "celulas": [{"quadro": "q1", "camada": "c1", "rle": para_base64(codificar(pixels))}],
+        "palette": ["#ff0000", "#0000ff"],
+        "layers": [{"id": "l1", "name": "Base", "visible": True, "opacity": 100, "locked": False}],
+        "frames": [{"id": "f1", "duration": None}, {"id": "f2", "duration": 200}],
+        "cells": [{"frame": "f1", "layer": "l1", "rle": to_base64(encode(_pixels(width, height, color)))}],
     }
 
 
-class RLETeste(TestCase):
-    def test_ida_e_volta(self):
-        pixels = [0] * 300 + [VERMELHO] * 5000 + [AZUL]
-        self.assertEqual(list(decodificar(codificar(pixels), len(pixels))), pixels)
+def document_v1(name="Poção", width=4, height=4, color=RED):
+    """The same document in format version 1 (Portuguese keys), as saved by Crivo 1.x."""
+    return {
+        "formato": "crivo",
+        "versao": 1,
+        "nome": name,
+        "largura": width,
+        "altura": height,
+        "fps": 6,
+        "paleta": ["#ff0000", "#0000ff"],
+        "camadas": [{"id": "l1", "nome": "Base", "visivel": True, "opacidade": 100, "bloqueada": False}],
+        "quadros": [{"id": "f1", "duracao": None}, {"id": "f2", "duracao": 200}],
+        "celulas": [{"quadro": "f1", "camada": "l1", "rle": to_base64(encode(_pixels(width, height, color)))}],
+    }
 
-    def test_compativel_com_o_javascript(self):
-        self.assertEqual(codificar([VERMELHO] * 3), bytes([3, 255, 0, 0, 255]))
-        self.assertEqual(codificar([0] * 200), bytes([200 & 127 | 128, 1, 0, 0, 0, 0]))
 
-    def test_rejeita_tamanho_errado(self):
+class RLETest(TestCase):
+    def test_round_trip(self):
+        pixels = [0] * 300 + [RED] * 5000 + [BLUE]
+        self.assertEqual(list(decode(encode(pixels), len(pixels))), pixels)
+
+    def test_matches_the_javascript_encoder(self):
+        self.assertEqual(encode([RED] * 3), bytes([3, 255, 0, 0, 255]))
+        self.assertEqual(encode([0] * 200), bytes([200 & 127 | 128, 1, 0, 0, 0, 0]))
+
+    def test_rejects_wrong_size(self):
         with self.assertRaises(ValueError):
-            decodificar(codificar([VERMELHO] * 3), 4)
+            decode(encode([RED] * 3), 4)
 
-    def test_sobreposicao(self):
-        self.assertEqual(sobrepor(AZUL, VERMELHO, 1), VERMELHO)
-        self.assertEqual(sobrepor(0, VERMELHO, 0), 0)
+    def test_blend(self):
+        self.assertEqual(blend(BLUE, RED, 1), RED)
+        self.assertEqual(blend(0, RED, 0), 0)
 
 
-class ApiTeste(TestCase):
+class ApiTest(TestCase):
     def setUp(self):
-        LimiteDeEscritasMiddleware.reiniciar()
+        WriteLimitMiddleware.reset()
         self.c = Client()
 
-    def post(self, url, dados):
-        return self.c.post(url, json.dumps(dados), content_type="application/json")
+    def post(self, url, data):
+        return self.c.post(url, json.dumps(data), content_type="application/json")
 
-    def put(self, url, dados):
-        return self.c.put(url, json.dumps(dados), content_type="application/json")
+    def put(self, url, data):
+        return self.c.put(url, json.dumps(data), content_type="application/json")
 
-    def test_saude_e_pagina(self):
-        r = self.c.get("/api/v1/saude")
-        self.assertEqual(r.json()["status"], "ok")
+    def test_health_and_page(self):
+        r = self.c.get("/api/v2/health")
+        self.assertEqual(r.json(), {"status": "ok", "version": settings.CRIVO["VERSION"], "database": r.json()["database"]})
         r = self.c.get("/")
         self.assertContains(r, '<base href="/static/editor/">')
         self.assertIn("csrftoken", r.cookies)
 
-    def test_paletas_predefinidas_semeadas(self):
-        nomes = {p["slug"] for p in self.c.get("/api/v1/paletas").json()["paletas"]}
-        self.assertTrue({"crivo", "game-boy", "nes", "pico-8", "cga"} <= nomes)
-        pico = Paleta.objects.get(slug="pico-8")
-        self.assertEqual(pico.cores.count(), 16)
-        r = self.put(f"/api/v1/paletas/{pico.pk}", {"nome": "x", "cores": ["#000000"]})
-        self.assertEqual(r.status_code, 403)
+    def test_index_lists_the_v2_routes(self):
+        for url in ("/api/v2", "/api/v2/"):
+            with self.subTest(url=url):
+                body = self.c.get(url).json()
+                self.assertEqual((body["name"], body["version"]), ("Crivo", settings.CRIVO["VERSION"]))
+                self.assertEqual(
+                    set(body["routes"]), {"health", "projects", "project", "thumbnail", "export", "png", "revisions", "restore", "palettes", "palette"}
+                )
+                self.assertTrue(all(route.startswith("/api/v2/") for route in body["routes"].values()))
 
-    def test_paleta_customizada(self):
-        r = self.post("/api/v1/paletas", {"nome": "Minha", "cores": ["#5D1C16", "a3b4be", "#f6e4a6ff"]})
+    def test_api_v1_is_gone(self):
+        for url in ("/api/v1", "/api/v1/saude", "/api/v1/projetos", "/api/v1/paletas"):
+            with self.subTest(url=url):
+                self.assertEqual(self.c.get(url).status_code, 404)
+
+    def test_preset_palettes_seeded(self):
+        slugs = {p["slug"] for p in self.c.get("/api/v2/palettes").json()["palettes"]}
+        self.assertTrue({"crivo", "game-boy", "nes", "pico-8", "cga"} <= slugs)
+        pico = Palette.objects.get(slug="pico-8")
+        self.assertTrue(pico.preset)
+        self.assertEqual(pico.colors.count(), 16)
+        r = self.put(f"/api/v2/palettes/{pico.pk}", {"name": "x", "colors": ["#000000"]})
+        self.assertEqual(r.status_code, 403)
+        self.assertIn("error", r.json())
+
+    def test_custom_palette(self):
+        r = self.post("/api/v2/palettes", {"name": "Minha", "colors": ["#5D1C16", "a3b4be", "#f6e4a6ff"]})
         self.assertEqual(r.status_code, 201)
         p = r.json()
-        self.assertEqual(p["cores"], ["#5d1c16", "#a3b4be", "#f6e4a6"])
-        r = self.put(f"/api/v1/paletas/{p['id']}", {"nome": "Minha 2", "cores": ["#000000"]})
-        self.assertEqual(r.json()["nome"], "Minha 2")
-        self.assertEqual(self.post("/api/v1/paletas", {"nome": "Ruim", "cores": ["verde"]}).status_code, 422)
-        self.assertEqual(self.c.delete(f"/api/v1/paletas/{p['id']}").status_code, 204)
+        self.assertEqual(p["colors"], ["#5d1c16", "#a3b4be", "#f6e4a6"])
+        self.assertEqual(set(p), {"id", "slug", "name", "description", "preset", "colors", "updated_at"})
+        self.assertFalse(p["preset"])
+        r = self.put(f"/api/v2/palettes/{p['id']}", {"name": "Minha 2", "colors": ["#000000"]})
+        self.assertEqual(r.json()["name"], "Minha 2")
+        custom = self.c.get("/api/v2/palettes?presets=0").json()["palettes"]
+        self.assertEqual([x["id"] for x in custom], [p["id"]], "presets=0 hides the presets")
+        self.assertEqual(self.post("/api/v2/palettes", {"name": "Ruim", "colors": ["verde"]}).status_code, 422)
+        self.assertEqual(self.c.delete(f"/api/v2/palettes/{p['id']}").status_code, 204)
 
-    def test_ciclo_do_projeto(self):
-        r = self.post("/api/v1/projetos", {"dados": documento(), "miniatura": "data:image/png;base64," + PNG_MINIMO})
+    def test_project_lifecycle(self):
+        r = self.post("/api/v2/projects", {"data": document(), "thumbnail": "data:image/png;base64," + MINIMAL_PNG})
         self.assertEqual(r.status_code, 201, r.content)
         p = r.json()
-        self.assertEqual((p["largura"], p["quadros"], p["camadas"], p["revisao"]), (4, 2, 1, 1))
-        self.assertEqual(self.c.get(p["miniatura_url"])["Content-Type"], "image/png")
-        dados = self.c.get(f"/api/v1/projetos/{p['id']}").json()["dados"]
-        self.assertEqual(dados["quadros"][1]["duracao"], 200)
-        self.assertEqual(dados["celulas"], documento()["celulas"])
-        lista = self.c.get("/api/v1/projetos").json()["projetos"]
-        self.assertEqual(lista[0]["nome"], "Poção")
-        r = self.put(f"/api/v1/projetos/{p['id']}", {"dados": documento("Poção 2", cor=AZUL), "revisao": 1})
-        self.assertEqual(r.json()["revisao"], 2)
-        self.assertEqual(Revisao.objects.count(), 1)
-        r = self.put(f"/api/v1/projetos/{p['id']}", {"dados": documento("Velho"), "revisao": 1})
+        self.assertEqual(set(p), {"id", "name", "width", "height", "fps", "revision", "frames", "layers", "thumbnail_url", "created_at", "updated_at"})
+        self.assertEqual((p["width"], p["frames"], p["layers"], p["revision"]), (4, 2, 1, 1))
+        self.assertEqual(p["thumbnail_url"], f"/api/v2/projects/{p['id']}/thumbnail")
+        self.assertEqual(self.c.get(p["thumbnail_url"])["Content-Type"], "image/png")
+        data = self.c.get(f"/api/v2/projects/{p['id']}").json()["data"]
+        self.assertEqual((data["format"], data["version"]), ("crivo", 2))
+        self.assertEqual(data["frames"][1]["duration"], 200)
+        self.assertEqual(data["cells"], document()["cells"])
+        projects = self.c.get("/api/v2/projects").json()["projects"]
+        self.assertEqual(projects[0]["name"], "Poção")
+        self.assertEqual(projects[0]["thumbnail_url"], p["thumbnail_url"])
+        self.assertEqual(self.c.get("/api/v2/projects?q=poç").json()["projects"][0]["id"], p["id"])
+        self.assertEqual(self.c.get("/api/v2/projects?q=espada").json()["projects"], [])
+        r = self.put(f"/api/v2/projects/{p['id']}", {"data": document("Poção 2", color=BLUE), "revision": 1})
+        self.assertEqual(r.json()["revision"], 2)
+        self.assertEqual(Revision.objects.count(), 1)
+        r = self.put(f"/api/v2/projects/{p['id']}", {"data": document("Velho"), "revision": 1})
         self.assertEqual(r.status_code, 409)
-        self.assertEqual(r.json()["revisao_atual"], 2)
-        revs = self.c.get(f"/api/v1/projetos/{p['id']}/revisoes").json()["revisoes"]
-        self.assertEqual(revs[0]["numero"], 1)
-        r = self.post(f"/api/v1/projetos/{p['id']}/revisoes/1/restaurar", {})
-        self.assertEqual(r.json()["nome"], "Poção")
-        self.assertEqual(r.json()["revisao"], 3)
-        self.assertEqual(self.c.delete(f"/api/v1/projetos/{p['id']}").status_code, 204)
-        self.assertEqual(Celula.objects.count(), 0)
+        self.assertEqual(r.json()["current_revision"], 2)
+        self.assertIn("error", r.json())
+        revisions = self.c.get(f"/api/v2/projects/{p['id']}/revisions").json()
+        self.assertEqual(revisions["current_revision"], 2)
+        self.assertEqual(set(revisions["revisions"][0]), {"number", "name", "size_bytes", "created_at"})
+        self.assertEqual(revisions["revisions"][0]["number"], 1)
+        r = self.post(f"/api/v2/projects/{p['id']}/revisions/1/restore", {})
+        self.assertEqual(r.json()["name"], "Poção")
+        self.assertEqual(r.json()["revision"], 3)
+        self.assertEqual(self.c.delete(f"/api/v2/projects/{p['id']}").status_code, 204)
+        self.assertEqual(Cell.objects.count(), 0)
 
-    def test_exportar(self):
-        p = self.post("/api/v1/projetos", {"dados": documento("Espada Curta")}).json()
-        r = self.c.get(f"/api/v1/projetos/{p['id']}/exportar?formato=json&quadro=1")
-        dados = json.loads(r.content)
-        self.assertEqual(dados["paleta"], ["#ff0000", "#0000ff"])
-        self.assertEqual(dados["quadros"][0][0][:2], [0, -1])
-        self.assertEqual(dados["quadros"][0][1][1], 1)
-        r = self.c.get(f"/api/v1/projetos/{p['id']}/exportar?formato=js&modo=hex")
+    def test_export(self):
+        p = self.post("/api/v2/projects", {"data": document("Espada Curta")}).json()
+        r = self.c.get(f"/api/v2/projects/{p['id']}/export?format=json&frame=1")
+        data = json.loads(r.content)
+        self.assertEqual(set(data), {"name", "width", "height", "mode", "transparent", "palette", "frames"})
+        self.assertEqual(data["palette"], ["#ff0000", "#0000ff"])
+        self.assertEqual(data["frames"][0][0][:2], [0, -1])
+        self.assertEqual(data["frames"][0][1][1], 1)
+        r = self.c.get(f"/api/v2/projects/{p['id']}/export?format=js&mode=hex")
         self.assertIn("export const espadaCurta", r.content.decode())
-        r = self.c.get(f"/api/v1/projetos/{p['id']}/exportar?formato=py&baixar=1")
+        r = self.c.get(f"/api/v2/projects/{p['id']}/export?format=py&download=1")
         self.assertIn("ESPADA_CURTA = {", r.content.decode())
+        self.assertIn('    "transparent": -1,', r.content.decode())
         self.assertIn("attachment", r["Content-Disposition"])
-        csv = self.c.get(f"/api/v1/projetos/{p['id']}/exportar?formato=csv").content.decode()
+        csv = self.c.get(f"/api/v2/projects/{p['id']}/export?format=csv").content.decode()
         self.assertEqual(csv.split("\n")[0], "0,-1,-1,-1")
-        self.assertEqual(self.c.get(f"/api/v1/projetos/{p['id']}/exportar?formato=bmp").status_code, 400)
+        self.assertEqual(self.c.get(f"/api/v2/projects/{p['id']}/export?format=bmp").status_code, 400)
 
-    def test_validacao(self):
-        ruim = documento()
-        ruim["celulas"][0]["rle"] = para_base64(codificar([VERMELHO] * 3))
-        self.assertEqual(self.post("/api/v1/projetos", {"dados": ruim}).status_code, 422)
-        ruim = documento(largura=2000)
-        self.assertEqual(self.post("/api/v1/projetos", {"dados": ruim}).status_code, 422)
-        ruim = documento()
-        ruim["quadros"][1]["id"] = "c1"
-        self.assertEqual(self.post("/api/v1/projetos", {"dados": ruim}).status_code, 422)
-        self.assertEqual(self.post("/api/v1/projetos", {"dados": documento(), "miniatura": "data:image/gif;base64,AAAA"}).status_code, 422)
-        self.assertEqual(self.c.post("/api/v1/projetos", "{", content_type="application/json").status_code, 422)
-        self.assertEqual(Projeto.objects.count(), 0)
+    def test_validation(self):
+        bad = document()
+        bad["cells"][0]["rle"] = to_base64(encode([RED] * 3))
+        self.assertEqual(self.post("/api/v2/projects", {"data": bad}).status_code, 422)
+        bad = document(width=2000)
+        self.assertEqual(self.post("/api/v2/projects", {"data": bad}).status_code, 422)
+        bad = document()
+        bad["frames"][1]["id"] = "l1"
+        self.assertEqual(self.post("/api/v2/projects", {"data": bad}).status_code, 422)
+        self.assertEqual(self.post("/api/v2/projects", {"data": document(), "thumbnail": "data:image/gif;base64,AAAA"}).status_code, 422)
+        self.assertEqual(self.c.post("/api/v2/projects", "{", content_type="application/json").status_code, 422)
+        self.assertEqual(Project.objects.count(), 0)
 
-    def test_csrf_e_token(self):
-        cliente = Client(enforce_csrf_checks=True)
-        r = cliente.post("/api/v1/paletas", json.dumps({"nome": "A", "cores": ["#000000"]}), content_type="application/json")
+    def test_csrf_and_token(self):
+        client = Client(enforce_csrf_checks=True)
+        r = client.post("/api/v2/palettes", json.dumps({"name": "A", "colors": ["#000000"]}), content_type="application/json")
         self.assertEqual(r.status_code, 403)
-        cliente.get("/")
-        token = cliente.cookies["csrftoken"].value
-        r = cliente.post("/api/v1/paletas", json.dumps({"nome": "A", "cores": ["#000000"]}), content_type="application/json", HTTP_X_CSRFTOKEN=token)
+        client.get("/")
+        token = client.cookies["csrftoken"].value
+        r = client.post("/api/v2/palettes", json.dumps({"name": "A", "colors": ["#000000"]}), content_type="application/json", HTTP_X_CSRFTOKEN=token)
         self.assertEqual(r.status_code, 201)
-        with override_settings(CRIVO={**self.settings_crivo(), "TOKEN_API": "segredo"}):
-            outro = Client(enforce_csrf_checks=True)
-            r = outro.post("/api/v1/paletas", json.dumps({"nome": "B", "cores": ["#ffffff"]}), content_type="application/json", HTTP_AUTHORIZATION="Bearer segredo")
+        with override_settings(CRIVO={**settings.CRIVO, "API_TOKEN": "segredo"}):
+            other = Client(enforce_csrf_checks=True)
+            r = other.post(
+                "/api/v2/palettes", json.dumps({"name": "B", "colors": ["#ffffff"]}), content_type="application/json", HTTP_AUTHORIZATION="Bearer segredo"
+            )
             self.assertEqual(r.status_code, 201)
 
-    def settings_crivo(self):
-        from django.conf import settings
 
-        return settings.CRIVO
+class DocumentCompatibilityTest(TestCase):
+    """Format version 1 documents (Crivo 1.x) are still accepted, and the API always answers with version 2."""
+
+    def setUp(self):
+        WriteLimitMiddleware.reset()
+        self.c = Client()
+
+    def post(self, url, data):
+        return self.c.post(url, json.dumps(data), content_type="application/json")
+
+    def put(self, url, data):
+        return self.c.put(url, json.dumps(data), content_type="application/json")
+
+    def test_upgrade_document_converts_every_v1_key(self):
+        v1 = document_v1()
+        v1["camadas"][0].update(visivel=False, opacidade=40, bloqueada=True)
+        expected = document()
+        expected["layers"][0].update(visible=False, opacity=40, locked=True)
+        self.assertEqual(services.upgrade_document(v1), expected)
+        self.assertEqual(services.upgrade_document(document()), document(), "a v2 document passes through unchanged")
+        self.assertEqual(services.upgrade_document([1, 2]), [1, 2], "invalid input is left for validation")
+
+    def test_v1_document_accepted_on_create(self):
+        r = self.post("/api/v2/projects", {"data": document_v1("Antigo")})
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(r.json()["name"], "Antigo")
+        data = self.c.get(f"/api/v2/projects/{r.json()['id']}").json()["data"]
+        self.assertEqual(data, document("Antigo"), "stored and returned as a version 2 document")
+
+    def test_v1_document_accepted_on_update(self):
+        pid = self.post("/api/v2/projects", {"data": document()}).json()["id"]
+        r = self.put(f"/api/v2/projects/{pid}", {"data": document_v1("Poção 2", color=BLUE), "revision": 1})
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(self.c.get(f"/api/v2/projects/{pid}").json()["data"], document("Poção 2", color=BLUE))
+
+    def test_v1_document_is_still_validated(self):
+        bad = document_v1()
+        bad["largura"] = 2000
+        self.assertEqual(self.post("/api/v2/projects", {"data": bad}).status_code, 422)
+        bad = document_v1()
+        bad["formato"] = "outro"
+        self.assertEqual(self.post("/api/v2/projects", {"data": bad}).status_code, 422)
+        self.assertEqual(Project.objects.count(), 0)
+
+    def test_old_v1_revision_is_restored(self):
+        pid = self.post("/api/v2/projects", {"data": document("Atual", color=BLUE)}).json()["id"]
+        project = Project.objects.get(pk=pid)
+        # A revision saved by Crivo 1.x: zlib-compressed JSON of a version 1 document.
+        content = zlib.compress(json.dumps(document_v1("Antigo"), separators=(",", ":")).encode("utf-8"), 6)
+        Revision.objects.create(project=project, number=0, name="Antigo", content=content, size_bytes=len(content))
+        r = self.post(f"/api/v2/projects/{pid}/revisions/0/restore", {})
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual((r.json()["name"], r.json()["revision"]), ("Antigo", 2))
+        self.assertEqual(self.c.get(f"/api/v2/projects/{pid}").json()["data"], document("Antigo"))
+        newest = services.read_revision_document(Revision.objects.get(project=project, number=1))
+        self.assertEqual(newest, document("Atual", color=BLUE), "revisions saved from now on hold version 2 documents")
+
+    def test_newer_format_version_is_rejected(self):
+        newer = {**document(), "version": 3}
+        r = self.post("/api/v2/projects", {"data": newer})
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["error"], "Este projeto foi salvo por uma versão mais nova do Crivo.")
+        self.assertEqual(Project.objects.count(), 0)

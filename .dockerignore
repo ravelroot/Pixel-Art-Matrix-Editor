@@ -9,8 +9,8 @@ node_modules
 staticfiles
 crivo.sqlite3
 docs
-exemplos
-ferramentas
+examples
+tools
 tests
 *.pdf
 Crivo.exe

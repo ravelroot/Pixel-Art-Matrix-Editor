@@ -3,7 +3,7 @@ line-length = 160
 extend-exclude = ["editor/migrations", "staticfiles"]
 
 [lint]
-# E/W estilo, F erros, B bugs prováveis, S segurança (flake8-bandit), UP Python moderno, SIM simplificações
+# E/W style, F errors, B likely bugs, S security (flake8-bandit), UP modern Python, SIM simplifications
 select = ["E", "F", "W", "B", "S", "UP", "SIM"]
 ignore = ["E501"]
 

@@ -9,242 +9,241 @@ from django.db.models import Count
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods
 
-from . import exportacao, servico
-from .models import Paleta, Projeto
-from .rle import ErroRLE
+from . import export as exporter
+from . import services
+from .models import Palette, Project
+from .rle import RLEError
 
 log = logging.getLogger("crivo.api")
 
-
-def erro(mensagem, status=400, **extra):
-    return JsonResponse({"erro": mensagem, **extra}, status=status, json_dumps_params={"ensure_ascii": False})
+# Error messages ({"error": "..."}) are shown to the user by the editor, so they stay in Portuguese.
 
 
-def ok(dados, status=200):
-    return JsonResponse(dados, status=status, json_dumps_params={"ensure_ascii": False})
+def error(message, status=400, **extra):
+    return JsonResponse({"error": message, **extra}, status=status, json_dumps_params={"ensure_ascii": False})
 
 
-class CorpoGrandeDemais(Exception):
+def ok(data, status=200):
+    return JsonResponse(data, status=status, json_dumps_params={"ensure_ascii": False})
+
+
+class BodyTooLarge(Exception):
     pass
 
 
-class JsonInvalido(servico.ErroValidacao):
+class InvalidJson(services.ValidationError):
     pass
 
 
-def ler_json(request):
+def read_json(request):
     try:
-        corpo = request.body
+        body = request.body
     except RequestDataTooBig as e:
-        raise CorpoGrandeDemais() from e
-    if not corpo:
+        raise BodyTooLarge() from e
+    if not body:
         return {}
     try:
-        dados = json.loads(corpo.decode("utf-8"))
+        data = json.loads(body.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as e:
-        raise JsonInvalido("Corpo da requisição não é um JSON válido.") from e
+        raise InvalidJson("Corpo da requisição não é um JSON válido.") from e
     except RecursionError as e:
-        raise JsonInvalido("O JSON está aninhado demais.") from e
-    if not isinstance(dados, dict):
-        raise servico.ErroValidacao("O corpo da requisição precisa ser um objeto JSON.")
-    return dados
+        raise InvalidJson("O JSON está aninhado demais.") from e
+    if not isinstance(data, dict):
+        raise services.ValidationError("O corpo da requisição precisa ser um objeto JSON.")
+    return data
 
 
-def tratar_erros(view):
+def handle_errors(view):
     @wraps(view)
-    def envoltorio(request, *args, **kwargs):
+    def wrapper(request, *args, **kwargs):
         try:
             return view(request, *args, **kwargs)
-        except CorpoGrandeDemais:
-            return erro(f"O corpo da requisição passa do limite de {settings.DATA_UPLOAD_MAX_MEMORY_SIZE // (1024 * 1024)} MB.", 413)
-        except servico.ErroValidacao as e:
-            return erro(str(e), 422)
-        except servico.Conflito as e:
-            return erro("O projeto foi salvo em outro lugar depois que você o abriu.", 409, revisao_atual=e.revisao_atual)
-        except (Projeto.DoesNotExist, Paleta.DoesNotExist):
-            return erro("Não encontrado.", 404)
-        except (ValueError, ErroRLE) as e:
-            return erro(str(e), 400)
+        except BodyTooLarge:
+            return error(f"O corpo da requisição passa do limite de {settings.DATA_UPLOAD_MAX_MEMORY_SIZE // (1024 * 1024)} MB.", 413)
+        except services.ValidationError as e:
+            return error(str(e), 422)
+        except services.Conflict as e:
+            return error("O projeto foi salvo em outro lugar depois que você o abriu.", 409, current_revision=e.current_revision)
+        except (Project.DoesNotExist, Palette.DoesNotExist):
+            return error("Não encontrado.", 404)
+        except (ValueError, RLEError) as e:
+            return error(str(e), 400)
 
-    return envoltorio
+    return wrapper
 
 
 @require_http_methods(["GET"])
-def indice(request):
+def index(request):
     return ok(
         {
-            "nome": "Crivo",
-            "versao": settings.CRIVO["VERSAO"],
-            "rotas": {
-                "saude": "/api/v1/saude",
-                "projetos": "/api/v1/projetos",
-                "projeto": "/api/v1/projetos/{id}",
-                "miniatura": "/api/v1/projetos/{id}/miniatura",
-                "exportar": "/api/v1/projetos/{id}/exportar?formato=json|csv|js|py|c|java&modo=indices|hex&quadro=todos|N",
-                "png": "/api/v1/projetos/{id}/png?quadro=N&escala=1..32",
-                "revisoes": "/api/v1/projetos/{id}/revisoes",
-                "restaurar": "/api/v1/projetos/{id}/revisoes/{numero}/restaurar",
-                "paletas": "/api/v1/paletas",
-                "paleta": "/api/v1/paletas/{id}",
+            "name": "Crivo",
+            "version": settings.CRIVO["VERSION"],
+            "routes": {
+                "health": "/api/v2/health",
+                "projects": "/api/v2/projects",
+                "project": "/api/v2/projects/{id}",
+                "thumbnail": "/api/v2/projects/{id}/thumbnail",
+                "export": "/api/v2/projects/{id}/export?format=json|csv|js|py|c|java&mode=indices|hex&frame=all|N",
+                "png": "/api/v2/projects/{id}/png?frame=N&scale=1..32",
+                "revisions": "/api/v2/projects/{id}/revisions",
+                "restore": "/api/v2/projects/{id}/revisions/{number}/restore",
+                "palettes": "/api/v2/palettes",
+                "palette": "/api/v2/palettes/{id}",
             },
         }
     )
 
 
 @require_http_methods(["GET"])
-def saude(request):
+def health(request):
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
             cursor.fetchone()
     except Exception:
-        log.exception("Banco indisponível")
-        return erro("Banco de dados indisponível.", 503, status="erro")
-    return ok({"status": "ok", "versao": settings.CRIVO["VERSAO"], "banco": connection.vendor})
+        log.exception("Database unavailable")
+        return error("Banco de dados indisponível.", 503, status="error")
+    return ok({"status": "ok", "version": settings.CRIVO["VERSION"], "database": connection.vendor})
 
 
 @require_http_methods(["GET", "POST"])
-@tratar_erros
-def projetos(request):
+@handle_errors
+def projects(request):
     if request.method == "POST":
-        corpo = ler_json(request)
-        projeto = servico.criar_projeto(corpo.get("dados"), corpo.get("miniatura"), corpo.get("nome"))
-        return ok(servico.resumo_projeto(projeto), 201)
-    lista = Projeto.objects.annotate(n_quadros=Count("quadros", distinct=True), n_camadas=Count("camadas", distinct=True)).defer("miniatura")
-    busca = request.GET.get("q", "").strip()
-    if busca:
-        lista = lista.filter(nome__icontains=busca)
-    ids_com_miniatura = set(Projeto.objects.filter(miniatura__isnull=False).values_list("pk", flat=True))
-    itens = []
-    for p in lista[:500]:
-        resumo = servico.resumo_projeto(p, {"quadros": p.n_quadros, "camadas": p.n_camadas})
-        resumo["miniatura_url"] = f"/api/v1/projetos/{p.pk}/miniatura" if p.pk in ids_com_miniatura else None
-        itens.append(resumo)
-    return ok({"projetos": itens})
+        body = read_json(request)
+        project = services.create_project(body.get("data"), body.get("thumbnail"), body.get("name"))
+        return ok(services.project_summary(project), 201)
+    queryset = Project.objects.annotate(frame_count=Count("frames", distinct=True), layer_count=Count("layers", distinct=True)).defer("thumbnail")
+    search = request.GET.get("q", "").strip()
+    if search:
+        queryset = queryset.filter(name__icontains=search)
+    ids_with_thumbnail = set(Project.objects.filter(thumbnail__isnull=False).values_list("pk", flat=True))
+    items = [services.project_summary(p, {"frames": p.frame_count, "layers": p.layer_count}, has_thumbnail=p.pk in ids_with_thumbnail) for p in queryset[:500]]
+    return ok({"projects": items})
 
 
 @require_http_methods(["GET", "PUT", "DELETE"])
-@tratar_erros
-def projeto(request, projeto_id):
+@handle_errors
+def project(request, project_id):
     if request.method == "DELETE":
-        Projeto.objects.get(pk=projeto_id).delete()
+        Project.objects.get(pk=project_id).delete()
         return HttpResponse(status=204)
     if request.method == "PUT":
-        corpo = ler_json(request)
-        p = servico.atualizar_projeto(projeto_id, corpo.get("dados"), corpo.get("miniatura"), corpo.get("revisao"), corpo.get("nome"))
-        return ok(servico.resumo_projeto(p))
-    p = Projeto.objects.get(pk=projeto_id)
-    return ok({**servico.resumo_projeto(p), "dados": servico.documento_do_banco(p)})
+        body = read_json(request)
+        p = services.update_project(project_id, body.get("data"), body.get("thumbnail"), body.get("revision"), body.get("name"))
+        return ok(services.project_summary(p))
+    p = Project.objects.get(pk=project_id)
+    return ok({**services.project_summary(p), "data": services.document_from_db(p)})
 
 
 @require_http_methods(["GET"])
-@tratar_erros
-def miniatura(request, projeto_id):
-    p = Projeto.objects.only("miniatura").get(pk=projeto_id)
-    if not p.miniatura:
-        return erro("Este projeto não tem miniatura.", 404)
-    resposta = HttpResponse(bytes(p.miniatura), content_type="image/png")
-    resposta["Cache-Control"] = "no-cache"
-    return resposta
+@handle_errors
+def thumbnail(request, project_id):
+    p = Project.objects.only("thumbnail").get(pk=project_id)
+    if not p.thumbnail:
+        return error("Este projeto não tem miniatura.", 404)
+    response = HttpResponse(bytes(p.thumbnail), content_type="image/png")
+    response["Cache-Control"] = "no-cache"
+    return response
 
 
 @require_http_methods(["GET"])
-@tratar_erros
-def exportar(request, projeto_id):
-    formato = request.GET.get("formato", "json")
-    modo = request.GET.get("modo", "indices")
-    if formato not in exportacao.FORMATOS:
-        return erro(f"Formato não suportado. Use: {', '.join(exportacao.FORMATOS)}.")
-    if modo not in ("indices", "hex"):
-        return erro("Modo não suportado. Use indices ou hex.")
-    p = Projeto.objects.get(pk=projeto_id)
-    quadro = request.GET.get("quadro", "todos")
+@handle_errors
+def export(request, project_id):
+    fmt = request.GET.get("format", "json")
+    mode = request.GET.get("mode", "indices")
+    if fmt not in exporter.FORMATS:
+        return error(f"Formato não suportado. Use: {', '.join(exporter.FORMATS)}.")
+    if mode not in ("indices", "hex"):
+        return error("Modo não suportado. Use indices ou hex.")
+    p = Project.objects.get(pk=project_id)
+    frame = request.GET.get("frame", "all")
     indices = None
-    if quadro != "todos":
-        if not quadro.isdigit():
-            return erro("O quadro precisa ser 'todos' ou um número.")
-        n = int(quadro)
-        total = p.quadros.count()
+    if frame != "all":
+        if not frame.isdigit():
+            return error("O quadro precisa ser 'all' ou um número.")
+        n = int(frame)
+        total = p.frames.count()
         if n < 1 or n > total:
-            return erro(f"Quadro fora do intervalo 1 a {total}.")
+            return error(f"Quadro fora do intervalo 1 a {total}.")
         indices = [n - 1]
-    doc, quadros = servico.pixels_compostos(p, indices)
-    dados = exportacao.montar_matrizes(quadros, doc["largura"], doc["altura"], modo)
-    tipo, extensao = exportacao.FORMATOS[formato]
-    resposta = HttpResponse(exportacao.gerar(formato, dados, p.nome), content_type=f"{tipo}; charset=utf-8")
-    if request.GET.get("baixar"):
-        # Em Java o arquivo precisa ter o mesmo nome da classe pública (PascalCase), senão o javac recusa.
-        base = exportacao.identificador(p.nome, "pascal" if formato == "java" else "camelo")
-        resposta["Content-Disposition"] = f'attachment; filename="{base}.{extensao}"'
-    return resposta
+    doc, frames = services.composite_pixels(p, indices)
+    data = exporter.build_matrices(frames, doc["width"], doc["height"], mode)
+    content_type, extension = exporter.FORMATS[fmt]
+    response = HttpResponse(exporter.generate(fmt, data, p.name), content_type=f"{content_type}; charset=utf-8")
+    if request.GET.get("download"):
+        # A Java file must be named after its public class (PascalCase), or javac refuses it.
+        base = exporter.identifier(p.name, "pascal" if fmt == "java" else "camel")
+        response["Content-Disposition"] = f'attachment; filename="{base}.{extension}"'
+    return response
 
 
 @require_http_methods(["GET"])
-@tratar_erros
-def png(request, projeto_id):
-    quadro = request.GET.get("quadro", "1")
-    escala = request.GET.get("escala", "1")
-    if not quadro.isdigit() or not escala.isdigit():
-        return erro("quadro e escala precisam ser números inteiros.")
-    escala = int(escala)
-    if not 1 <= escala <= 32:
-        return erro("A escala precisa ficar entre 1 e 32.")
-    p = Projeto.objects.get(pk=projeto_id)
-    total = p.quadros.count()
-    n = int(quadro)
+@handle_errors
+def png(request, project_id):
+    frame = request.GET.get("frame", "1")
+    scale = request.GET.get("scale", "1")
+    if not frame.isdigit() or not scale.isdigit():
+        return error("quadro e escala precisam ser números inteiros.")
+    scale = int(scale)
+    if not 1 <= scale <= 32:
+        return error("A escala precisa ficar entre 1 e 32.")
+    p = Project.objects.get(pk=project_id)
+    total = p.frames.count()
+    n = int(frame)
     if n < 1 or n > total:
-        return erro(f"Quadro fora do intervalo 1 a {total}.")
-    doc, (pixels,) = servico.pixels_compostos(p, [n - 1])
-    imagem = exportacao.gerar_png(pixels, doc["largura"], doc["altura"], escala)
-    resposta = HttpResponse(imagem, content_type="image/png")
-    resposta["Cache-Control"] = "no-cache"
-    if request.GET.get("baixar"):
-        resposta["Content-Disposition"] = f'attachment; filename="{exportacao.identificador(p.nome)}-{n}.png"'
-    return resposta
+        return error(f"Quadro fora do intervalo 1 a {total}.")
+    doc, (pixels,) = services.composite_pixels(p, [n - 1])
+    image = exporter.generate_png(pixels, doc["width"], doc["height"], scale)
+    response = HttpResponse(image, content_type="image/png")
+    response["Cache-Control"] = "no-cache"
+    if request.GET.get("download"):
+        response["Content-Disposition"] = f'attachment; filename="{exporter.identifier(p.name)}-{n}.png"'
+    return response
 
 
 @require_http_methods(["GET"])
-@tratar_erros
-def revisoes(request, projeto_id):
-    p = Projeto.objects.get(pk=projeto_id)
+@handle_errors
+def revisions(request, project_id):
+    p = Project.objects.get(pk=project_id)
     return ok(
         {
-            "revisao_atual": p.revisao,
-            "revisoes": [
-                {"numero": r.numero, "nome": r.nome, "tamanho_bytes": r.tamanho_bytes, "criado_em": r.criado_em.isoformat()}
-                for r in p.revisoes.defer("conteudo").order_by("-numero")
+            "current_revision": p.revision,
+            "revisions": [
+                {"number": r.number, "name": r.name, "size_bytes": r.size_bytes, "created_at": r.created_at.isoformat()}
+                for r in p.revisions.defer("content").order_by("-number")
             ],
         }
     )
 
 
 @require_http_methods(["POST"])
-@tratar_erros
-def restaurar(request, projeto_id, numero):
-    p = servico.restaurar_revisao(projeto_id, numero)
-    return ok(servico.resumo_projeto(p))
+@handle_errors
+def restore(request, project_id, number):
+    p = services.restore_revision(project_id, number)
+    return ok(services.project_summary(p))
 
 
 @require_http_methods(["GET", "POST"])
-@tratar_erros
-def paletas(request):
+@handle_errors
+def palettes(request):
     if request.method == "POST":
-        return ok(servico.paleta_para_dict(servico.salvar_paleta(ler_json(request))), 201)
-    lista = Paleta.objects.prefetch_related("cores")
-    if request.GET.get("predefinidas") == "0":
-        lista = lista.filter(predefinida=False)
-    return ok({"paletas": [servico.paleta_para_dict(p) for p in lista]})
+        return ok(services.palette_to_dict(services.save_palette(read_json(request))), 201)
+    queryset = Palette.objects.prefetch_related("colors")
+    if request.GET.get("presets") == "0":
+        queryset = queryset.filter(preset=False)
+    return ok({"palettes": [services.palette_to_dict(p) for p in queryset]})
 
 
 @require_http_methods(["GET", "PUT", "DELETE"])
-@tratar_erros
-def paleta(request, paleta_id):
-    p = Paleta.objects.get(pk=paleta_id)
+@handle_errors
+def palette(request, palette_id):
+    p = Palette.objects.get(pk=palette_id)
     if request.method == "GET":
-        return ok(servico.paleta_para_dict(p))
-    if p.predefinida:
-        return erro("As paletas predefinidas não podem ser alteradas. Crie uma cópia.", 403)
+        return ok(services.palette_to_dict(p))
+    if p.preset:
+        return error("As paletas predefinidas não podem ser alteradas. Crie uma cópia.", 403)
     if request.method == "DELETE":
         p.delete()
         return HttpResponse(status=204)
-    return ok(servico.paleta_para_dict(servico.salvar_paleta(ler_json(request), p)))
+    return ok(services.palette_to_dict(services.save_palette(read_json(request), p)))
