@@ -617,7 +617,7 @@ export function aboutDialog(version, storage) {
       el('div', { class: 'about-logo', html: icon('logo', 72) }),
       el('p', {}, el('strong', {}, `Crivo ${version}`), ' · editor de pixel art baseado em matrizes.'),
       el('p', {}, `Projetos e paletas ficam salvos em ${storage.name}.`),
-      el('p', {}, 'Código aberto sob a licença MIT. Copyright (©) 2026 Erik Pimenta.'),
+      el('p', {}, 'Copyright (©) 2026 Erik Pimenta. Todos os direitos reservados. Uso gratuito; não é permitido modificar nem copiar o Crivo.'),
       el('p', {}, el('a', { href: 'https://github.com/ravelroot/Pixel-Art-Matrix-Editor', target: '_blank', rel: 'noopener' }, 'github.com/ravelroot/Pixel-Art-Matrix-Editor')),
     ),
     actions: [{ label: 'Fechar', value: null }],

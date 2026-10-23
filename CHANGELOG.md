@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## 2.1.1 — 23/10/2026
+
+**Licença:** o Crivo deixa a licença MIT e passa a ter uma licença de uso própria (`LICENSE`). Continua de graça para baixar e usar, nas três maneiras (app desktop, servidor local e `Crivo.html`), e tudo o que você cria ou exporta com ele é seu, inclusive para jogos e projetos comerciais. Modificar o Crivo, copiar o código para outros projetos e redistribuí-lo passam a depender de autorização por escrito do autor.
+
+**App:** a janela **Ajuda → Sobre o Crivo** e as propriedades do `Crivo.exe` trazem o novo aviso ("Todos os direitos reservados"). O `package.json` passa a apontar para o `LICENSE`.
+
+**Documentação:** README (seções Licença e Personalizando o Crivo), manual técnico (capa com o logo novo, visão geral e capítulo 18, que passa a ser "Licença e uso") e PDF do banco de dados (capa) atualizados para a 2.1.1.
+
+**Compatibilidade:** nada muda no editor, no formato `.crivo`, na API nem no banco de dados; não há migração nova.
+
 ## 2.1.0 — 23/10/2026
 
 **Recursos do Aseprite:** a 2.1.0 traz para o Crivo os recursos principais do Aseprite, escritos do zero (o formato `.aseprite` foi implementado a partir da especificação pública). Nada do que já existia muda de comportamento: a composição no modo normal continua idêntica, bit a bit, à da 2.0.0.

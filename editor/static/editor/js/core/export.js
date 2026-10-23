@@ -345,7 +345,7 @@ export function sheetMetadata(name, layout, frames, fps) {
 
 // Sprite sheet metadata in the JSON layout Aseprite writes (--format json-hash / json-array), so engines and
 // tools that read Aseprite sheets (Phaser, Godot importers, PixiJS, LÖVE libraries) can load Crivo sheets.
-export function asepriteSheetMetadata(doc, layout, { image, scale = 1, format = 'hash', name = doc.name, version = '2.1.0' } = {}) {
+export function asepriteSheetMetadata(doc, layout, { image, scale = 1, format = 'hash', name = doc.name, version = '2.1.1' } = {}) {
   const rgbaHex = (hex, fallback) => {
     const h = String(hex || fallback).replace('#', '').toLowerCase();
     return '#' + (h.length === 8 ? h : h.slice(0, 6) + 'ff');

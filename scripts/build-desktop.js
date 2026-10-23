@@ -181,7 +181,7 @@ function go(args, extraEnv = {}) {
 function versionInfo(version) {
   const [major, minor, patch] = version.split('.').map(Number);
   const number = { Major: major, Minor: minor, Patch: patch, Build: 0 };
-  const copyright = 'Copyright (©) 2026 Erik Pimenta';
+  const copyright = 'Copyright (©) 2026 Erik Pimenta. Todos os direitos reservados.';
   return {
     FixedFileInfo: { FileVersion: number, ProductVersion: number, FileFlagsMask: '3f', FileFlags: '00', FileOS: '040004', FileType: '01', FileSubType: '00' },
     StringFileInfo: {

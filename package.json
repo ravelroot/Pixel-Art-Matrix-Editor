@@ -1,10 +1,10 @@
 {
   "name": "crivo",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Editor de pixel art baseado em matrizes, com camadas, quadros, histórico ilimitado e exportação para jogos.",
   "private": true,
   "type": "module",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "author": "Erik Pimenta",
   "repository": {
     "type": "git",

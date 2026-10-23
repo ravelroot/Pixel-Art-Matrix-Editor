@@ -7,7 +7,7 @@
 <p align="center">
   Editor de pixel art que roda no navegador e trata a imagem como ela é: uma matriz de pixels RGBA. Desenhe com lápis, spray, balde, linhas, curvas, formas, pontilhado e degradês, selecione com retângulo, elipse, laço ou varinha mágica, organize em camadas e grupos com modos de mistura, anime quadro a quadro com tags e cels vinculados e exporte PNG, GIF e PNG animados, sprite sheets, arquivos do Aseprite ou a própria matriz em JSON, CSV, JavaScript, Python, C e Java para usar direto no seu jogo.<br>
   Roda de três maneiras: app desktop para Windows (<code>Crivo.exe</code>), servidor local com backend ou arquivo único no navegador (<code>Crivo.html</code>).<br>
-  Pronto para usar, estudar ou adaptar.
+  Pronto para baixar e usar.
 </p>
 
 <p align="center">
@@ -19,6 +19,8 @@
 > **Manual completo:** [`Manual-Crivo.pdf`](Manual-Crivo.pdf) explica as três maneiras de rodar (app desktop, servidor local e arquivo único), cada uma das 23 ferramentas, seleção, camadas e grupos, modos de mistura, tags, tilemaps, slices, cor e paletas, ajustes, arquivos do Aseprite, abas, exportação, a matemática por trás dos algoritmos (Bresenham, flood fill, OKLCH, pontilhado de Bayer, LZW do GIF, RLE), a API, a ferramenta em Java, a configuração, a segurança, os testes e a solução de problemas, passo a passo (cópia em [`docs/`](docs/Manual-Crivo.pdf)).
 
 > **Banco de dados:** [`Banco-de-Dados-Crivo.pdf`](Banco-de-Dados-Crivo.pdf) traz o diagrama de relacionamentos, todas as tabelas (inclusive `tag`, `slice` e `tileset`, da 2.1.0) com campos, tipos, chaves e restrições, o formato binário das células, o controle de versões, consultas prontas, como preparar o PostgreSQL e as regras de integridade e segurança dos dados.
+
+> **Versão 2.1.1, licença de uso:** o Crivo deixou a licença MIT e passou a ter uma licença de uso própria. Você pode baixar e usar de graça, e o que você cria com ele é seu; modificar, copiar o código e redistribuir não são permitidos. Nada muda no editor. Detalhes em [Licença](#licença).
 
 > **Versão 2.1.0, recursos do Aseprite:** camadas em grupos, 19 modos de mistura, camadas de referência, tags de animação, cels vinculados, tilemaps, slices, seleções de qualquer forma, dez ferramentas novas, modos de tinta, pincel personalizado, modos de cor RGBA, indexado e tons de cinza, editor de paleta, ajustes de cor, abertura e exportação de `.aseprite`, PNG animado (APNG), quadros em `.zip`, JSON no formato do Aseprite, abas e janela de pré-visualização. Nada quebra: arquivos `.crivo` da 2.0 abrem e salvam iguais (o formato continua na versão 2, só com chaves opcionais novas), e quem usa o servidor só precisa rodar `python manage.py migrate` (migração `0004_aseprite_features`; com Docker, roda sozinha). Detalhes em [Recursos de nível Aseprite](#recursos-de-nível-aseprite-210) e no [CHANGELOG](CHANGELOG.md).
 
@@ -457,20 +459,16 @@ Ao atualizar uma instalação, rode `python manage.py migrate` (com Docker, as m
 
 ## Personalizando o Crivo
 
-O projeto foi organizado para ser fácil de adaptar:
+Dá para deixar o Crivo do seu jeito sem mexer no código:
 
-| Quero... | Onde mexer |
+| Quero... | Onde |
 |---|---|
-| Incluir uma paleta fixa | `PRESET_PALETTES` em `editor/static/editor/js/core/palettes.js` (e `PRESET_PALETTES` em `editor/palettes.py`, para a API) |
-| Criar uma ferramenta | Lista `TOOLS` e métodos `pointerDown`/`pointerMove`/`pointerUp` em `editor/static/editor/js/ui/tools.js` |
-| Um recurso inteiro com menu e atalhos | Um módulo em `editor/static/editor/js/features/` com `install(app)`, chamado pelo `main.js`: `app.commands`, `app.addMenuItems`, `app.addMenu`, `app.addShortcut` e `app.addToolOptions` |
-| Novo modo de mistura | `BLEND_MODES`/`BLEND_LABELS` em `core/blend.js`, com a mesma fórmula em `editor/blend.py` e em `tools/java/.../Blend.java` (o teste de paridade confere os três) |
-| Novo filtro ou comando de imagem | Função pura em `editor/static/editor/js/core/filters.js` (devolve pares `[índice, cor]`) e uma entrada em `COMMANDS`/`MENUS` em `main.js` |
-| Outro padrão de pontilhado | `BAYER` e `bayerThreshold` em `editor/static/editor/js/core/dither.js` |
-| Novo formato de exportação | `generateData` em `editor/static/editor/js/core/export.js` |
-| Trocar cores e tema | Variáveis no início de `editor/static/editor/css/crivo.css` |
-| Novo ícone | Desenhe o bitmap em `BITMAPS` (`editor/static/editor/js/ui/icons.js`), um `#` por pixel |
-| Atalhos de teclado | Função `shortcuts` em `editor/static/editor/js/main.js` |
+| Ter paletas minhas | **Cor → Editar paleta…** (ou o botão **Editar** do painel); uma paleta predefinida editada vira uma paleta sua |
+| Criar rampas de sombra e luz | Gerador de tons, a partir da cor escolhida |
+| Ajustar a visualização | Menu **Exibir**: grade (G), linha forte a cada 4, 8, 16 ou 32 pixels, papel cebola e **Configurar papel cebola…**, modo ladrilho e tema |
+| Configurar o servidor | Variáveis do `.env` (veja [Configuração](#configuração)) |
+
+Alterar o código-fonte, criar versões modificadas ou reaproveitar partes do código em outros projetos não é permitido pela [licença](#licença).
 
 ## Desenvolvimento e testes
 
@@ -565,6 +563,14 @@ As paletas Game Boy, NES, Pico-8, CGA e Commodore 64 reproduzem as cores dos res
 
 ## Licença
 
-Copyright (©) 2026 Erik Pimenta
+Copyright (©) 2026 Erik Pimenta. Todos os direitos reservados.
 
-Este projeto é distribuído sob a licença [MIT](LICENSE). Você pode usar, copiar, modificar e redistribuir o código, inclusive para fins comerciais, desde que mantenha o aviso de copyright e o texto da licença.
+O Crivo é distribuído sob uma [licença de uso](LICENSE) própria:
+
+| Pode | Não pode |
+|---|---|
+| Baixar e usar de graça, como app desktop, servidor local ou `Crivo.html` | Modificar o Crivo ou criar versões derivadas |
+| Configurar pelo `.env` e pelas preferências e paletas do editor | Copiar o código, no todo ou em parte, para outros projetos |
+| Usar como quiser o que você cria ou exporta, inclusive em jogos comerciais | Redistribuir, publicar ou vender o Crivo |
+
+Para pedir uma autorização que a licença não dá, fale com o autor pelo [GitHub](https://github.com/ravelroot). O texto completo está em [`LICENSE`](LICENSE).

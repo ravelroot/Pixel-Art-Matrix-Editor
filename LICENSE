@@ -1,21 +1,77 @@
-MIT License
+Licença de Uso do Crivo
 
-Copyright (c) 2026 Erik Pimenta
+Copyright (©) 2026 Erik Pimenta. Todos os direitos reservados.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+O Crivo (o código-fonte, o Crivo.exe, o Crivo.html, a ferramenta em Java, os
+manuais em PDF, o logo e as imagens deste repositório, juntos chamados aqui de
+"Software") é protegido pela Lei de Direitos Autorais (Lei nº 9.610/1998) e
+pela Lei do Software (Lei nº 9.609/1998). Esta licença não transfere a
+propriedade do Software: ela só dá a você o direito de usá-lo, nas condições
+abaixo.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. O que você pode fazer
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+   a) Baixar o Software e guardá-lo ou instalá-lo nos seus computadores.
+   b) Usar o Software de graça, para fins pessoais, educacionais ou
+      profissionais, de qualquer uma das três maneiras descritas na
+      documentação: app desktop (Crivo.exe), servidor local (inclusive com o
+      Docker Compose) ou arquivo único (Crivo.html).
+   c) Configurar o Software pelos meios previstos na documentação, como as
+      variáveis de ambiente do arquivo .env e as preferências e paletas do
+      próprio editor. Isso não conta como modificação.
+   d) Fazer só as cópias necessárias para esse uso: a cópia baixada, a
+      instalação e uma cópia de segurança.
+
+2. O que você não pode fazer sem autorização por escrito do autor
+
+   a) Modificar, adaptar, traduzir ou criar obras derivadas do Software ou de
+      qualquer parte dele.
+   b) Copiar o código-fonte, no todo ou em parte, para outros projetos,
+      programas ou repositórios.
+   c) Redistribuir, publicar, vender, alugar, emprestar, sublicenciar ou
+      disponibilizar o Software a terceiros, modificado ou não, inclusive em
+      outros sites, lojas de aplicativos e pacotes. Para indicar o Crivo, use o
+      link do repositório oficial.
+   d) Remover ou alterar os avisos de copyright, o nome Crivo, o logo ou esta
+      licença.
+   e) Descompilar ou fazer engenharia reversa do Crivo.exe, salvo nos casos em
+      que a lei permite.
+
+3. O que você cria é seu
+
+   Desenhos, animações, paletas e arquivos que você cria ou exporta com o
+   Crivo (.crivo, PNG, GIF, PNG animado, .aseprite, sprite sheets, JSON e a
+   matriz gerada em CSV, JavaScript, Python, C ou Java) pertencem a você, que
+   pode usá-los como quiser, inclusive em jogos e projetos comerciais.
+
+4. GitHub
+
+   O repositório é público para que o Crivo possa ser baixado. Ver o código e
+   usar os recursos do próprio GitHub, como o fork, nos limites dos Termos de
+   Serviço do GitHub, não dá nenhum direito além desta licença.
+
+5. Componentes de terceiros
+
+   Os componentes de terceiros usados pelo Software, listados no README,
+   continuam sob as próprias licenças.
+
+6. Sem garantia
+
+   O Software é fornecido "no estado em que se encontra", sem garantia de
+   nenhum tipo, expressa ou implícita, inclusive de adequação a um uso
+   específico. Na extensão máxima permitida pela lei, o autor não responde por
+   danos, perda de dados ou outros prejuízos causados pelo uso do Software ou
+   pela impossibilidade de usá-lo.
+
+7. Fim da licença
+
+   O descumprimento de qualquer condição encerra esta licença
+   automaticamente. Nesse caso, você deve parar de usar o Software e apagar as
+   cópias que tiver.
+
+8. Pedidos de autorização
+
+   Para pedir uma autorização que esta licença não dá, fale com o autor pelo
+   GitHub: https://github.com/ravelroot
+
+Esta licença é regida pelas leis da República Federativa do Brasil.
