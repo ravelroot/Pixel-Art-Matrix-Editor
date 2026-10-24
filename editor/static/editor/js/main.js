@@ -22,12 +22,14 @@ import { confirm } from './ui/dialog.js';
 import { icon } from './ui/icons.js';
 import { thumbnail } from './ui/image.js';
 import { el, $, notify, downloadText, pickFile, formatBytes, delay, readPreference, writePreference } from './ui/util.js';
+import { canChooseLocation, chooseLocation, writeToLocation, PickerUnavailable } from './ui/save-file.js';
+import { startTutorial, tutorialPending } from './ui/tutorial.js';
 import { install as installLayers } from './features/layers.js';
 import { install as installSelection } from './features/selection.js';
 import { install as installColor } from './features/color.js';
 import { install as installFiles } from './features/files.js';
 
-const VERSION = '2.1.1';
+const VERSION = '2.2.0';
 
 // In the desktop app (Crivo.exe), the Windows program creates window.crivoDesktop before this page loads.
 // In the browser and in Crivo.html it does not exist, and nothing that depends on it is shown.
@@ -233,7 +235,7 @@ const COMMANDS = {
   openFile: { label: 'Abrir arquivo .crivo…', shortcut: 'Ctrl+O', fn: openFile },
   importImage: { label: 'Importar imagem ou sprite sheet…', shortcut: '', fn: () => importImageDialog(editor) },
   save: { label: 'Salvar', shortcut: 'Ctrl+S', fn: () => save() },
-  saveAs: { label: 'Salvar como cópia', shortcut: '', fn: () => save(true) },
+  saveAs: { label: 'Salvar como…', shortcut: 'Ctrl+Shift+S', fn: () => save(true) },
   downloadCrivo: { label: 'Baixar arquivo .crivo', shortcut: '', fn: downloadCrivo },
   exportImage: { label: 'Exportar imagem (PNG, JPEG ou GIF)…', shortcut: 'Ctrl+E', fn: () => exportImageDialog(editor) },
   exportGif: { label: 'Exportar GIF animado…', shortcut: 'Ctrl+Shift+G', fn: () => exportImageDialog(editor, 'gif') },
@@ -282,6 +284,7 @@ const COMMANDS = {
   fit: { label: 'Ajustar à tela', shortcut: '0', fn: () => viewport.fit() },
   zoom100: { label: 'Tamanho real (100%)', shortcut: '1', fn: () => (viewport.setZoom(1), viewport.centerView()) },
   theme: { label: 'Alternar tema claro/escuro', shortcut: '', fn: toggleTheme },
+  tutorial: { label: 'Tutorial rápido', shortcut: '', fn: () => startTutorial({ welcome: false }) },
   shortcuts: { label: 'Atalhos do teclado', shortcut: '?', fn: () => shortcutsDialog() },
   about: { label: 'Sobre o Crivo', shortcut: '', fn: () => aboutDialog(VERSION, storage) },
   fullscreen: { label: 'Tela cheia', shortcut: 'F11', fn: () => DESKTOP?.toggleFullscreen() },
@@ -300,7 +303,7 @@ const MENUS = [
   ['Editar', ['undo', 'redo', '-', 'copy', 'cut', 'paste', 'clearLayer', '-', 'selectAll', 'deselect', '-', 'flipH', 'flipV']],
   ['Imagem', ['size', 'cropSelection', 'trim', '-', 'rotateRight', 'rotateLeft', 'shiftHalf', '-', 'outline4', 'outline8', '-', 'toPalette', 'replaceColor', 'invert', 'grayscale']],
   ['Exibir', ['grid', 'onionSkin', 'tile', '-', 'zoomIn', 'zoomOut', 'fit', 'zoom100', '-', 'theme', ...(DESKTOP ? ['fullscreen'] : [])]],
-  ['Ajuda', ['shortcuts', 'about']],
+  ['Ajuda', ['tutorial', 'shortcuts', 'about']],
 ];
 
 // Feature modules (features/*.js) receive this object in install(app) and plug into the app through it:
@@ -581,8 +584,41 @@ function projectData() {
   };
 }
 
+// Name suggested in the Save as window: the project name as typed (spaces and accents are fine on Windows).
+const projectFileName = (name) => `${String(name).replace(/[<>:"/\\|?*\u0000-\u001f]/g, '').trim().replace(/[. ]+$/, '') || 'Sem título'}.crivo`;
+
+// Where each open document was saved on disk in this session (path in the desktop app, handle in the browser).
+// The next Ctrl+S writes there again without asking; "Salvar como…" always asks.
+const fileTargets = new WeakMap();
+
+// Saves the project: asks where (the Windows "Save as" window) the first time, writes the .crivo file there and
+// also keeps it in "Projetos salvos" (browser, desktop app or server). copy = "Salvar como…".
 async function save(copy = false) {
   const base = projectData();
+  const doc = editor.doc;
+  let target = copy ? null : fileTargets.get(doc) ?? null;
+  if (!target && canChooseLocation()) {
+    try {
+      target = await chooseLocation(projectFileName(doc.name), { title: copy ? 'Salvar como' : 'Salvar o desenho', purpose: 'project' });
+      if (!target) {
+        notify('Salvamento cancelado.', 'info', 1800);
+        return;
+      }
+    } catch (error) {
+      // No Save as window here (for example, the browser blocked it): keeps only the internal save.
+      if (!(error instanceof PickerUnavailable)) throw error;
+    }
+  }
+  if (target) {
+    try {
+      await writeToLocation(target, new Blob([JSON.stringify(base.data)], { type: 'application/json' }));
+      fileTargets.set(doc, target);
+    } catch (error) {
+      fileTargets.delete(doc);
+      notify('Não foi possível salvar o arquivo: ' + (error?.message || error), 'error', 6000);
+      return;
+    }
+  }
   try {
     if (storage.type === 'server') {
       let r;
@@ -600,9 +636,14 @@ async function save(copy = false) {
       const r = await storage.saveProject({ ...base, id: copy ? null : editor.project.local });
       editor.markSaved({ local: r.id, id: null, revision: null });
     }
-    notify(`"${editor.doc.name}" salvo em ${storage.name}.`, 'success');
+    notify(target ? `"${doc.name}" salvo em ${target.label}` : `"${doc.name}" salvo em ${storage.name}.`, 'success', target ? 4500 : 3200);
   } catch (error) {
-    notify('Não foi possível salvar: ' + error.message, 'error', 6000);
+    if (target) {
+      editor.markSaved({});
+      notify(`Arquivo salvo em ${target.label}, mas não foi possível guardar em Projetos salvos: ${error.message}`, 'warning', 7000);
+    } else {
+      notify('Não foi possível salvar: ' + error.message, 'error', 6000);
+    }
   }
 }
 
@@ -633,7 +674,7 @@ async function openFile() {
 
 function downloadCrivo() {
   const { data } = projectData();
-  downloadText(JSON.stringify(data), fileNameFor(editor.doc.name, 'crivo'), 'application/json');
+  return downloadText(JSON.stringify(data), fileNameFor(editor.doc.name, 'crivo'), 'application/json', { title: 'Salvar uma cópia do arquivo .crivo', purpose: 'project' });
 }
 
 function buildName() {
@@ -746,7 +787,7 @@ function shortcuts(e) {
   if (ctrl) {
     if (k === 'z' && !e.shiftKey) execute('undo');
     else if (k === 'y' || (k === 'z' && e.shiftKey)) execute('redo');
-    else if (k === 's') execute('save');
+    else if (k === 's') execute(e.shiftKey ? 'saveAs' : 'save');
     else if (k === 'o') execute('openFile');
     else if (k === 'e') execute(e.shiftKey ? 'exportData' : 'exportImage');
     else if (k === 'c' && e.altKey) execute('size');
@@ -880,6 +921,8 @@ async function init() {
     palette.load();
   }
   document.body.classList.add('ready');
+  // First run: offers the quick tutorial once (the person can decline). It stays in Ajuda › Tutorial rápido.
+  if (tutorialPending()) startTutorial({ welcome: true });
 }
 
 init();

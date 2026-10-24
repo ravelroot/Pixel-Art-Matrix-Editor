@@ -16,11 +16,13 @@
 
 ---
 
-> **Manual completo:** [`Manual-Crivo.pdf`](Manual-Crivo.pdf) explica as três maneiras de rodar (app desktop, servidor local e arquivo único), cada uma das 23 ferramentas, seleção, camadas e grupos, modos de mistura, tags, tilemaps, slices, cor e paletas, ajustes, arquivos `.ase`, abas, exportação, a matemática por trás dos algoritmos (Bresenham, flood fill, OKLCH, pontilhado de Bayer, LZW do GIF, RLE), a API, a ferramenta em Java, a configuração, a segurança, os testes e a solução de problemas, passo a passo (cópia em [`docs/`](docs/Manual-Crivo.pdf)).
+> **Manual completo:** [`Manual-Crivo.pdf`](Manual-Crivo.pdf) explica as três maneiras de rodar (app desktop, servidor local e arquivo único), cada uma das 23 ferramentas, seleção, camadas e grupos, modos de mistura, tags, tilemaps, slices, cor e paletas, ajustes, arquivos `.ase`, abas, exportação, a matemática por trás dos algoritmos (Bresenham, flood fill, OKLCH, pontilhado de Bayer, LZW do GIF, RLE), a janela Salvar como, o tutorial rápido, a API, a ferramenta em Java, a configuração, a segurança, os testes e a solução de problemas, passo a passo (cópia em [`docs/`](docs/Manual-Crivo.pdf)).
 
 > **Banco de dados:** [`Banco-de-Dados-Crivo.pdf`](Banco-de-Dados-Crivo.pdf) traz o diagrama de relacionamentos, todas as tabelas (inclusive `tag`, `slice` e `tileset`, da 2.1.0) com campos, tipos, chaves e restrições, o formato binário das células, o controle de versões, consultas prontas, como preparar o PostgreSQL e as regras de integridade e segurança dos dados.
 
-> **Versão 2.1.1 (Atual)** o Crivo deixou a licença MIT e passou a ter uma licença de uso própria. Você pode baixar e usar de graça, e o que você cria com ele é seu; modificar, copiar o código e redistribuir não são permitidos. Nada muda no editor. Detalhes em [Licença](#licença).
+> **Versão 2.2.0 (Atual):** ao salvar (Ctrl+S), o Crivo abre a janela **Salvar como** do Windows para você escolher a pasta e o nome do arquivo, e as exportações também; na primeira abertura, um **tutorial rápido** mostra o que cada ferramenta faz e como usar (dá para recusar). Nada muda no formato `.crivo`, na API nem no banco. Detalhes em [Salvar e tutorial rápido (2.2.0)](#salvar-e-tutorial-rápido-220).
+
+> **Versão 2.1.1:** o Crivo deixou a licença MIT e passou a ter uma licença de uso própria. Você pode baixar e usar de graça, e o que você cria com ele é seu; modificar, copiar o código e redistribuir não são permitidos. Nada muda no editor. Detalhes em [Licença](#licença).
 
 <p align="center">
   <img src="docs/images/tela-editor.png" alt="Editor com a poção de exemplo aberta, os menus da 2.1.0, a barra de abas, três camadas e a linha do tempo com quatro quadros">
@@ -41,7 +43,8 @@
 - **Paletas e cor:** Crivo, Game Boy, NES, Pico-8, CGA, CGA modo 4, Commodore 64 e 1 bit já incluídas. Crie, renomeie, importe (`.hex`, `.gpl`, `.json`, `.txt` do Paint.NET) e exporte as suas, gere uma paleta a partir das cores do desenho ou edite tudo no **editor de paleta**. Modos de cor **RGBA**, **indexado** (com pontilhado opcional) e **tons de cinza**, seletor HSV com alfa e **ajustes** com prévia: brilho e contraste, matiz/saturação/luminosidade, curva de cores, posterizar, remover ruído e matriz de convolução.
 - **Gerador de tons:** a partir da cor escolhida, cria rampas de sombra e luz no espaço de cor OKLCH, com o desvio de matiz típico da pixel art (sombras puxam para o azul, luzes para o amarelo).
 - **Importação e exportação:** PNG e JPEG em tamanho real ou ampliados por vizinho mais próximo; **GIF animado** com transparência e a duração de cada quadro (codificador LZW próprio, sem bibliotecas); **PNG animado (APNG)** e quadros em PNG num `.zip`; arquivos **`.ase`** com camadas, tags e slices (abrir e exportar); sprite sheet horizontal, vertical ou em grade, com JSON das posições no formato do Crivo ou nos formatos hash e array que os motores de jogo leem; dados da matriz em JSON, CSV, JavaScript, Python, C e Java; importação de imagens com detecção automática do tamanho do pixel e fatiamento de sprite sheets.
-- **Salva onde você estiver:** no app desktop, projetos e paletas ficam neste computador; com o servidor Django, vão para o banco de dados, com histórico de versões; no [`Crivo.html`](Crivo.html), ficam no navegador (IndexedDB). Um rascunho automático recupera o trabalho se a janela fechar.
+- **Salva onde você escolher:** o Ctrl+S abre a janela **Salvar como** do Windows na primeira vez, para escolher a pasta e o nome do arquivo `.crivo`, e as exportações usam a mesma janela. Além disso, no app desktop, projetos e paletas ficam neste computador; com o servidor Django, vão para o banco de dados, com histórico de versões; no [`Crivo.html`](Crivo.html), ficam no navegador (IndexedDB). Um rascunho automático recupera o trabalho se a janela fechar.
+- **Tutorial rápido:** na primeira vez que o Crivo abre, ele pergunta se você quer um tour de oito passos pelas 23 ferramentas, cores, camadas, zoom e salvar. Dá para recusar, e ele fica em **Ajuda → Tutorial rápido**.
 - **Seguro por padrão:** Content-Security-Policy restrita, CSRF, token de API comparado em tempo constante, limite de escritas por IP, validação de tudo que chega à API e recusa de iniciar em produção com chave secreta fraca. Detalhes em [Qualidade e segurança](#qualidade-e-segurança).
 
 <p align="center">
@@ -53,6 +56,44 @@
   <img src="docs/images/tela-ladrilho.png" width="49%" alt="Modo ladrilho no tema escuro, repetindo um tile de tijolos 3×3">
   <img src="docs/images/tela-simetria.png" width="49%" alt="Desenho com simetria horizontal e vertical, com os dois eixos tracejados">
 </p>
+
+## Salvar e tutorial rápido (2.2.0)
+
+<p align="center">
+  <img src="docs/images/tela-tutorial-boas-vindas.png" width="49%" alt="Pergunta da primeira abertura: ver o tutorial rápido ou recusar">
+  <img src="docs/images/tela-tutorial.png" width="49%" alt="Primeiro passo do tutorial: as ferramentas de desenho acesas na barra, com o que cada uma faz">
+</p>
+
+### Salvar escolhendo a pasta
+
+- **Ctrl+S** (ou o disquete) abre, na primeira vez, a janela **Salvar como** do Windows, a mesma de qualquer programa: escolha a pasta e o nome (que já vem com o nome do projeto) e o Crivo grava o `.crivo` lá. Os próximos Ctrl+S gravam no mesmo arquivo, sem perguntar. O projeto continua indo também para **Projetos salvos**.
+- **Salvar como…** (**Ctrl+Shift+S**, antes "Salvar como cópia") sempre pergunta e passa a usar o arquivo novo. Se o arquivo já existir, o Windows pergunta se quer substituir; cancelar não salva nada.
+- **Exportações** (PNG, JPEG, GIF, PNG animado, quadros em `.zip`, sprite sheet, dados da matriz, paletas e `.ase`) abrem a mesma janela; o botão **Baixar** dos diálogos virou **Salvar…**, e cancelar mantém o diálogo aberto.
+
+| Onde o Crivo roda | A janela | Para onde vai o arquivo |
+|---|---|---|
+| App desktop (`Crivo.exe`) | A janela nativa do Windows (`desktop/save_windows.go`) | A pasta e o nome que você escolher |
+| Chrome e Edge (servidor ou `Crivo.html`) | A do navegador (File System Access API), que no Windows é a mesma | A pasta e o nome que você escolher |
+| Firefox, Safari e outros | Não abre (esses navegadores não têm essa janela) | Ctrl+S guarda em Projetos salvos; **Baixar arquivo .crivo** e as exportações vão para Downloads |
+
+No app desktop, o editor manda o conteúdo para o programa em Go, que grava o arquivo no lugar escolhido (primeiro num arquivo temporário da mesma pasta, para não estragar o anterior se algo falhar). Ele só aceita gravar arquivos escolhidos na janela durante a sessão.
+
+### Tutorial rápido
+
+Na primeira vez que o Crivo abre, uma janela pergunta se você quer um tutorial rápido: **Ver tutorial** ou **Agora não**. Ele aparece uma vez só (em cada maneira de rodar) e fica sempre em **Ajuda → Tutorial rápido**. São oito passos curtos que escurecem a tela e acendem a parte explicada:
+
+| Passo | O que mostra |
+|---|---|
+| 1. Desenhar | Lápis, spray, borracha, balde, conta-gotas e a barra de opções |
+| 2. Formas | Linha, curva, retângulo, elipse, contorno livre e polígono |
+| 3. Efeitos e sombras | Pontilhado, degradê pontilhado, clarear e escurecer, desfocar e embaralhar |
+| 4. Selecionar e mover | Seleção retangular e elíptica, laço, laço poligonal, varinha mágica, mover pixels e mover a visão |
+| 5. Cores | Cor principal e secundária, paleta e a tecla X |
+| 6. Camadas e animação | Painel de camadas e linha do tempo |
+| 7. Zoom e desfazer | Roda do mouse, Espaço, Ctrl+Z e Ctrl+Y, grade e simetria |
+| 8. Salvar e exportar | Ctrl+S, a janela Salvar como e o menu Arquivo |
+
+Cada ferramenta aparece com o ícone, o nome, o atalho e uma frase sobre o que faz e como usar; passar o mouse sobre ela destaca o botão na barra. **Próximo** e **Voltar** (ou as setas → e ←) andam entre os passos, e **Pular tutorial** ou **Esc** fecham.
 
 ## Recursos avançados (2.1.0)
 
@@ -109,6 +150,7 @@ A versão 2.1.0 traz para o Crivo os recursos de um editor de pixel art completo
 | `Ctrl+U` / `Ctrl+M` | Matiz, saturação e luminosidade / curva de cores |
 | `Ctrl+B` | Usar a seleção como pincel |
 | `Ctrl+Shift+D` / `Ctrl+Shift+I` | Reselecionar / inverter a seleção |
+| `Ctrl+S` / `Ctrl+Shift+S` | Salvar (na primeira vez, o Windows pergunta a pasta) / Salvar como (2.2.0) |
 | `Shift` / `Alt` / `Shift+Alt` com uma ferramenta de seleção | Somar, subtrair ou fazer a interseção |
 
 A lista completa fica em **Ajuda → Atalhos do teclado** (`?`).
@@ -117,7 +159,7 @@ A lista completa fica em **Ajuda → Atalhos do teclado** (`?`).
 
 | Menu | Comandos |
 |---|---|
-| Arquivo | Novo projeto, projetos salvos, **abrir arquivo** (`.crivo`, `.json` e `.ase`, numa aba nova), importar imagem ou sprite sheet, **fechar projeto (aba)**, salvar, salvar como cópia, baixar `.crivo`, **exportar como `.ase`**, exportar imagem, GIF animado, **PNG animado (APNG)**, **quadros em PNG (.zip)**, sprite sheet e dados |
+| Arquivo | Novo projeto, projetos salvos, **abrir arquivo** (`.crivo`, `.json` e `.ase`, numa aba nova), importar imagem ou sprite sheet, **fechar projeto (aba)**, salvar, **salvar como…**, baixar `.crivo`, **exportar como `.ase`**, exportar imagem, GIF animado, **PNG animado (APNG)**, **quadros em PNG (.zip)**, sprite sheet e dados |
 | Editar | Desfazer, refazer, copiar, recortar, colar, apagar, selecionar tudo, desmarcar e espelhar |
 | Imagem | Tamanho da matriz, recortar para a seleção, aparar, girar, deslocar meia matriz, contorno, converter para a paleta, substituir cor, inverter e tons de cinza |
 | **Cor** | Modo de cor RGBA, indexado (com pontilhado Bayer 4×4 opcional) ou tons de cinza, editar paleta, escolher cor principal e secundária (seletor HSV com alfa e hexadecimal), brilho e contraste, matiz/saturação/luminosidade, curva de cores, posterizar, remover ruído, matriz de convolução (suavizar, nitidez, realce de bordas, desfoque gaussiano), converter para a paleta, substituir cor, inverter e tons de cinza |
@@ -125,7 +167,7 @@ A lista completa fica em **Ajuda → Atalhos do teclado** (`?`).
 | Exibir | Grade, papel cebola, **configurar papel cebola**, modo ladrilho, **slices**, **editar slices**, zoom, tema, **pré-visualização**, **próxima aba** e **aba anterior** |
 | **Camada** | Nova camada, novo grupo, nova camada de tiles, duplicar, excluir, subir, descer, mesclar com a de baixo, agrupar, desfazer o grupo, propriedades da camada, camada de referência e modo tile |
 | **Quadro** | Novo quadro, novo quadro vinculado, duplicar, excluir, propriedades do quadro, vincular e desvincular célula, nova tag, editar e excluir a tag do quadro, tocar ou pausar |
-| Ajuda | Atalhos do teclado e sobre o Crivo |
+| Ajuda | **Tutorial rápido**, atalhos do teclado e sobre o Crivo |
 
 <p align="center">
   <img src="docs/images/tela-selecao-laco.png" width="49%" alt="Seleção feita com o laço sobre a poção">
@@ -157,6 +199,7 @@ A lista completa fica em **Ajuda → Atalhos do teclado** (`?`).
 - **Abas:** cada projeto aberto (novo, salvo, importado ou arrastado para a tela) ganha uma aba acima da matriz; clique do meio fecha. **Ctrl+Tab** e **Ctrl+Shift+Tab** andam entre elas.
 - **Pré-visualização** (F7): uma janela com o quadro inteiro e o retângulo da parte visível; clicar ou arrastar move a visão, e ela tem a própria reprodução.
 - **Arrastar e soltar:** `.crivo` e `.ase` abrem numa aba; imagens vão para o diálogo de importação.
+- **Salvar como (2.2.0):** todas as exportações abrem a janela Salvar como, para escolher a pasta e o nome (no Firefox e no Safari, vão para Downloads).
 
 <p align="center">
   <img src="docs/images/tela-abas.png" width="49%" alt="Quatro projetos abertos em abas e a janela de pré-visualização">
@@ -180,15 +223,15 @@ flowchart LR
     UI -- "sem servidor" --> IDB[("IndexedDB<br/>do navegador")]
     WEB --> PG[("PostgreSQL 17<br/>ou SQLite")]
     CLI["tools/java<br/>CLI Java 21"] -- "lê .crivo" --> ARQ["arquivos .crivo"]
-    UI -- "baixa e abre" --> ARQ
+    UI -- "salva (janela Salvar como) e abre" --> ARQ
 ```
 
 | Parte | Linguagem | Responsabilidade |
 |---|---|---|
 | `editor/static/editor/js/core` | JavaScript | Núcleo sem DOM: cores e OKLCH, geometria (Bresenham, elipse, curvas, polígonos, pincel, simetria, pixel perfect), flood fill, pontilhado de Bayer e degradês, seleção com máscara, filtros e ajustes, modos de mistura (`blend.js`), modos de cor (`colormode.js`), ferramentas de paleta, pincel personalizado (`brush.js`), transformação com RotSprite (`transform.js`), tilemaps (`tilemap.js`), tags e reprodução (`animation.js`), codificadores GIF, APNG (`apng.js`), ZIP (`zip.js`) e zlib (`zlib.js`), leitor e gravador `.ase` (`ase-file.js`), RLE, documento, histórico, formato `.crivo`, exportação e paletas |
 | `editor/static/editor/js/features` | JavaScript | Recursos da 2.1.0 que se ligam ao editor pelo ponto de extensão `install(app)` do `main.js`: `layers.js` (menus Camada e Quadro), `selection.js` (menu Seleção), `color.js` (menu Cor) e `files.js` (abrir, abas, exportações novas) |
-| `editor/static/editor/js/ui` | JavaScript | Visor em canvas, ferramentas, painéis, diálogos, armazenamento e atalhos; na 2.1.0, também `layer-dialogs.js` (propriedades de camada e quadro, tags, slices, papel cebola), `palette-editor.js`, `color-picker.js`, `adjustments.js`, `tabs.js` e `minimap.js` (pré-visualização) |
-| `Crivo.exe` e `desktop/` | Go | App desktop para Windows, gerado por `scripts/build-desktop.js`: janela própria com o WebView2, maximizada (F11 alterna a tela cheia), com o `Crivo.html` embutido e atalho no menu Iniciar |
+| `editor/static/editor/js/ui` | JavaScript | Visor em canvas, ferramentas, painéis, diálogos, armazenamento e atalhos; na 2.1.0, também `layer-dialogs.js` (propriedades de camada e quadro, tags, slices, papel cebola), `palette-editor.js`, `color-picker.js`, `adjustments.js`, `tabs.js` e `minimap.js` (pré-visualização); na 2.2.0, `save-file.js` (janela Salvar como) e `tutorial.js` (tutorial rápido) |
+| `Crivo.exe` e `desktop/` | Go | App desktop para Windows, gerado por `scripts/build-desktop.js`: janela própria com o WebView2, maximizada (F11 alterna a tela cheia), com o `Crivo.html` embutido, atalho no menu Iniciar e a janela Salvar como nativa do Windows (`save_windows.go`) |
 | `Crivo.html` | HTML + JavaScript | O editor inteiro num arquivo só, gerado por `scripts/build-portable.js`: abre direto do disco, sem servidor nem backend |
 | `editor/` | Python (Django) | API REST, validação (inclusive dos campos da 2.1.0), versões dos projetos, paletas, exportação pelo servidor (dados e PNG, com grupos e os modos de mistura de `editor/blend.py`), cabeçalhos de segurança e limite de escritas |
 | `tools/java` | Java 21 | Linha de comando: informações, tags, paleta, PNG, sprite sheet e matriz em Java a partir de um `.crivo`, com grupos e modos de mistura (`Blend.java`) |
@@ -224,7 +267,7 @@ O Crivo sobe de **três maneiras**. O editor é o mesmo nas três; o que muda é
 
 | Maneira | Como subir | Precisa de | Onde ficam os projetos |
 |---|---|---|---|
-| **1. App desktop** (`Crivo.exe`) | Dois cliques no `Crivo.exe` (ou pesquise **Crivo** no menu Iniciar depois da primeira vez); abre **maximizado** | Windows 10 ou 11 (64 bits); nada para instalar | Neste computador, em `%LOCALAPPDATA%\Crivo` |
+| **1. App desktop** (`Crivo.exe`) | Dois cliques no `Crivo.exe` (ou pesquise **Crivo** no menu Iniciar depois da primeira vez); abre **maximizado** | Windows 10 ou 11 (64 bits); nada para instalar | Neste computador, em `%LOCALAPPDATA%\Crivo`, e o `.crivo` na pasta que você escolher ao salvar |
 | **2. Servidor local e backend** (Django + banco) | `start.cmd`, `./start.sh` ou `python manage.py runserver` | Docker Desktop, ou Python 3.12+ | No banco de dados (PostgreSQL ou SQLite), com histórico de versões e API |
 | **3. Arquivo único** (`Crivo.html`) | Dois cliques no `Crivo.html`; abre no navegador | Um navegador atual; nada para instalar | No navegador em que foi aberto (IndexedDB) |
 
@@ -236,6 +279,8 @@ Baixe o [`Crivo.exe`](Crivo.exe) e dê dois cliques. O Crivo abre **maximizado**
 
 - **F11** leva à tela cheia (sem barra de título nem barra de tarefas) e volta para a janela maximizada; **Alt+F4** (ou **Arquivo → Sair do Crivo**) fecha o app, gravando o rascunho antes.
 - Na primeira vez que abre, o Crivo cria um atalho no **menu Iniciar** (só para o seu usuário, sem pedir administrador). Depois disso, basta pesquisar **Crivo** no Windows. Se você apagar o atalho, ele não volta, a não ser que o `Crivo.exe` seja aberto de outra pasta.
+- **Ctrl+S** abre a janela **Salvar como** do Windows na primeira vez, para escolher a pasta e o nome do arquivo `.crivo`; depois, grava no mesmo arquivo. As exportações abrem a mesma janela.
+- Na primeira abertura, o Crivo também oferece um **tutorial rápido** (dá para recusar; ele fica em **Ajuda → Tutorial rápido**).
 - Projetos, paletas e o rascunho ficam em `%LOCALAPPDATA%\Crivo` e continuam lá na próxima vez, mesmo trocando o `.exe` por uma versão nova. A barra de status mostra **Desktop (este computador)**.
 - Na primeira vez, o Windows pode mostrar **O Windows protegeu o computador**, porque o executável não tem assinatura digital paga: clique em **Mais informações → Executar assim mesmo**. O app não pede permissão de administrador.
 - Usa o Microsoft Edge WebView2, que já vem no Windows 10 e 11. Se faltar, o Crivo avisa e oferece abrir a página de download da Microsoft.
@@ -296,7 +341,7 @@ Nesse modo não há API: projetos e paletas ficam no IndexedDB do navegador. Qua
 
 Baixe o [`Crivo.html`](Crivo.html) e dê dois cliques. O editor abre no navegador direto da pasta, sem servidor local, sem backend e sem internet, com todas as ferramentas, camadas, animação e exportações.
 
-Os projetos e as paletas ficam guardados no navegador em que o arquivo foi aberto. Para guardar uma cópia ou levar um desenho para outro computador, use **Arquivo → Baixar arquivo .crivo** e, depois, **Arquivo → Abrir arquivo .crivo…**.
+Os projetos e as paletas ficam guardados no navegador em que o arquivo foi aberto. No Chrome e no Edge, **Ctrl+S** também abre a janela **Salvar como** para gravar o `.crivo` na pasta que você escolher; nos outros navegadores, use **Arquivo → Baixar arquivo .crivo**, que vai para Downloads. Para continuar em outro computador, abra o arquivo com **Arquivo → Abrir arquivo…**.
 
 O `Crivo.html` existe porque os navegadores não carregam módulos JavaScript de páginas abertas direto do disco: ele junta os módulos do editor num script só, embute o CSS e o ícone e traz a própria Content-Security-Policy. Depois de mudar o editor, rode `npm run portable` (o `npm run desktop` também faz isso).
 
@@ -377,7 +422,7 @@ Sprites grandes (mais de 4096 valores) saem numa classe compacta: a matriz vai e
 
 ## Formato `.crivo`
 
-É um JSON legível, salvo por **Arquivo → Baixar arquivo .crivo** e aberto por **Arquivo → Abrir arquivo…**:
+É um JSON legível, salvo pelo **Ctrl+S** (na pasta escolhida na janela Salvar como) e por **Arquivo → Baixar arquivo .crivo** e aberto por **Arquivo → Abrir arquivo…**:
 
 ```json
 {
@@ -472,7 +517,7 @@ Alterar o código-fonte, criar versões modificadas ou reaproveitar partes do c�
 npm test                                   # 107 testes do núcleo em JavaScript (Node 20+)
 python manage.py test editor               # 72 testes da API Django (funcionamento, segurança, migrações e recursos da 2.1.0)
 bash tools/java/test.sh                    # 36 testes da ferramenta em Java
-python -m unittest discover -s tests/e2e   # 42 testes ponta a ponta no Chromium (Playwright): 20 com o Django e 22 no Crivo.html
+python -m unittest discover -s tests/e2e   # 48 testes ponta a ponta no Chromium (Playwright): 23 com o Django e 25 no Crivo.html
 npm run portable                           # gera o Crivo.html de novo a partir do código do editor
 npm run desktop                            # gera o Crivo.exe (precisa do Go); -- --check só confere
 ruff check .                               # estilo, bugs prováveis e regras de segurança no Python
@@ -487,7 +532,7 @@ O `Crivo.exe` é gerado por `scripts/build-desktop.js`, que copia o `Crivo.html`
 
 ## Qualidade e segurança
 
-Resultado da rodada de testes da versão 2.1.0: **257 testes, todos passando**, e nenhum problema apontado pelas ferramentas de análise. Na versão 1.1.0, uma revisão de código independente apontou 10 problemas (entre eles, desfazer durante um arraste embaralhava o histórico, a colagem furava o fundo ao ser movida e a classe Java de sprites médios não compilava); todos foram corrigidos e ganharam testes.
+Resultado da rodada de testes da versão 2.2.0: **263 testes, todos passando**, e nenhum problema apontado pelas ferramentas de análise. Na versão 1.1.0, uma revisão de código independente apontou 10 problemas (entre eles, desfazer durante um arraste embaralhava o histórico, a colagem furava o fundo ao ser movida e a classe Java de sprites médios não compilava); todos foram corrigidos e ganharam testes.
 
 | Verificação | O que cobre | Resultado |
 |---|---|---|
@@ -495,7 +540,7 @@ Resultado da rodada de testes da versão 2.1.0: **257 testes, todos passando**, 
 | API Django (72) | Ciclo de projetos e paletas, revisões, conflitos, exportação, PNG, formatos C e Java (a classe grande é compilada e executada com o JDK quando ele existe), o conjunto de segurança abaixo, as migrações e os campos da 2.1.0 (validação, ida e volta, documentos da 2.0 inalterados) | 72 de 72 |
 | Ferramenta Java (36) | Leitura do `.crivo`, RLE, PNG, sprite sheet e matriz, inclusive uma classe grande compilada em memória com o compilador do JDK; na 2.1.0, chaves opcionais, modos de mistura, grupos, `info` e `tags` | 36 de 36 |
 | Paridade de composição | 30 documentos aleatórios com os 19 modos de mistura, grupos (inclusive "pass-through" normais a 100%) e camadas ocultas ou de referência, compostos no editor (JS), no servidor (Python) e na ferramenta Java (`tests/fixtures/blend-parity.json`) | Mesmos pixels nos três |
-| Interface (42) | Editor aberto no Chromium de dois jeitos, contra o Django e como `Crivo.html` direto do disco, inclusive a integração com o app desktop (F11, sair e rascunho): cada ferramenta nova, seleção, colagem flutuante, gestos protegidos (Ctrl+Z no meio do arraste, setas no menu), comandos de imagem, desfazer, preferências inválidas, salvar no servidor e no navegador, baixar e reabrir o `.crivo`, baixar o PNG e o GIF, e na 2.1.0 laço, varinha mágica, polígono, curva e modos de tinta, sem nenhum erro no console nem violação de CSP | 42 de 42 |
+| Interface (48) | Editor aberto no Chromium de dois jeitos, contra o Django e como `Crivo.html` direto do disco, inclusive a integração com o app desktop (F11, sair e rascunho): cada ferramenta nova, seleção, colagem flutuante, gestos protegidos (Ctrl+Z no meio do arraste, setas no menu), comandos de imagem, desfazer, preferências inválidas, salvar no servidor e no navegador, baixar e reabrir o `.crivo`, baixar o PNG e o GIF, na 2.1.0 laço, varinha mágica, polígono, curva e modos de tinta, e na 2.2.0 a janela Salvar como (no navegador e no app desktop, com cancelar e Salvar como…) e o tutorial rápido (aparece uma vez, pode ser recusado e cobre as 23 ferramentas), sem nenhum erro no console nem violação de CSP | 48 de 48 |
 | Ruff e Bandit | Estilo, bugs prováveis e padrões inseguros no Python | 0 problemas |
 | App desktop | Build reproduzível do `Crivo.exe` (gerado de novo e comparado byte a byte) e `go vet` no código Go | Idêntico; 0 problemas |
 | `check --deploy` | Configuração de produção do Django | Só avisos opcionais (HSTS em subdomínios, preload e redirecionamento HTTPS, que ficam a cargo do proxy) |
@@ -508,19 +553,19 @@ Os testes de segurança (`editor/tests/test_security.py`) conferem:
 - **Nome com HTML ou comandos:** volta como texto no JSON e vira um nome de arquivo seguro (`[A-Za-z0-9_-]`) nos downloads.
 - **Limite de escritas por IP** (429 com `Retry-After`; leituras e pedidos já recusados pelo CSRF não contam; atrás de proxy confiável o IP vem do `X-Forwarded-For` sem aceitar endereços forjados pelo cliente) e **chave secreta fraca**: com `CRIVO_DEBUG=false`, o servidor não inicia com a chave de exemplo ou com menos de 32 caracteres.
 
-No editor, nenhum dado do usuário passa por `innerHTML`, preferências gravadas no navegador só são aceitas se estiverem na lista de valores válidos, e os atalhos do teclado ficam bloqueados enquanto um gesto do mouse está em andamento (só o Esc vale, para cancelar): nomes de projetos, camadas e paletas entram sempre como texto, e o servidor de arquivos em Node (`npm run serve`) envia os mesmos cabeçalhos de segurança do Django. O `Crivo.html` leva a própria Content-Security-Policy numa tag `<meta>`: só executa o script embutido nele (conferido por hash SHA-256), não carrega nada de fora e não abre nenhuma conexão de rede (`connect-src 'none'`). O app desktop carrega esse mesmo arquivo, roda sem permissão de administrador, não abre portas e desliga as ferramentas de desenvolvedor e o menu de contexto do navegador.
+No editor, nenhum dado do usuário passa por `innerHTML`, preferências gravadas no navegador só são aceitas se estiverem na lista de valores válidos, e os atalhos do teclado ficam bloqueados enquanto um gesto do mouse está em andamento (só o Esc vale, para cancelar): nomes de projetos, camadas e paletas entram sempre como texto, e o servidor de arquivos em Node (`npm run serve`) envia os mesmos cabeçalhos de segurança do Django. O `Crivo.html` leva a própria Content-Security-Policy numa tag `<meta>`: só executa o script embutido nele (conferido por hash SHA-256), não carrega nada de fora e não abre nenhuma conexão de rede (`connect-src 'none'`). O app desktop carrega esse mesmo arquivo, roda sem permissão de administrador, não abre portas, desliga as ferramentas de desenvolvedor e o menu de contexto do navegador e só grava arquivos que você escolheu na janela Salvar como.
 
 ### Estrutura
 
 ```text
 Crivo.exe                   app desktop para Windows, que abre maximizado (gerado)
 Crivo.html                  o editor inteiro num arquivo só, que abre sem servidor (gerado)
-desktop/                    código do app desktop em Go (janela WebView2, tela cheia, atalho no menu Iniciar, manifesto)
+desktop/                    código do app desktop em Go (janela WebView2, tela cheia, atalho no menu Iniciar, janela Salvar como, manifesto)
 editor/                     aplicação Django (modelos, API, validação, exportação, versões)
   static/editor/            o editor: index.html, css/, img/ e js/
     js/core/                núcleo em JavaScript, sem DOM, testado no Node
     js/features/            recursos da 2.1.0 ligados pelo install(app): camadas, seleção, cor e arquivos
-    js/ui/                  interface: visor, ferramentas, painéis, diálogos, abas, pré-visualização, armazenamento
+    js/ui/                  interface: visor, ferramentas, painéis, diálogos, abas, pré-visualização, armazenamento, salvar como e tutorial
   migrations/               esquema do banco, paletas predefinidas, nomes em inglês (0003) e recursos avançados (0004)
   tests/                    testes da API e de segurança
 crivo/                      configurações do projeto Django

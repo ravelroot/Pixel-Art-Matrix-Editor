@@ -1,3 +1,5 @@
+import { saveBlob, canChooseLocation } from './save-file.js';
+
 export function el(tag, attrs = {}, ...children) {
   const n = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {
@@ -38,18 +40,30 @@ export function notify(text, type = 'info', duration = 3200) {
   }, duration);
 }
 
-export function downloadBlob(blob, name) {
-  const url = URL.createObjectURL(blob);
-  const a = el('a', { href: url, download: name });
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 4000);
+// Saves a file: opens the "Save as" window when possible (desktop app, Chrome and Edge), so the person
+// chooses the folder; elsewhere it goes to the Downloads folder. Resolves to 'saved', 'downloaded' or
+// null (canceled in the window).
+export async function downloadBlob(blob, name, options = {}) {
+  try {
+    const result = await saveBlob(blob, name, options);
+    if (!result) return null;
+    if (result.saved) {
+      notify(result.saved.path ? `Salvo em ${result.saved.path}` : `"${result.saved.label}" salvo.`, 'success', 4500);
+      return 'saved';
+    }
+    return 'downloaded';
+  } catch (error) {
+    notify('Não foi possível salvar o arquivo: ' + (error?.message || error), 'error', 6000);
+    return null;
+  }
 }
 
-export function downloadText(text, name, type = 'text/plain') {
-  downloadBlob(new Blob([text], { type: `${type};charset=utf-8` }), name);
+export function downloadText(text, name, type = 'text/plain', options = {}) {
+  return downloadBlob(new Blob([text], { type: `${type};charset=utf-8` }), name, options);
 }
+
+// Label of the button that saves an export: "Salvar…" opens the Save as window; "Baixar" downloads.
+export const saveLabel = (label = 'Salvar…', fallback = 'Baixar') => (canChooseLocation() ? label : fallback);
 
 export function pickFile(accepts, multiples = false) {
   return new Promise((resolve) => {

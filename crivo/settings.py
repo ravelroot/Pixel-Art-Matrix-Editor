@@ -39,7 +39,7 @@ def env_list(name, default=""):
     return [item.strip() for item in str(env(name, default)).split(",") if item.strip()]
 
 
-VERSION = (BASE_DIR / "VERSION").read_text(encoding="utf-8").strip() if (BASE_DIR / "VERSION").exists() else "2.1.1"
+VERSION = (BASE_DIR / "VERSION").read_text(encoding="utf-8").strip() if (BASE_DIR / "VERSION").exists() else "2.2.0"
 
 DEVELOPMENT_KEY = "crivo-chave-local-de-desenvolvimento-troque-em-producao"
 EXAMPLE_KEYS = {DEVELOPMENT_KEY, "troque-esta-chave"}

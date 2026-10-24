@@ -5,6 +5,7 @@
 // which ships with Windows 10 and 11. Projects, palettes and the draft are kept in %LOCALAPPDATA%\Crivo.
 //
 // On first run, it creates a Start Menu shortcut (shortcut_windows.go) so Crivo shows up in Windows search.
+// Saving and exporting open the Windows "Save as" window, so the person chooses the folder (save_windows.go).
 //
 // To build Crivo.exe from the repository root: npm run desktop (needs Go and Node).
 package main
@@ -115,6 +116,9 @@ type app struct {
 
 	closeRequested bool
 	canClose       bool
+
+	// Files chosen in the "Save as" window during this run: the only ones the page can write.
+	chosen map[string]bool
 }
 
 var current *app
@@ -148,7 +152,7 @@ func main() {
 		return
 	}
 
-	a := &app{w: w, hwnd: uintptr(w.Window())}
+	a := &app{w: w, hwnd: uintptr(w.Window()), chosen: map[string]bool{}}
 	current = a
 	a.loadIcons()
 	a.interceptClose()
@@ -166,12 +170,41 @@ func main() {
 		}
 		w.SetTitle(title)
 	}))
+	// "Save as" (save_windows.go): the window opens after the call returns, and the answer comes back
+	// through window.__crivoSaveDone.
+	must(w.Bind("__crivoSaveDialog", func(id int, options saveOptions) {
+		w.Dispatch(func() { a.showSaveDialog(id, options) })
+	}))
+	must(w.Bind("__crivoWriteFile", func(path, data string) error {
+		return a.writeChosenFile(path, data)
+	}))
 	w.Init(fmt.Sprintf(`
-window.crivoDesktop = Object.freeze({
-  version: %q,
-  toggleFullscreen: () => window.__crivoToggleFullscreen(),
-  quit: () => window.__crivoQuit(),
-});
+(() => {
+  const pending = new Map();
+  let next = 0;
+  window.__crivoSaveDone = (id, answer) => {
+    const call = pending.get(id);
+    if (!call) return;
+    pending.delete(id);
+    if (answer && answer.error) call.reject(new Error(answer.error));
+    else call.resolve((answer && answer.path) || null);
+  };
+  window.crivoDesktop = Object.freeze({
+    version: %q,
+    toggleFullscreen: () => window.__crivoToggleFullscreen(),
+    quit: () => window.__crivoQuit(),
+    saveDialog: (options) =>
+      new Promise((resolve, reject) => {
+        const id = ++next;
+        pending.set(id, { resolve, reject });
+        Promise.resolve(window.__crivoSaveDialog(id, options)).catch((error) => {
+          pending.delete(id);
+          reject(error instanceof Error ? error : new Error(String(error)));
+        });
+      }),
+    writeFile: (path, data) => window.__crivoWriteFile(path, data),
+  });
+})();
 document.addEventListener('DOMContentLoaded', () => {
   const send = () => window.__crivoTitle(document.title);
   send();

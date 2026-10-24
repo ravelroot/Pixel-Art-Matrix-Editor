@@ -8,7 +8,7 @@ import { createZip } from '../core/zip.js';
 import { scaleNearest } from '../core/export.js';
 import { scaleDetection } from '../core/geometry.js';
 import { PRESET_PALETTES } from '../core/palettes.js';
-import { el, notify, downloadBlob, downloadText, pickFile, numberField, selectField, checkboxField, formatDate, formatBytes } from './util.js';
+import { el, notify, downloadBlob, downloadText, saveLabel, pickFile, numberField, selectField, checkboxField, formatDate, formatBytes } from './util.js';
 import { openDialog, confirm } from './dialog.js';
 import { pixelsToCanvas, canvasToBlob, fileToPixels, downscale, crop } from './image.js';
 import { icon } from './icons.js';
@@ -188,7 +188,7 @@ export async function exportImageDialog(editor, initialFormat = 'png') {
     actions: [
       { label: 'Fechar', value: null },
       {
-        label: 'Baixar',
+        label: saveLabel(),
         primary: true,
         send: true,
         action: async () => {
@@ -203,15 +203,13 @@ export async function exportImageDialog(editor, initialFormat = 'png') {
             if (format.select.value === 'apng') {
               const delays = doc.frames.map((q) => q.duration || 1000 / doc.fps);
               const png = await encodeAPNG(frames, doc.width * s, doc.height * s, { delays });
-              downloadBlob(new Blob([png], { type: 'image/apng' }), fileNameFor(doc.name + suffix, 'png'));
-              return true;
+              return (await downloadBlob(new Blob([png], { type: 'image/apng' }), fileNameFor(doc.name + suffix, 'png'), { title: 'Exportar PNG animado' })) !== null;
             }
             const base = fileNameFor(doc.name + suffix, 'png').replace(/\.png$/, '');
             const digits = String(frames.length).length;
             const files = [];
             for (let i = 0; i < frames.length; i++) files.push({ name: `${base}-${String(i + 1).padStart(digits, '0')}.png`, data: await encodePNG(frames[i], doc.width * s, doc.height * s) });
-            downloadBlob(new Blob([createZip(files)], { type: 'application/zip' }), base + '.zip');
-            return true;
+            return (await downloadBlob(new Blob([createZip(files)], { type: 'application/zip' }), base + '.zip', { title: 'Exportar quadros em PNG' })) !== null;
           }
           if (format.select.value === 'gif') {
             if (doc.width * s > 4096 || doc.height * s > 4096) {
@@ -221,8 +219,7 @@ export async function exportImageDialog(editor, initialFormat = 'png') {
             const frames = doc.frames.map((_, i) => scaleNearest(doc.composite(i), doc.width, doc.height, s));
             const delays = doc.frames.map((q) => q.duration || 1000 / doc.fps);
             const gif = encodeGIF(frames, doc.width * s, doc.height * s, { delays });
-            downloadBlob(new Blob([gif], { type: 'image/gif' }), fileNameFor(doc.name + (s > 1 ? `-x${s}` : ''), 'gif'));
-            return true;
+            return (await downloadBlob(new Blob([gif], { type: 'image/gif' }), fileNameFor(doc.name + (s > 1 ? `-x${s}` : ''), 'gif'), { title: 'Exportar GIF' })) !== null;
           }
           const jpeg = format.select.value === 'jpeg';
           let px = doc.composite(+frame.select.value);
@@ -230,8 +227,7 @@ export async function exportImageDialog(editor, initialFormat = 'png') {
           const canvas = pixelsToCanvas(px, doc.width, doc.height, s);
           const blob = await canvasToBlob(canvas, jpeg ? 'image/jpeg' : 'image/png', (+quality.input.value || 92) / 100);
           const suffix = doc.frames.length > 1 ? `-q${+frame.select.value + 1}` : '';
-          downloadBlob(blob, fileNameFor(doc.name + suffix + (s > 1 ? `-x${s}` : ''), jpeg ? 'jpg' : 'png'));
-          return true;
+          return (await downloadBlob(blob, fileNameFor(doc.name + suffix + (s > 1 ? `-x${s}` : ''), jpeg ? 'jpg' : 'png'), { title: 'Exportar imagem' })) !== null;
         },
       },
     ],
@@ -283,18 +279,18 @@ export async function spriteSheetDialog(editor) {
     actions: [
       { label: 'Fechar', value: null },
       {
-        label: 'Baixar PNG',
+        label: saveLabel('Salvar PNG…', 'Baixar PNG'),
         primary: true,
         send: true,
         action: async () => {
           const o = options();
           const { layout, canvas } = buildSheet(doc, o);
           const base = fileNameFor(doc.name + '-sprites', 'png').replace(/\.png$/, '');
-          downloadBlob(await canvasToBlob(canvas), base + '.png');
+          if ((await downloadBlob(await canvasToBlob(canvas), base + '.png', { title: 'Exportar sprite sheet' })) === null) return false;
           if (json.input.checked) {
             const f = jsonFormat.select.value;
             const meta = f === 'crivo' ? sheetMetadata(base, layout, doc.frames, doc.fps) : asepriteSheetMetadata(doc, layout, { image: base + '.png', scale: o.scale, format: f === 'aseprite-array' ? 'array' : 'hash', name: base });
-            downloadText(JSON.stringify(meta, null, 2) + '\n', base + '.json', 'application/json');
+            await downloadText(JSON.stringify(meta, null, 2) + '\n', base + '.json', 'application/json', { title: 'Salvar os dados da sprite sheet (JSON)' });
           }
           return true;
         },
@@ -349,14 +345,13 @@ export async function exportDataDialog(editor, currentPalette) {
         },
       },
       {
-        label: 'Baixar',
+        label: saveLabel(),
         primary: true,
         send: true,
-        action: () => {
+        action: async () => {
           const f = format.select.value;
           const name = f === 'java' ? generate().match(/class (\w+)/)[1] + '.java' : fileNameFor(doc.name, DATA_FORMATS[f].extension);
-          downloadText(generate(), name);
-          return true;
+          return (await downloadText(generate(), name, 'text/plain', { title: 'Exportar dados' })) !== null;
         },
       },
     ],
@@ -591,7 +586,8 @@ export const SHORTCUTS = [
   ['Enter', 'Tocar ou pausar a animação'],
   ['Ctrl + Z', 'Desfazer'],
   ['Ctrl + Y ou Ctrl + Shift + Z', 'Refazer'],
-  ['Ctrl + S', 'Salvar'],
+  ['Ctrl + S', 'Salvar (na primeira vez, o Windows pergunta em qual pasta)'],
+  ['Ctrl + Shift + S', 'Salvar como (escolher outra pasta ou outro nome)'],
   ['Ctrl + O', 'Abrir arquivo (.crivo ou .ase) em uma nova aba'],
   ['Ctrl + Tab e Ctrl + Shift + Tab', 'Próxima aba e aba anterior'],
   ['F7', 'Mostrar ou ocultar a pré-visualização'],

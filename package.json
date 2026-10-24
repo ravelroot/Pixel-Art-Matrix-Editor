@@ -1,6 +1,6 @@
 {
   "name": "crivo",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "Editor de pixel art baseado em matrizes, com camadas, quadros, histórico ilimitado e exportação para jogos.",
   "private": true,
   "type": "module",

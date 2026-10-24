@@ -39,8 +39,16 @@ class EditorTests:
     url = ""
     browser = None
 
+    # The quick tutorial shows only on the first run, and a headless browser cannot answer the "Save as" window:
+    # the tests start as if the tutorial had already been seen and save by download (they test both on their own).
+    SETUP_SCRIPT = """
+        try { localStorage.setItem('crivo.tutorial', '"shown"'); } catch {}
+        window.showSaveFilePicker = undefined;
+    """
+
     def setUp(self):
         self.context = self.browser.new_context(viewport={"width": 1440, "height": 900})
+        self.context.add_init_script(self.SETUP_SCRIPT)
         self.page = self.context.new_page()
         self.errors = []
         self.page.on("console", lambda m: self.errors.append(m.text) if m.type == "error" else None)
@@ -401,6 +409,124 @@ class EditorTests:
         self.page.wait_for_function("() => window.crivo.editor.doc.name === 'Solto'")
         self.assertEqual(self.tab_count(), 3)
 
+    # quick tutorial and the "Save as" window -------------------------------------------------------------
+    def test_first_run_tutorial_shows_once_and_can_be_declined(self):
+        context = self.browser.new_context(viewport={"width": 1440, "height": 900})
+        context.add_init_script("window.showSaveFilePicker = undefined;")
+        page = context.new_page()
+        try:
+            page.goto(self.url)
+            page.wait_for_selector("body.ready")
+            welcome = page.locator("dialog.tour .tour-welcome")
+            welcome.wait_for()
+            self.assertIn("Bem-vindo ao Crivo", welcome.inner_text())
+            page.get_by_role("button", name="Agora não").click()
+            self.assertEqual(page.locator("dialog.tour").count(), 0)
+            self.assertEqual(page.evaluate("() => localStorage.getItem('crivo.tutorial')"), '"declined"')
+            page.reload()
+            page.wait_for_selector("body.ready")
+            page.wait_for_timeout(200)
+            self.assertEqual(page.locator("dialog.tour").count(), 0, "the tutorial is offered only once")
+
+            # Ajuda › Tutorial rápido opens it again, straight on the first step, and covers every tool.
+            page.get_by_role("button", name="Ajuda", exact=True).click()
+            page.get_by_role("menuitem", name="Tutorial rápido").click()
+            self.assertEqual(page.locator(".tour-step").text_content(), "1 de 8")
+            listed = []
+            for step in range(8):
+                listed += page.eval_on_selector_all(".tour-tools li strong", "items => items.map((i) => i.textContent)")
+                self.assertGreater(page.locator(".tour-ring").count(), 0, "each step lights up part of the screen")
+                if step < 7:
+                    page.keyboard.press("ArrowRight")
+            self.assertEqual(page.locator(".tour-step").text_content(), "8 de 8")
+            self.assertEqual(sorted(listed), sorted(page.evaluate("() => [...document.querySelectorAll('#tools .tool')].map((b) => b.title.replace(/ \\(.*$/, ''))")))
+            page.get_by_role("button", name="Começar a desenhar").click()
+            self.assertEqual(page.locator("dialog.tour").count(), 0)
+            page.locator("#viewport").hover()
+            page.keyboard.press("e")
+            self.assertEqual(page.evaluate("() => window.crivo.editor.state.tool"), "eraser", "shortcuts work again after the tutorial")
+        finally:
+            context.close()
+
+    def test_first_run_tutorial_can_be_followed_and_closed_with_esc(self):
+        context = self.browser.new_context(viewport={"width": 1280, "height": 720})
+        page = context.new_page()
+        try:
+            page.goto(self.url)
+            page.wait_for_selector("dialog.tour .tour-welcome")
+            page.get_by_role("button", name="Ver tutorial").click()
+            self.assertIn("Desenhar", page.inner_text("dialog.tour .tour-card"))
+            page.get_by_role("button", name="Próximo").click()
+            self.assertEqual(page.locator(".tour-step").text_content(), "2 de 8")
+            page.get_by_role("button", name="Voltar").click()
+            self.assertEqual(page.locator(".tour-step").text_content(), "1 de 8")
+            box = page.locator("dialog.tour .tour-card").bounding_box()
+            self.assertGreaterEqual(box["x"], 0)
+            self.assertLessEqual(box["y"] + box["height"], 720, "the card fits on the screen")
+            page.keyboard.press("Escape")
+            self.assertEqual(page.locator("dialog.tour").count(), 0)
+            page.reload()
+            page.wait_for_selector("body.ready")
+            page.wait_for_timeout(200)
+            self.assertEqual(page.locator("dialog.tour").count(), 0)
+        finally:
+            context.close()
+
+    def test_save_opens_the_save_as_window_once_and_exports_ask_too(self):
+        # Chrome and Edge open the system "Save as" window through showSaveFilePicker; here it is a stand-in.
+        self.page.evaluate(
+            """() => {
+                window.__picks = [];
+                window.__writes = [];
+                window.showSaveFilePicker = async (options) => {
+                    window.__picks.push(options);
+                    if (window.__cancel) throw new DOMException('canceled', 'AbortError');
+                    const name = options.suggestedName;
+                    return { name, createWritable: async () => ({ write: async (blob) => window.__writes.push([name, blob.type, blob.size, blob.type.includes('json') ? await blob.text() : '']), close: async () => {} }) };
+                };
+            }"""
+        )
+        self.tool("b", "pencil")
+        self.drag((1, 1), (5, 1))
+        self.page.keyboard.press("Control+s")
+        self.page.wait_for_function("() => window.__writes.length === 1 && !window.crivo.editor.modified")
+        picks = self.page.evaluate("() => window.__picks")
+        self.assertEqual(len(picks), 1)
+        self.assertEqual(picks[0]["suggestedName"], "Sem título.crivo")
+        self.assertEqual(picks[0]["types"][0]["accept"], {"application/json": [".crivo"]})
+        name, _, _, text = self.page.evaluate("() => window.__writes[0]")
+        self.assertEqual(name, "Sem título.crivo")
+        self.assertEqual(json.loads(text)["format"], "crivo")
+        self.assertTrue(self.page.evaluate("() => Boolean(window.crivo.editor.project.id || window.crivo.editor.project.local)"), "it also goes to Projetos salvos")
+
+        # The next Ctrl+S writes to the same file without asking again.
+        self.drag((1, 3), (5, 3))
+        self.page.keyboard.press("Control+s")
+        self.page.wait_for_function("() => window.__writes.length === 2")
+        self.assertEqual(self.page.evaluate("() => window.__picks.length"), 1)
+
+        # "Salvar como…" (Ctrl+Shift+S) always asks; canceling saves nothing.
+        self.page.evaluate("() => { window.__cancel = true; }")
+        self.page.keyboard.press("Control+Shift+s")
+        self.page.wait_for_function("() => window.__picks.length === 2")
+        self.page.wait_for_timeout(200)
+        self.assertEqual(self.page.evaluate("() => window.__writes.length"), 2)
+        self.assertIn("Salvamento cancelado", self.page.inner_text("#toasts"))
+
+        # Exports open the window too, with the image type; canceling keeps the export dialog open.
+        self.menu("Arquivo", "Exportar imagem (PNG, JPEG ou GIF)…")
+        self.page.get_by_role("button", name="Salvar…").click()
+        self.page.wait_for_function("() => window.__picks.length === 3")
+        self.assertTrue(self.page.locator("dialog.dialog").is_visible(), "canceling the Save as window keeps the export dialog")
+        self.page.evaluate("() => { window.__cancel = false; }")
+        self.page.get_by_role("button", name="Salvar…").click()
+        self.page.wait_for_function("() => window.__writes.length === 3")
+        pick = self.page.evaluate("() => window.__picks[3]")
+        self.assertTrue(pick["suggestedName"].endswith(".png"))
+        self.assertEqual(pick["types"][0]["accept"], {"image/png": [".png"]})
+        self.assertEqual(self.page.evaluate("() => window.__writes[2][1]"), "image/png")
+        self.page.wait_for_function("() => !document.querySelector('dialog.dialog')")
+
     # color (2.1) ------------------------------------------------------------------------------------------
     def test_color_brightness_dialog_previews_and_cancel_restores(self):
         self.tool("b", "pencil")
@@ -726,10 +852,13 @@ class SingleFileTest(EditorTests, unittest.TestCase):
         self.page.add_init_script(
             """
             window.__calls = [];
+            window.__files = {};
             window.crivoDesktop = Object.freeze({
               version: 'test',
               toggleFullscreen: () => { window.__calls.push('fullscreen'); return Promise.resolve(false); },
               quit: () => { window.__calls.push('quit'); return Promise.resolve(); },
+              saveDialog: (o) => { window.__calls.push('saveDialog:' + o.name + ':' + o.extension); return Promise.resolve('C:\\\\Users\\\\Erik\\\\Desktop\\\\' + o.name); },
+              writeFile: (path, data) => { window.__calls.push('writeFile'); window.__files[path] = atob(data); return Promise.resolve(); },
             });
             """
         )
@@ -744,6 +873,17 @@ class SingleFileTest(EditorTests, unittest.TestCase):
 
         self.tool("b", "pencil")
         self.drag((2, 2), (6, 2))
+        # Saving opens the Windows "Save as" window (desktop/save_windows.go) and writes the chosen file.
+        self.page.keyboard.press("Control+s")
+        self.page.wait_for_function("() => window.__calls.includes('writeFile')")
+        self.assertIn("saveDialog:Sem título.crivo:crivo", self.page.evaluate("() => window.__calls"))
+        saved = json.loads(self.page.evaluate("() => window.__files['C:\\\\Users\\\\Erik\\\\Desktop\\\\Sem título.crivo']"))
+        self.assertEqual((saved["format"], saved["version"]), ("crivo", 2))
+        self.page.wait_for_function("() => document.querySelector('#toasts').textContent.includes('Desktop')")
+        self.menu("Arquivo", "Exportar como .ase")
+        self.page.wait_for_function("() => Object.keys(window.__files).some((p) => p.endsWith('.ase'))")
+        data = self.page.evaluate("() => [...window.__files[Object.keys(window.__files).find((p) => p.endsWith('.ase'))].slice(4, 6)].map((c) => c.charCodeAt(0))")
+        self.assertEqual(data, [0xE0, 0xA5], "Aseprite magic number")
         self.menu("Arquivo", "Sair do Crivo")
         self.page.wait_for_function("() => window.__calls.includes('quit')")
         self.page.reload()

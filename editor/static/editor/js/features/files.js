@@ -83,8 +83,8 @@ export function install(app) {
   async function exportAseprite() {
     const doc = editor.doc;
     const bytes = await writeAseprite(doc, { palette: doc.palette?.length ? null : app.palette?.current?.colors });
-    downloadBlob(new Blob([bytes], { type: 'application/octet-stream' }), fileNameFor(doc.name, 'ase'));
-    notify(`"${doc.name}" exportado como .ase.`, 'success');
+    const result = await downloadBlob(new Blob([bytes], { type: 'application/octet-stream' }), fileNameFor(doc.name, 'ase'), { title: 'Exportar como .ase' });
+    if (result === 'downloaded') notify(`"${doc.name}" exportado como .ase.`, 'success');
   }
 
   Object.assign(commands, {

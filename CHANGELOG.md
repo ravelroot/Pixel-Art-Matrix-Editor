@@ -1,5 +1,17 @@
 # Histórico de versões
 
+## 2.2.0 — 23/10/2026
+
+**Salvar escolhendo a pasta:** **Salvar** (Ctrl+S) abre a janela "Salvar como" do Windows na primeira vez, para escolher a pasta e o nome do arquivo `.crivo`; os próximos Ctrl+S gravam no mesmo arquivo, sem perguntar de novo. **Salvar como…** (Ctrl+Shift+S, antes "Salvar como cópia") sempre pergunta. O projeto continua indo também para **Projetos salvos**. As exportações (PNG, JPEG, GIF, APNG, ZIP, sprite sheet, dados, paletas e `.ase`) abrem a mesma janela; cancelar mantém a janela de exportação aberta. No `Crivo.exe` é a janela nativa do Windows (`desktop/save_windows.go`); no Chrome e no Edge, a do navegador (File System Access API); nos outros navegadores, o arquivo vai para Downloads, como antes.
+
+**Tutorial rápido:** na primeira vez que o Crivo abre, ele pergunta se a pessoa quer um tutorial (dá para recusar). São 8 passos curtos que iluminam cada parte da tela: o que cada uma das 23 ferramentas faz e como usar, cores, camadas e animação, zoom e desfazer, salvar e exportar. Ele aparece uma vez só e fica em **Ajuda → Tutorial rápido**.
+
+**Testes:** 48 testes ponta a ponta (23 com o servidor e 25 no `Crivo.html`), com a janela Salvar como no navegador e no app desktop (salvar, salvar de novo sem perguntar, Salvar como…, cancelar e exportar) e o tutorial (aparece uma vez, pode ser recusado ou fechado com Esc, cobre as 23 ferramentas e devolve os atalhos ao fechar).
+
+**Documentação:** README (seção nova "Salvar e tutorial rápido", menus, atalhos, como rodar, testes e estrutura), manual técnico (capa, novidades da 2.2.0, capítulos 2, 3, 10, 11, 13, 17, 19 e 20, com duas capturas novas do tutorial) e PDF do banco de dados (capa) atualizados para a 2.2.0.
+
+**Compatibilidade:** nada muda no formato `.crivo`, na API nem no banco de dados; não há migração nova.
+
 ## 2.1.1 — 23/10/2026
 
 **Licença:** o Crivo deixa a licença MIT e passa a ter uma licença de uso própria (`LICENSE`). Continua de graça para baixar e usar, nas três maneiras (app desktop, servidor local e `Crivo.html`), e tudo o que você cria ou exporta com ele é seu, inclusive para jogos e projetos comerciais. Modificar o Crivo, copiar o código para outros projetos e redistribuí-lo passam a depender de autorização por escrito do autor.

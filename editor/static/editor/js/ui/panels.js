@@ -1,7 +1,7 @@
 import { colorToHex, colorToHex6, hexToColor, withAlpha, alpha, generateRamp } from '../core/colors.js';
 import { PRESET_PALETTES, normalizePalette, importPalette, exportPalette, extractPalette } from '../core/palettes.js';
 import { fileNameFor } from '../core/format.js';
-import { el, notify, pickFile, downloadText, delay, readPreference, writePreference } from './util.js';
+import { el, notify, pickFile, downloadText, saveLabel, delay, readPreference, writePreference } from './util.js';
 import { icon } from './icons.js';
 import { createCanvas, pixelsToCanvas } from './image.js';
 import { promptText, confirm, openDialog } from './dialog.js';
@@ -284,11 +284,11 @@ export class PalettePanel {
       body: el('label', { class: 'field' }, el('span', {}, 'Formato'), select),
       actions: [
         { label: 'Cancelar', value: null },
-        { label: 'Baixar', primary: true, send: true, action: () => select.value },
+        { label: saveLabel(), primary: true, send: true, action: () => select.value },
       ],
     });
     if (!format) return;
-    downloadText(exportPalette(p, format), fileNameFor(p.name, format));
+    await downloadText(exportPalette(p, format), fileNameFor(p.name, format), 'text/plain', { title: 'Exportar paleta' });
   }
 
   async rename() {
