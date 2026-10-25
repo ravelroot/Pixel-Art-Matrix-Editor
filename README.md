@@ -7,6 +7,7 @@
 <p align="center">
   Editor de pixel art que roda no navegador e trata a imagem como ela é: uma matriz de pixels RGBA. Desenhe com lápis, spray, balde, linhas, curvas, formas, pontilhado e degradês, selecione com retângulo, elipse, laço ou varinha mágica, organize em camadas e grupos com modos de mistura, anime quadro a quadro com tags e cels vinculados e exporte PNG, GIF e PNG animados, sprite sheets, arquivos <code>.ase</code> com camadas ou a própria matriz em JSON, CSV, JavaScript, Python, C e Java para usar direto no seu jogo.<br>
   Roda de três maneiras: app desktop para Windows (<code>Crivo.exe</code>), servidor local com backend ou arquivo único no navegador (<code>Crivo.html</code>).<br>
+  Ou abra direto no navegador, sem baixar nada: <a href="https://ravelroot.github.io/Pixel-Art-Matrix-Editor/">ravelroot.github.io/Pixel-Art-Matrix-Editor</a>.<br>
   Pronto para baixar e usar.
 </p>
 
@@ -341,6 +342,8 @@ Nesse modo não há API: projetos e paletas ficam no IndexedDB do navegador. Qua
 
 Baixe o [`Crivo.html`](Crivo.html) e dê dois cliques. O editor abre no navegador direto da pasta, sem servidor local, sem backend e sem internet, com todas as ferramentas, camadas, animação e exportações.
 
+Para usar sem baixar, abra a [versão online](https://ravelroot.github.io/Pixel-Art-Matrix-Editor/): é o mesmo `Crivo.html`, publicado no GitHub Pages, e os projetos também ficam guardados no navegador.
+
 Os projetos e as paletas ficam guardados no navegador em que o arquivo foi aberto. No Chrome e no Edge, **Ctrl+S** também abre a janela **Salvar como** para gravar o `.crivo` na pasta que você escolher; nos outros navegadores, use **Arquivo → Baixar arquivo .crivo**, que vai para Downloads. Para continuar em outro computador, abra o arquivo com **Arquivo → Abrir arquivo…**.
 
 O `Crivo.html` existe porque os navegadores não carregam módulos JavaScript de páginas abertas direto do disco: ele junta os módulos do editor num script só, embute o CSS e o ícone e traz a própria Content-Security-Policy. Depois de mudar o editor, rode `npm run portable` (o `npm run desktop` também faz isso).
@@ -576,7 +579,7 @@ tests/e2e/                  teste ponta a ponta da interface (Playwright)
 examples/                   projetos .crivo de exemplo (formato 2), inclusive blend-modes.crivo
 scripts/                    servidor estático em Node, geradores do Crivo.html e do Crivo.exe e criação do .env no Windows
 docs/                       manuais em PDF e imagens do README
-.github/workflows/          CI (testes, Ruff, Bandit, check --deploy, Playwright, Docker e build do Crivo.exe)
+.github/workflows/          CI (testes, Ruff, Bandit, check --deploy, Playwright, Docker e build do Crivo.exe) e publicação no GitHub Pages
 ruff.toml                   regras do Ruff
 ```
 
