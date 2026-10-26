@@ -23,7 +23,7 @@
 
 > **Versão 2.2.0 (Atual):** ao salvar (Ctrl+S), o Crivo abre a janela **Salvar como** do Windows para você escolher a pasta e o nome do arquivo, e as exportações também; na primeira abertura, um **tutorial rápido** mostra o que cada ferramenta faz e como usar (dá para recusar). Nada muda no formato `.crivo`, na API nem no banco. Detalhes em [Salvar e tutorial rápido (2.2.0)](#salvar-e-tutorial-rápido-220).
 
-> **Versão 2.1.1:** o Crivo deixou a licença MIT e passou a ter uma licença de uso própria. Você pode baixar e usar de graça, e o que você cria com ele é seu; modificar, copiar o código e redistribuir não são permitidos. Nada muda no editor. Detalhes em [Licença](#licença).
+> **Versão 2.1.1 (Anterior):** o Crivo deixou a licença MIT e passou a ter uma licença de uso própria. Você pode baixar e usar de graça, e o que você cria com ele é seu; modificar, copiar o código e redistribuir não são permitidos. Nada muda no editor. Detalhes em [Licença](#licença).
 
 <p align="center">
   <img src="docs/images/tela-editor.png" alt="Editor com a poção de exemplo aberta, os menus da 2.1.0, a barra de abas, três camadas e a linha do tempo com quatro quadros">
