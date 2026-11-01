@@ -28,8 +28,9 @@ import { install as installLayers } from './features/layers.js';
 import { install as installSelection } from './features/selection.js';
 import { install as installColor } from './features/color.js';
 import { install as installFiles } from './features/files.js';
+import { install as installSketchbook } from './features/sketchbook.js';
 
-const VERSION = '2.2.0';
+const VERSION = '2.3.0';
 
 // In the desktop app (Crivo.exe), the Windows program creates window.crivoDesktop before this page loads.
 // In the browser and in Crivo.html it does not exist, and nothing that depends on it is shown.
@@ -877,6 +878,7 @@ async function init() {
   installSelection(app);
   installColor(app);
   installFiles(app);
+  installSketchbook(app);
   buildTools();
   buildOptions();
   buildView();

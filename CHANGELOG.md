@@ -1,5 +1,21 @@
 # Histórico de versões
 
+## 2.3.0 — 31/10/2026
+
+**Caderno:** **Exibir → Caderno…** (F8) abre, por cima do editor, uma estante com três cadernos: **Projetos abertos** (as abas, inclusive o que não foi salvo), **Projetos salvos** (até 36 projetos do navegador, do app desktop ou do servidor) e **Caderno em branco** (páginas quadriculadas). As capas usam a paleta Crivo, com lombada, elástico e degradê pontilhado de Bayer, e o fundo é a ardósia da área de desenho, que escurece quando um caderno abre.
+
+**Animações:** ao abrir, o caderno se ergue, gira até mostrar a lombada, cresce até o centro e volta de frente já aberto, com a capa virada e as folhas em leque (as viradas empilhadas à esquerda e as próximas à direita, em perspectiva). Cada folha vira em 3D em torno da lombada; o fim mostra "tchau :p" em letras de pixel nas duas páginas; ao fechar, o caderno se dobra, gira até a borda das folhas e volta para a estante. Com `prefers-reduced-motion`, as páginas trocam sem giro.
+
+**Páginas:** cada página mostra uma pixel art em tamanho inteiro, com pixels nítidos sobre o xadrez de transparência, nome, tamanho e número de quadros; os projetos animados tocam a animação na própria página, com a duração de cada quadro. O olho mostra ou oculta as pixel arts (a escolha fica guardada no navegador), e **Editar esta página** volta ao editor na aba do projeto ou abre o projeto salvo numa aba nova. Setas, arrastar, clique, Enter, Espaço, Home, End e Esc funcionam na estante e no caderno.
+
+**Código:** `js/core/sketchbook.js` (paginação e geometria das folhas, sem DOM), `js/ui/sketchbook.js` (janela, estante e caderno) e `js/features/sketchbook.js` (menu e atalho), ligado pelo `install(app)`; o CSS fica em `crivo.css`. O `Crivo.html` e o `Crivo.exe` foram gerados de novo.
+
+**Testes:** 112 testes do núcleo (5 novos do Caderno) e 50 testes ponta a ponta (um novo em cada maneira: servidor e `Crivo.html`).
+
+**Documentação:** README (seção nova "Caderno (2.3.0)", menus, atalhos, testes e estrutura) e PDFs atualizados para a 2.3.0.
+
+**Compatibilidade:** nada muda no formato `.crivo`, na API nem no banco de dados; não há migração nova.
+
 ## 2.2.0 — 23/10/2026
 
 **Salvar escolhendo a pasta:** **Salvar** (Ctrl+S) abre a janela "Salvar como" do Windows na primeira vez, para escolher a pasta e o nome do arquivo `.crivo`; os próximos Ctrl+S gravam no mesmo arquivo, sem perguntar de novo. **Salvar como…** (Ctrl+Shift+S, antes "Salvar como cópia") sempre pergunta. O projeto continua indo também para **Projetos salvos**. As exportações (PNG, JPEG, GIF, APNG, ZIP, sprite sheet, dados, paletas e `.ase`) abrem a mesma janela; cancelar mantém a janela de exportação aberta. No `Crivo.exe` é a janela nativa do Windows (`desktop/save_windows.go`); no Chrome e no Edge, a do navegador (File System Access API); nos outros navegadores, o arquivo vai para Downloads, como antes.

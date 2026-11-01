@@ -27,6 +27,8 @@ export function install(app) {
   const tabs = new Tabs($('#doc-tabs'), editor, viewport);
   const minimap = new Minimap($('#minimap'), editor, viewport);
   const openInTab = (doc, project) => tabs.open(doc, project);
+  app.tabs = tabs;
+  app.openSavedProject = (id) => openProject(id);
 
   // Reads a file chosen in the dialog or dropped on the canvas and opens it in a new tab.
   async function openFileObject(file) {
