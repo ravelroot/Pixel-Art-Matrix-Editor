@@ -2488,6 +2488,79 @@ kbd {
   box-shadow: calc(var(--pw) * 0.04) calc(var(--pw) * 0.07) calc(var(--pw) * 0.12) rgba(20, 14, 12, 0.32);
 }
 
+.caderno-item.instantaneo,
+.caderno-item.instantaneo * {
+  transition: none !important;
+}
+
+.caderno-foto {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.caderno-etiqueta.com-foto {
+  top: auto;
+  bottom: 9%;
+}
+
+.caderno-dialogo {
+  width: min(500px, calc(100vw - 32px));
+}
+
+.caderno-personalizar {
+  display: grid;
+  grid-template-columns: 136px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.caderno-previa {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 0.72;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+  color: #faf6ef;
+  background: var(--capa);
+  border: 1px solid var(--border-strong);
+  border-radius: 3px 9px 9px 3px;
+  box-shadow: 3px 3px 0 rgba(43, 29, 23, 0.25);
+}
+
+.caderno-previa img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.caderno-previa span {
+  padding: 10px;
+}
+
+.caderno-campos {
+  display: grid;
+  gap: 14px;
+}
+
+.caderno-fotos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.caderno-aviso {
+  min-height: 1em;
+  margin: 0;
+  font-size: 12px;
+  color: var(--danger);
+}
+
 @media (max-width: 640px) {
   .caderno-topo {
     grid-template-columns: auto 1fr;

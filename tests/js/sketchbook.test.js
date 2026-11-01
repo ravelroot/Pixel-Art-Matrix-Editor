@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PixelDocument } from '../../editor/static/editor/js/core/document.js';
 import { pack } from '../../editor/static/editor/js/core/colors.js';
-import { paginate, clampFlips, leafPose, spread, spreadLabel, frameDelays, framesToRender, isBlank, pageCount, pageNumber, FAN } from '../../editor/static/editor/js/core/sketchbook.js';
+import { paginate, clampFlips, leafPose, spread, spreadLabel, frameDelays, framesToRender, isBlank, pageCount, pageNumber, FAN, readCovers, bookTitle, TITLES, PHOTO_LIMIT } from '../../editor/static/editor/js/core/sketchbook.js';
 
 test('paginate keeps a minimum of leaves and reserves the last left page for the end', () => {
   const empty = paginate([]);
@@ -67,4 +67,22 @@ test('frame delays, render budget and blank detection follow the document', () =
   doc.cell(a.id, layer.id)[5] = pack(93, 28, 22);
   assert.equal(isBlank(doc.composite(0)), false);
   assert.equal(isBlank(doc.composite(1)), true);
+});
+
+test('readCovers keeps valid names and photos per notebook and bookTitle falls back to the default', () => {
+  const photo = 'data:image/jpeg;base64,AAAA';
+  const covers = readCovers({
+    open: { name: '  Meus sprites  ', photo },
+    saved: { name: 'x'.repeat(60), photo: 'javascript:alert(1)' },
+    blank: { name: '', photo: 'data:image/png;base64,' + 'A'.repeat(PHOTO_LIMIT) },
+    other: { name: 'Fora' },
+  });
+  assert.deepEqual(covers.open, { name: 'Meus sprites', photo });
+  assert.deepEqual(covers.saved, { name: 'x'.repeat(40), photo: null });
+  assert.equal(covers.blank, undefined);
+  assert.equal(covers.other, undefined);
+  assert.deepEqual(readCovers(null), {});
+  assert.deepEqual(readCovers([1, 2]), {});
+  assert.equal(bookTitle('open', covers), 'Meus sprites');
+  assert.equal(bookTitle('blank', covers), TITLES.blank);
 });

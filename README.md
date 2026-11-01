@@ -21,11 +21,11 @@
 
 > **Banco de dados:** [`Banco-de-Dados-Crivo.pdf`](Banco-de-Dados-Crivo.pdf) traz o diagrama de relacionamentos, todas as tabelas (inclusive `tag`, `slice` e `tileset`, da 2.1.0) com campos, tipos, chaves e restrições, o formato binário das células, o controle de versões, consultas prontas, como preparar o PostgreSQL e as regras de integridade e segurança dos dados.
 
-> **Versão 2.3.0 (Atual):** o **Caderno** (Exibir → Caderno…, F8) mostra seus projetos como cadernos numa estante em 3D: escolha um, ele cresce, gira, abre em leque e as páginas viram com as setas, cada uma com uma pixel art em tamanho inteiro (as animadas tocam na própria página). Dá para folhear com ou sem as pixel arts e voltar ao editor na página que quiser. Nada muda no formato `.crivo`, na API nem no banco. Detalhes em [Caderno (2.3.0)](#caderno-230).
+> **Versão 2.3.0 (Atual):** o **Caderno**, com menu próprio na barra (entre Quadro e Ajuda) e atalho F8, mostra seus projetos como cadernos numa estante em 3D: escolha um, ele cresce, gira, abre em leque e as páginas viram com as setas, cada uma com uma pixel art em tamanho inteiro (as animadas tocam na própria página). Dá para folhear com ou sem as pixel arts, dar nome e foto de capa a cada caderno e voltar ao editor na página que quiser. Nada muda no formato `.crivo`, na API nem no banco. Detalhes em [Caderno (2.3.0)](#caderno-230).
 
 > **Versão 2.2.0 (Anterior):** ao salvar (Ctrl+S), o Crivo abre a janela **Salvar como** do Windows para você escolher a pasta e o nome do arquivo, e as exportações também; na primeira abertura, um **tutorial rápido** mostra o que cada ferramenta faz e como usar (dá para recusar). Nada muda no formato `.crivo`, na API nem no banco. Detalhes em [Salvar e tutorial rápido (2.2.0)](#salvar-e-tutorial-rápido-220).
 
-> **Versão 2.1.1 (Anterior):** o Crivo deixou a licença MIT e passou a ter uma licença de uso própria. Você pode baixar e usar de graça, e o que você cria com ele é seu; modificar, copiar o código e redistribuir não são permitidos. Nada muda no editor. Detalhes em [Licença](#licença).
+> **Versão 2.1.1:** o Crivo deixou a licença MIT e passou a ter uma licença de uso própria. Você pode baixar e usar de graça, e o que você cria com ele é seu; modificar, copiar o código e redistribuir não são permitidos. Nada muda no editor. Detalhes em [Licença](#licença).
 
 <p align="center">
   <img src="docs/images/tela-editor.png" alt="Editor com a poção de exemplo aberta, os menus da 2.1.0, a barra de abas, três camadas e a linha do tempo com quatro quadros">
@@ -71,7 +71,7 @@
   <img src="docs/images/tela-caderno-virando.png" width="49%" alt="Página virando em 3D em torno da lombada">
 </p>
 
-**Exibir → Caderno…** (ou **F8**) abre, por cima do editor, uma estante de cadernos. As capas usam a paleta Crivo (vinho, oliva e café, com elástico e degradê pontilhado de Bayer em palha e rosé) e o fundo é a ardósia da área de desenho, que escurece quando um caderno abre.
+O **Caderno** tem menu próprio na barra, entre **Quadro** e **Ajuda**: **Abrir a estante…** (F8) abre, por cima do editor, uma estante de cadernos, e **Projetos abertos**, **Projetos salvos** e **Caderno em branco** abrem direto o caderno escolhido, já com a animação. As capas usam a paleta Crivo (vinho, oliva e café, com elástico e degradê pontilhado de Bayer em palha e rosé) e o fundo é a ardósia da área de desenho, que escurece quando um caderno abre.
 
 | Caderno | O que tem dentro |
 |---|---|
@@ -84,6 +84,11 @@
 - **Com ou sem pixel arts:** o olho (ou o subtítulo "N páginas") mostra ou oculta as pixel arts, e o caderno fica só com as páginas quadriculadas. A escolha fica guardada no navegador. Sem nenhuma pixel art ainda, o caderno abre em branco, com um aviso na primeira página.
 - **Editar esta página:** o botão do lápis fecha o caderno e leva ao projeto da página: troca para a aba dele ou abre o projeto salvo numa aba nova.
 - **Fechar:** o caderno se dobra, gira até mostrar a borda das folhas e volta para a estante; Esc de novo fecha a janela.
+- **Nome e foto de capa:** na estante, o botão da foto (ou **Caderno → Personalizar caderno…**) abre uma janela para dar nome ao caderno (até 40 letras) e escolher uma foto de capa, com prévia. A foto é recortada na proporção da capa e fica por baixo da lombada e do elástico, com o nome numa etiqueta embaixo; o nome aparece também no título, na folha de guarda e no menu Caderno. **Remover foto** volta à capa pontilhada e **Restaurar padrão** volta ao nome e à capa originais. Cada um dos três cadernos guarda o próprio nome e a própria foto no navegador (a foto é reduzida para 360 × 500).
+
+<p align="center">
+  <img src="docs/images/tela-caderno-personalizar.png" alt="Janela Personalizar caderno com o nome Sprites do Erik e a prévia da foto de capa">
+</p>
 
 | Tecla ou gesto | Na estante | Com o caderno aberto |
 |---|---|---|
@@ -183,7 +188,7 @@ A versão 2.1.0 traz para o Crivo os recursos de um editor de pixel art completo
 | `Shift+N` / `Alt+N` | Nova camada / novo quadro |
 | `F2` | Propriedades da camada |
 | `F7` | Pré-visualização |
-| `F8` | Caderno (2.3.0) |
+| `F8` | Caderno: abrir a estante (2.3.0) |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Próxima aba / aba anterior |
 | `Ctrl+U` / `Ctrl+M` | Matiz, saturação e luminosidade / curva de cores |
 | `Ctrl+B` | Usar a seleção como pincel |
@@ -202,7 +207,8 @@ A lista completa fica em **Ajuda → Atalhos do teclado** (`?`).
 | Imagem | Tamanho da matriz, recortar para a seleção, aparar, girar, deslocar meia matriz, contorno, converter para a paleta, substituir cor, inverter e tons de cinza |
 | **Cor** | Modo de cor RGBA, indexado (com pontilhado Bayer 4×4 opcional) ou tons de cinza, editar paleta, escolher cor principal e secundária (seletor HSV com alfa e hexadecimal), brilho e contraste, matiz/saturação/luminosidade, curva de cores, posterizar, remover ruído, matriz de convolução (suavizar, nitidez, realce de bordas, desfoque gaussiano), converter para a paleta, substituir cor, inverter e tons de cinza |
 | **Seleção** | Selecionar tudo, desmarcar, reselecionar, inverter, expandir e contrair (1 a 10 px), selecionar por cor, transformar seleção (rotação em qualquer ângulo com RotSprite, escala de 10% a 800%, espelho, com prévia e um passo no histórico), usar seleção como pincel e pincel padrão |
-| Exibir | Grade, papel cebola, **configurar papel cebola**, modo ladrilho, **slices**, **editar slices**, zoom, tema, **pré-visualização**, **Caderno…** (2.3.0), **próxima aba** e **aba anterior** |
+| Exibir | Grade, papel cebola, **configurar papel cebola**, modo ladrilho, **slices**, **editar slices**, zoom, tema, **pré-visualização**, **próxima aba** e **aba anterior** |
+| Caderno (2.3.0) | **Abrir a estante…** (F8), **Projetos abertos**, **Projetos salvos**, **Caderno em branco** e **Personalizar caderno…** |
 | **Camada** | Nova camada, novo grupo, nova camada de tiles, duplicar, excluir, subir, descer, mesclar com a de baixo, agrupar, desfazer o grupo, propriedades da camada, camada de referência e modo tile |
 | **Quadro** | Novo quadro, novo quadro vinculado, duplicar, excluir, propriedades do quadro, vincular e desvincular célula, nova tag, editar e excluir a tag do quadro, tocar ou pausar |
 | Ajuda | **Tutorial rápido**, atalhos do teclado e sobre o Crivo |
@@ -554,10 +560,10 @@ Alterar o código-fonte, criar versões modificadas ou reaproveitar partes do c�
 ## Desenvolvimento e testes
 
 ```bash
-npm test                                   # 112 testes do núcleo em JavaScript (Node 20+)
+npm test                                   # 113 testes do núcleo em JavaScript (Node 20+)
 python manage.py test editor               # 72 testes da API Django (funcionamento, segurança, migrações e recursos da 2.1.0)
 bash tools/java/test.sh                    # 36 testes da ferramenta em Java
-python -m unittest discover -s tests/e2e   # 50 testes ponta a ponta no Chromium (Playwright): 24 com o Django e 26 no Crivo.html
+python -m unittest discover -s tests/e2e   # 52 testes ponta a ponta no Chromium (Playwright): 25 com o Django e 27 no Crivo.html
 npm run portable                           # gera o Crivo.html de novo a partir do código do editor
 npm run desktop                            # gera o Crivo.exe (precisa do Go); -- --check só confere
 ruff check .                               # estilo, bugs prováveis e regras de segurança no Python
@@ -576,11 +582,11 @@ Resultado da rodada de testes da versão 2.2.0: **263 testes, todos passando**, 
 
 | Verificação | O que cobre | Resultado |
 |---|---|---|
-| Núcleo JavaScript (112) | Cores, geometria, flood fill, RLE, histórico, formato, exportação (inclusive Java compacta e C com muitas cores), pontilhado, degradês, pixel perfect, seleção, aparar, ladrilho, contorno, filtros e GIF (LZW de ida e volta); na 2.1.0, grupos, modos de mistura, tags, cels vinculados, tilemaps, slices, seleções com máscara, ferramentas novas, modos de tinta, pincel, transformação, modos de cor, ajustes, paleta, `.ase` de ida e volta, APNG, ZIP e o JSON hash e array da sprite sheet; na 2.3.0, paginação, leque das folhas, legenda das páginas, durações dos quadros e detecção de página em branco do Caderno | 112 de 112 |
+| Núcleo JavaScript (113) | Cores, geometria, flood fill, RLE, histórico, formato, exportação (inclusive Java compacta e C com muitas cores), pontilhado, degradês, pixel perfect, seleção, aparar, ladrilho, contorno, filtros e GIF (LZW de ida e volta); na 2.1.0, grupos, modos de mistura, tags, cels vinculados, tilemaps, slices, seleções com máscara, ferramentas novas, modos de tinta, pincel, transformação, modos de cor, ajustes, paleta, `.ase` de ida e volta, APNG, ZIP e o JSON hash e array da sprite sheet; na 2.3.0, paginação, leque das folhas, legenda das páginas, durações dos quadros, detecção de página em branco e leitura do nome e da foto de capa do Caderno | 113 de 113 |
 | API Django (72) | Ciclo de projetos e paletas, revisões, conflitos, exportação, PNG, formatos C e Java (a classe grande é compilada e executada com o JDK quando ele existe), o conjunto de segurança abaixo, as migrações e os campos da 2.1.0 (validação, ida e volta, documentos da 2.0 inalterados) | 72 de 72 |
 | Ferramenta Java (36) | Leitura do `.crivo`, RLE, PNG, sprite sheet e matriz, inclusive uma classe grande compilada em memória com o compilador do JDK; na 2.1.0, chaves opcionais, modos de mistura, grupos, `info` e `tags` | 36 de 36 |
 | Paridade de composição | 30 documentos aleatórios com os 19 modos de mistura, grupos (inclusive "pass-through" normais a 100%) e camadas ocultas ou de referência, compostos no editor (JS), no servidor (Python) e na ferramenta Java (`tests/fixtures/blend-parity.json`) | Mesmos pixels nos três |
-| Interface (50) | Editor aberto no Chromium de dois jeitos, contra o Django e como `Crivo.html` direto do disco, inclusive a integração com o app desktop (F11, sair e rascunho): cada ferramenta nova, seleção, colagem flutuante, gestos protegidos (Ctrl+Z no meio do arraste, setas no menu), comandos de imagem, desfazer, preferências inválidas, salvar no servidor e no navegador, baixar e reabrir o `.crivo`, baixar o PNG e o GIF, na 2.1.0 laço, varinha mágica, polígono, curva e modos de tinta, e na 2.2.0 a janela Salvar como (no navegador e no app desktop, com cancelar e Salvar como…) e o tutorial rápido (aparece uma vez, pode ser recusado e cobre as 23 ferramentas), e na 2.3.0 o Caderno (F8, estante, abrir, virar, fim, ocultar as pixel arts, Esc e editar a página), sem nenhum erro no console nem violação de CSP | 50 de 50 |
+| Interface (52) | Editor aberto no Chromium de dois jeitos, contra o Django e como `Crivo.html` direto do disco, inclusive a integração com o app desktop (F11, sair e rascunho): cada ferramenta nova, seleção, colagem flutuante, gestos protegidos (Ctrl+Z no meio do arraste, setas no menu), comandos de imagem, desfazer, preferências inválidas, salvar no servidor e no navegador, baixar e reabrir o `.crivo`, baixar o PNG e o GIF, na 2.1.0 laço, varinha mágica, polígono, curva e modos de tinta, e na 2.2.0 a janela Salvar como (no navegador e no app desktop, com cancelar e Salvar como…) e o tutorial rápido (aparece uma vez, pode ser recusado e cobre as 23 ferramentas), e na 2.3.0 o Caderno (menu próprio, F8, estante, abrir, virar, fim, ocultar as pixel arts, Esc, editar a página e nome e foto de capa), sem nenhum erro no console nem violação de CSP | 52 de 52 |
 | Ruff e Bandit | Estilo, bugs prováveis e padrões inseguros no Python | 0 problemas |
 | App desktop | Build reproduzível do `Crivo.exe` (gerado de novo e comparado byte a byte) e `go vet` no código Go | Idêntico; 0 problemas |
 | `check --deploy` | Configuração de produção do Django | Só avisos opcionais (HSTS em subdomínios, preload e redirecionamento HTTPS, que ficam a cargo do proxy) |

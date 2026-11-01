@@ -7,7 +7,7 @@
 <html lang="pt-BR" data-theme="light">
   <head>
     <meta charset="utf-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-bS5oPVwVkmOQAgnPqVtEmUxNIsgryX5WW2Q09irMZx0='; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-fs3wAWusQbXW84ACCFCW29DnqR2xWpC7thidQdBAr7o='; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Crivo</title>
     <meta name="description" content="Crivo: editor de pixel art baseado em matrizes, com camadas, animação, histórico ilimitado e exportação para jogos.">
@@ -2502,6 +2502,79 @@ kbd {
 .caderno-folha-fundo > .frente {
   overflow: visible;
   box-shadow: calc(var(--pw) * 0.04) calc(var(--pw) * 0.07) calc(var(--pw) * 0.12) rgba(20, 14, 12, 0.32);
+}
+
+.caderno-item.instantaneo,
+.caderno-item.instantaneo * {
+  transition: none !important;
+}
+
+.caderno-foto {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.caderno-etiqueta.com-foto {
+  top: auto;
+  bottom: 9%;
+}
+
+.caderno-dialogo {
+  width: min(500px, calc(100vw - 32px));
+}
+
+.caderno-personalizar {
+  display: grid;
+  grid-template-columns: 136px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.caderno-previa {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 0.72;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+  color: #faf6ef;
+  background: var(--capa);
+  border: 1px solid var(--border-strong);
+  border-radius: 3px 9px 9px 3px;
+  box-shadow: 3px 3px 0 rgba(43, 29, 23, 0.25);
+}
+
+.caderno-previa img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.caderno-previa span {
+  padding: 10px;
+}
+
+.caderno-campos {
+  display: grid;
+  gap: 14px;
+}
+
+.caderno-fotos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.caderno-aviso {
+  min-height: 1em;
+  margin: 0;
+  font-size: 12px;
+  color: var(--danger);
 }
 
 @media (max-width: 640px) {
@@ -7653,6 +7726,7 @@ const BITMAPS = {
   disk: B('#########.', '#.#####.##', '#.#####..#', '#.......##', '#........#', '#.######.#', '#.#....#.#', '#.######.#', '##########'),
   folder: B('####......', '#...#####.', '#........#', '##########', '#........#', '#........#', '#........#', '##########'),
   sketchbook: B('.########.', '##.......#', '##.#####.#', '##.......#', '##.......#', '##..###..#', '##.......#', '##.......#', '.########.'),
+  photo: B('##########', '#........#', '#......#.#', '#...#....#', '#..###...#', '#.#####.##', '##########'),
   frames: B('##########', '#..#..#..#', '##########', '#........#', '#........#', '#........#', '##########'),
 };
 
@@ -11165,7 +11239,7 @@ const SHORTCUTS = [
   ['Ctrl + O', 'Abrir arquivo (.crivo ou .ase) em uma nova aba'],
   ['Ctrl + Tab e Ctrl + Shift + Tab', 'Próxima aba e aba anterior'],
   ['F7', 'Mostrar ou ocultar a pré-visualização'],
-  ['F8', 'Caderno: folhear as pixel arts em um caderno 3D (← → viram as páginas, Esc fecha)'],
+  ['F8', 'Caderno: abrir a estante de cadernos em 3D (← → viram as páginas, Esc fecha)'],
   ['Ctrl + E', 'Exportar imagem'],
   ['Ctrl + Shift + E', 'Exportar dados da matriz'],
   ['Ctrl + Shift + G', 'Exportar GIF animado'],
@@ -14393,6 +14467,27 @@ const MIN_LEAVES = 3;
 const FAN = 6;
 const PIXEL_BUDGET = 2000000;
 const MAX_FRAMES = 48;
+const KINDS = ['open', 'saved', 'blank'];
+const TITLES = { open: 'Projetos abertos', saved: 'Projetos salvos', blank: 'Caderno em branco' };
+const NAME_LIMIT = 40;
+const PHOTO_LIMIT = 600000;
+
+function readCovers(raw) {
+  const covers = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return covers;
+  for (const kind of KINDS) {
+    const c = raw[kind];
+    if (!c || typeof c !== 'object') continue;
+    const name = typeof c.name === 'string' ? c.name.trim().slice(0, NAME_LIMIT) : '';
+    const photo = typeof c.photo === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(c.photo) && c.photo.length <= PHOTO_LIMIT ? c.photo : null;
+    if (name || photo) covers[kind] = { name, photo };
+  }
+  return covers;
+}
+
+function bookTitle(kind, covers) {
+  return covers[kind]?.name || TITLES[kind] || '';
+}
 
 function paginate(items, minLeaves = MIN_LEAVES) {
   const leaves = Math.max(minLeaves, Math.ceil((items.length + 1) / 2));
@@ -14457,17 +14552,18 @@ function pageCount(leaves) {
 function pageNumber(index) {
   return String(index + 1).padStart(2, '0');
 }
-return { MIN_LEAVES, FAN, PIXEL_BUDGET, MAX_FRAMES, paginate, clampFlips, leafPose, spread, spreadLabel, frameDelays, framesToRender, isBlank, pageCount, pageNumber };
+return { MIN_LEAVES, FAN, PIXEL_BUDGET, MAX_FRAMES, KINDS, TITLES, NAME_LIMIT, PHOTO_LIMIT, readCovers, bookTitle, paginate, clampFlips, leafPose, spread, spreadLabel, frameDelays, framesToRender, isBlank, pageCount, pageNumber };
 })();
 
 // js/ui/sketchbook.js
 modules["js/ui/sketchbook.js"] = (() => {
-const { el, readPreference, writePreference } = modules["js/ui/util.js"];
+const { el, readPreference, writePreference, pickFile } = modules["js/ui/util.js"];
+const { openDialog } = modules["js/ui/dialog.js"];
 const { icon, bitmapPath } = modules["js/ui/icons.js"];
 const { pixelsToCanvas, createCanvas } = modules["js/ui/image.js"];
 const { deserialize } = modules["js/core/format.js"];
 const { bayerThreshold } = modules["js/core/dither.js"];
-const { paginate, clampFlips, leafPose, spread, spreadLabel, frameDelays, framesToRender, isBlank, pageNumber, pageCount } = modules["js/core/sketchbook.js"];
+const { paginate, clampFlips, leafPose, spread, spreadLabel, frameDelays, framesToRender, isBlank, pageNumber, pageCount, KINDS, TITLES, NAME_LIMIT, PHOTO_LIMIT, readCovers, bookTitle } = modules["js/core/sketchbook.js"];
 
 const SHELF = 0.84;
 const OPEN_TIME = 1000;
@@ -14543,6 +14639,27 @@ function artCanvas(art, className = 'caderno-pixels') {
   return canvas;
 }
 
+async function photoFromFile(file) {
+  const bitmap = await createImageBitmap(file);
+  const w = 360;
+  const h = 500;
+  const canvas = createCanvas(w, h);
+  const ctx = canvas.getContext('2d');
+  const scale = Math.max(w / bitmap.width, h / bitmap.height);
+  const sw = w / scale;
+  const sh = h / scale;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bitmap, (bitmap.width - sw) / 2, (bitmap.height - sh) / 2, sw, sh, 0, 0, w, h);
+  bitmap.close?.();
+  let quality = 0.86;
+  let url = canvas.toDataURL('image/jpeg', quality);
+  while (url.length > PHOTO_LIMIT && quality > 0.4) {
+    quality -= 0.15;
+    url = canvas.toDataURL('image/jpeg', quality);
+  }
+  return url;
+}
+
 function plural(n, one, many) {
   return `${n} ${n === 1 ? one : many}`;
 }
@@ -14558,6 +14675,7 @@ class Sketchbook {
     this.raf = 0;
     this.pointer = null;
     this.showArt = readPreference('sketchbookArt', true) !== false;
+    this.covers = readCovers(readPreference('sketchbookCovers', {}));
     this.reduced = matchMedia('(prefers-reduced-motion: reduce)');
     this.onResize = () => this.measure();
   }
@@ -14566,11 +14684,18 @@ class Sketchbook {
     return this.books[this.selected];
   }
 
-  async show() {
-    if (this.dialog) return;
+  nameOf(kind) {
+    return bookTitle(kind, this.covers);
+  }
+
+  async show(kind = null, open = false) {
+    if (this.dialog) {
+      if (kind) this.jump(kind, open);
+      return;
+    }
     this.build();
     this.books = [this.openBook(), this.savedBook(), this.blankBook()];
-    this.selected = 0;
+    this.selected = Math.max(0, KINDS.indexOf(kind));
     this.books.forEach((b) => this.stage.append(this.renderBook(b)));
     document.body.append(this.dialog);
     this.dialog.showModal();
@@ -14578,7 +14703,16 @@ class Sketchbook {
     this.measure();
     this.update();
     window.addEventListener('resize', this.onResize);
-    this.loadSaved(this.books[1]);
+    const saved = this.loadSaved(this.books[1]);
+    if (!open) return;
+    if (kind === 'saved') await saved;
+    requestAnimationFrame(() => requestAnimationFrame(() => this.dialog && this.openCurrent()));
+  }
+
+  jump(kind, open) {
+    if (this.opened) this.closeBook();
+    this.select(KINDS.indexOf(kind));
+    if (open) setTimeout(() => this.dialog && this.openCurrent(), 450);
   }
 
   close() {
@@ -14604,6 +14738,7 @@ class Sketchbook {
     this.next = el('button', { type: 'button', class: 'caderno-botao', html: icon('right', 18), onclick: () => this.step(1) });
     this.eye = el('button', { type: 'button', class: 'caderno-botao', onclick: () => this.toggleArt() });
     this.main = el('button', { type: 'button', class: 'caderno-botao caderno-principal', onclick: () => (this.opened ? this.editPage() : this.openCurrent()) });
+    this.custom = el('button', { type: 'button', class: 'caderno-botao', title: 'Personalizar caderno…', 'aria-label': 'Personalizar caderno…', html: icon('photo', 18), onclick: () => this.customize() });
     this.dialog = el(
       'dialog',
       { class: 'caderno', 'aria-labelledby': 'caderno-titulo' },
@@ -14615,7 +14750,7 @@ class Sketchbook {
         el('div', { class: 'caderno-grupo caderno-direita' }, this.counter),
       ),
       this.stage,
-      el('footer', { class: 'caderno-acoes' }, this.prev, this.eye, this.main, this.next),
+      el('footer', { class: 'caderno-acoes' }, this.custom, this.prev, this.eye, this.main, this.next),
     );
     this.dialog.classList.toggle('sem-artes', !this.showArt);
     this.dialog.addEventListener('cancel', (e) => e.preventDefault());
@@ -14630,17 +14765,17 @@ class Sketchbook {
     const tabs = this.app.tabs;
     const docs = tabs ? tabs.tabs.map((t, i) => ({ doc: i === tabs.active ? editor.doc : t.session?.doc, index: i })) : [{ doc: editor.doc, index: 0 }];
     const arts = docs.filter((d) => d.doc).map((d) => artFromDocument(d.doc, { type: 'tab', index: d.index })).filter(Boolean);
-    return this.makeBook('open', 'Projetos abertos', arts, 'Nenhuma pixel art aberta ainda. Desenhe no Crivo e ela aparece aqui.');
+    return this.makeBook('open', this.nameOf('open'), arts, 'Nenhuma pixel art aberta ainda. Desenhe no Crivo e ela aparece aqui.');
   }
 
   savedBook() {
-    const book = this.makeBook('saved', 'Projetos salvos', [], `Procurando projetos salvos em ${this.app.storage.name}…`);
+    const book = this.makeBook('saved', this.nameOf('saved'), [], `Procurando projetos salvos em ${this.app.storage.name}…`);
     book.loading = true;
     return book;
   }
 
   blankBook() {
-    return this.makeBook('blank', 'Caderno em branco', [], null, 6);
+    return this.makeBook('blank', this.nameOf('blank'), [], null, 6);
   }
 
   makeBook(kind, title, arts, empty, minLeaves) {
@@ -14671,10 +14806,18 @@ class Sketchbook {
     book.arts = arts;
     Object.assign(book, paginate(arts));
     book.flips = clampFlips(book.flips, book.total);
+    this.replaceBook(book);
+  }
+
+  replaceBook(book) {
     const old = book.item;
-    old.replaceWith(this.renderBook(book));
+    const item = this.renderBook(book);
+    item.classList.add('instantaneo');
+    old.replaceWith(item);
     this.layout();
     this.update();
+    void item.offsetWidth;
+    item.classList.remove('instantaneo');
   }
 
   renderBook(book) {
@@ -14695,17 +14838,19 @@ class Sketchbook {
   }
 
   cover(book) {
-    const thumbs = book.arts.slice(0, book.kind === 'saved' ? 4 : 1).map((a) => el('span', { class: 'caderno-miniatura' }, artCanvas(a)));
+    const photo = this.covers[book.kind]?.photo;
+    const thumbs = photo ? [] : book.arts.slice(0, book.kind === 'saved' ? 4 : 1).map((a) => el('span', { class: 'caderno-miniatura' }, artCanvas(a)));
     const label = el(
       'div',
-      { class: 'caderno-etiqueta' },
-      thumbs.length ? el('div', { class: `caderno-miniaturas n${thumbs.length}` }, thumbs) : el('span', { class: 'caderno-logo', html: icon('logo', 28) }),
+      { class: `caderno-etiqueta${photo ? ' com-foto' : ''}` },
+      photo ? null : thumbs.length ? el('div', { class: `caderno-miniaturas n${thumbs.length}` }, thumbs) : el('span', { class: 'caderno-logo', html: icon('logo', 28) }),
       el('strong', {}, book.title),
       el('span', { class: 'mono' }, book.loading ? 'carregando…' : plural(pageCount(book.pages.length / 2), 'página', 'páginas')),
     );
     const pattern = coverPattern(book.cover);
     pattern.className = 'caderno-padrao';
-    return el('div', { class: 'caderno-capa', style: { '--capa': book.cover.color, '--lombada': book.cover.spine, '--tinta': book.cover.ink } }, pattern, label, el('span', { class: 'caderno-elastico' }));
+    const art = photo ? el('img', { class: 'caderno-foto', src: photo, alt: '', draggable: 'false' }) : pattern;
+    return el('div', { class: 'caderno-capa', style: { '--capa': book.cover.color, '--lombada': book.cover.spine, '--tinta': book.cover.ink } }, art, label, el('span', { class: 'caderno-elastico' }));
   }
 
   endpaper(book) {
@@ -14797,6 +14942,9 @@ class Sketchbook {
     this.main.innerHTML = icon(this.opened ? 'pencil' : 'sketchbook', 18);
     this.main.title = this.opened ? (target ? `Editar "${target.name}" no Crivo` : 'Esta página não tem pixel art') : `Abrir "${book.title}" (Enter)`;
     this.main.disabled = this.opened && (!target || !this.showArt);
+    this.custom.hidden = this.opened;
+    this.custom.title = `Personalizar "${book.title}"…`;
+    this.custom.setAttribute('aria-label', this.custom.title);
     this.prev.title = this.opened ? 'Página anterior (←)' : 'Caderno anterior (←)';
     this.next.title = this.opened ? 'Próxima página (→)' : 'Próximo caderno (→)';
     this.prev.disabled = !this.opened && this.selected === 0;
@@ -14881,6 +15029,88 @@ class Sketchbook {
     writePreference('sketchbookArt', this.showArt);
     this.dialog.classList.toggle('sem-artes', !this.showArt);
     this.update();
+  }
+
+  refresh(book) {
+    book.title = this.nameOf(book.kind);
+    this.replaceBook(book);
+  }
+
+  saveCovers() {
+    return writePreference('sketchbookCovers', this.covers);
+  }
+
+  async customize() {
+    if (this.opened || !this.book) return;
+    const book = this.book;
+    const current = this.covers[book.kind] ?? { name: '', photo: null };
+    let photo = current.photo;
+    const name = el('input', { type: 'text', value: current.name, maxlength: NAME_LIMIT, placeholder: TITLES[book.kind], 'aria-label': 'Nome do caderno' });
+    const preview = el('div', { class: 'caderno-previa', style: { '--capa': book.cover.color } });
+    const message = el('p', { class: 'caderno-aviso', role: 'status' });
+    const remove = el('button', { type: 'button', class: 'button', onclick: () => ((photo = null), draw()) }, 'Remover foto');
+    const draw = () => {
+      preview.replaceChildren(photo ? el('img', { src: photo, alt: 'Prévia da capa' }) : el('span', {}, 'Sem foto: a capa usa o padrão do Crivo'));
+      remove.disabled = !photo;
+    };
+    const choose = el(
+      'button',
+      {
+        type: 'button',
+        class: 'button',
+        onclick: async () => {
+          const file = await pickFile('image/png,image/jpeg,image/webp,image/gif,image/bmp');
+          if (!file) return;
+          try {
+            photo = await photoFromFile(file);
+            message.textContent = '';
+          } catch {
+            message.textContent = 'Não foi possível ler essa imagem. Tente PNG, JPEG ou WebP.';
+          }
+          draw();
+        },
+      },
+      'Escolher foto…',
+    );
+    draw();
+    const body = el(
+      'div',
+      { class: 'caderno-personalizar' },
+      preview,
+      el(
+        'div',
+        { class: 'caderno-campos' },
+        el('label', { class: 'field' }, el('span', {}, 'Nome do caderno'), name),
+        el('div', { class: 'field' }, el('span', {}, 'Foto da capa'), el('div', { class: 'caderno-fotos' }, choose, remove)),
+        message,
+      ),
+    );
+    const result = await openDialog({
+      title: 'Personalizar caderno',
+      body,
+      className: 'caderno-dialogo',
+      actions: [
+        { label: 'Restaurar padrão', value: 'reset' },
+        { label: 'Cancelar', value: null },
+        { label: 'Salvar', primary: true, send: true, action: () => 'save' },
+      ],
+    });
+    if (!result || !this.dialog) return;
+    const previous = this.covers[book.kind];
+    if (result === 'reset') delete this.covers[book.kind];
+    else {
+      const value = name.value.trim().slice(0, NAME_LIMIT);
+      if (value || photo) this.covers[book.kind] = { name: value, photo };
+      else delete this.covers[book.kind];
+    }
+    if (!this.saveCovers()) {
+      if (previous) this.covers[book.kind] = previous;
+      else delete this.covers[book.kind];
+      this.counter.textContent = 'Sem espaço no navegador para guardar a foto.';
+      return;
+    }
+    this.refresh(book);
+    this.stage.focus();
   }
 
   editPage() {
@@ -14976,8 +15206,21 @@ const { Sketchbook } = modules["js/ui/sketchbook.js"];
 
 function install(app) {
   const sketchbook = new Sketchbook(app);
-  app.commands.sketchbook = { label: 'Caderno…', shortcut: 'F8', fn: () => sketchbook.show() };
-  app.addMenuItems('Exibir', ['sketchbook'], 'preview');
+  const notebook = (kind) => ({
+    get label() {
+      return sketchbook.nameOf(kind);
+    },
+    shortcut: '',
+    fn: () => sketchbook.show(kind, true),
+  });
+  Object.assign(app.commands, {
+    sketchbook: { label: 'Abrir a estante…', shortcut: 'F8', fn: () => sketchbook.show() },
+    sketchbookOpen: notebook('open'),
+    sketchbookSaved: notebook('saved'),
+    sketchbookBlank: notebook('blank'),
+    sketchbookCustomize: { label: 'Personalizar caderno…', shortcut: '', fn: () => sketchbook.show().then(() => sketchbook.customize()) },
+  });
+  app.addMenu('Caderno', ['sketchbook', '-', 'sketchbookOpen', 'sketchbookSaved', 'sketchbookBlank', '-', 'sketchbookCustomize'], 'Ajuda');
   app.addShortcut({ key: 'f8', run: () => sketchbook.show() });
   app.sketchbook = sketchbook;
 }

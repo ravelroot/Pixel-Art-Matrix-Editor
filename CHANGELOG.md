@@ -2,15 +2,17 @@
 
 ## 2.3.0 — 31/10/2026
 
-**Caderno:** **Exibir → Caderno…** (F8) abre, por cima do editor, uma estante com três cadernos: **Projetos abertos** (as abas, inclusive o que não foi salvo), **Projetos salvos** (até 36 projetos do navegador, do app desktop ou do servidor) e **Caderno em branco** (páginas quadriculadas). As capas usam a paleta Crivo, com lombada, elástico e degradê pontilhado de Bayer, e o fundo é a ardósia da área de desenho, que escurece quando um caderno abre.
+**Caderno:** um menu novo na barra, **Caderno** (entre Quadro e Ajuda), abre por cima do editor uma estante com três cadernos (**Abrir a estante…**, F8) ou abre um deles direto, já com a animação: **Projetos abertos** (as abas, inclusive o que não foi salvo), **Projetos salvos** (até 36 projetos do navegador, do app desktop ou do servidor) e **Caderno em branco** (páginas quadriculadas). As capas usam a paleta Crivo, com lombada, elástico e degradê pontilhado de Bayer, e o fundo é a ardósia da área de desenho, que escurece quando um caderno abre.
 
 **Animações:** ao abrir, o caderno se ergue, gira até mostrar a lombada, cresce até o centro e volta de frente já aberto, com a capa virada e as folhas em leque (as viradas empilhadas à esquerda e as próximas à direita, em perspectiva). Cada folha vira em 3D em torno da lombada; o fim mostra "tchau :p" em letras de pixel nas duas páginas; ao fechar, o caderno se dobra, gira até a borda das folhas e volta para a estante. Com `prefers-reduced-motion`, as páginas trocam sem giro.
 
 **Páginas:** cada página mostra uma pixel art em tamanho inteiro, com pixels nítidos sobre o xadrez de transparência, nome, tamanho e número de quadros; os projetos animados tocam a animação na própria página, com a duração de cada quadro. O olho mostra ou oculta as pixel arts (a escolha fica guardada no navegador), e **Editar esta página** volta ao editor na aba do projeto ou abre o projeto salvo numa aba nova. Setas, arrastar, clique, Enter, Espaço, Home, End e Esc funcionam na estante e no caderno.
 
+**Nome e foto de capa:** **Personalizar caderno…** (no menu ou no botão da foto na estante) dá nome (até 40 letras) e foto de capa a cada caderno, com prévia, **Remover foto** e **Restaurar padrão**. A foto é recortada na proporção da capa e reduzida para 360 × 500; o nome aparece na capa, no título, na folha de guarda e no menu. Fica guardado no navegador, separado para cada caderno.
+
 **Código:** `js/core/sketchbook.js` (paginação e geometria das folhas, sem DOM), `js/ui/sketchbook.js` (janela, estante e caderno) e `js/features/sketchbook.js` (menu e atalho), ligado pelo `install(app)`; o CSS fica em `crivo.css`. O `Crivo.html` e o `Crivo.exe` foram gerados de novo.
 
-**Testes:** 112 testes do núcleo (5 novos do Caderno) e 50 testes ponta a ponta (um novo em cada maneira: servidor e `Crivo.html`).
+**Testes:** 113 testes do núcleo (6 novos do Caderno) e 52 testes ponta a ponta (dois novos em cada maneira: servidor e `Crivo.html`).
 
 **Documentação:** README (seção nova "Caderno (2.3.0)", menus, atalhos, testes e estrutura) e PDFs atualizados para a 2.3.0.
 

@@ -591,7 +591,7 @@ export const SHORTCUTS = [
   ['Ctrl + O', 'Abrir arquivo (.crivo ou .ase) em uma nova aba'],
   ['Ctrl + Tab e Ctrl + Shift + Tab', 'Próxima aba e aba anterior'],
   ['F7', 'Mostrar ou ocultar a pré-visualização'],
-  ['F8', 'Caderno: folhear as pixel arts em um caderno 3D (← → viram as páginas, Esc fecha)'],
+  ['F8', 'Caderno: abrir a estante de cadernos em 3D (← → viram as páginas, Esc fecha)'],
   ['Ctrl + E', 'Exportar imagem'],
   ['Ctrl + Shift + E', 'Exportar dados da matriz'],
   ['Ctrl + Shift + G', 'Exportar GIF animado'],

@@ -2,6 +2,27 @@ export const MIN_LEAVES = 3;
 export const FAN = 6;
 export const PIXEL_BUDGET = 2000000;
 export const MAX_FRAMES = 48;
+export const KINDS = ['open', 'saved', 'blank'];
+export const TITLES = { open: 'Projetos abertos', saved: 'Projetos salvos', blank: 'Caderno em branco' };
+export const NAME_LIMIT = 40;
+export const PHOTO_LIMIT = 600000;
+
+export function readCovers(raw) {
+  const covers = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return covers;
+  for (const kind of KINDS) {
+    const c = raw[kind];
+    if (!c || typeof c !== 'object') continue;
+    const name = typeof c.name === 'string' ? c.name.trim().slice(0, NAME_LIMIT) : '';
+    const photo = typeof c.photo === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(c.photo) && c.photo.length <= PHOTO_LIMIT ? c.photo : null;
+    if (name || photo) covers[kind] = { name, photo };
+  }
+  return covers;
+}
+
+export function bookTitle(kind, covers) {
+  return covers[kind]?.name || TITLES[kind] || '';
+}
 
 export function paginate(items, minLeaves = MIN_LEAVES) {
   const leaves = Math.max(minLeaves, Math.ceil((items.length + 1) / 2));
