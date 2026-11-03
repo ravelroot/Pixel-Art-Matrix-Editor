@@ -28,10 +28,6 @@
 
 > **Versão 2.3.0 (Anterior):** o **Caderno**, com menu próprio na barra (entre Quadro e Ajuda) e atalho F8, mostra seus projetos como cadernos numa estante em 3D: escolha um, ele cresce, gira, abre em leque e as páginas viram com as setas, cada uma com uma pixel art em tamanho inteiro (as animadas tocam na própria página). Dá para folhear com ou sem as pixel arts, dar nome e foto de capa a cada caderno e voltar ao editor na página que quiser. Nada muda no formato `.crivo`, na API nem no banco. Detalhes em [Caderno (2.3.0)](#caderno-230).
 
-> **Versão 2.2.0:** ao salvar (Ctrl+S), o Crivo abre a janela **Salvar como** do Windows para você escolher a pasta e o nome do arquivo, e as exportações também; na primeira abertura, um **tutorial rápido** mostra o que cada ferramenta faz e como usar (dá para recusar). Nada muda no formato `.crivo`, na API nem no banco. Detalhes em [Salvar e tutorial rápido (2.2.0)](#salvar-e-tutorial-rápido-220).
-
-> **Versão 2.1.1:** o Crivo deixou a licença MIT e passou a ter uma licença de uso própria. Você pode baixar e usar de graça, e o que você cria com ele é seu; modificar, copiar o código e redistribuir não são permitidos. Nada muda no editor. Detalhes em [Licença](#licença).
-
 <p align="center">
   <img src="docs/images/tela-editor.png" alt="Editor com a poção de exemplo aberta, os menus da 2.1.0, a barra de abas, três camadas e a linha do tempo com quatro quadros">
 </p>
