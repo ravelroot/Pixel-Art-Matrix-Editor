@@ -6,6 +6,7 @@
 
 <p align="center">
   Editor de pixel art que roda no navegador e trata a imagem como ela é: uma matriz de pixels RGBA. Desenhe com lápis, spray, balde, linhas, curvas, formas, pontilhado e degradês, selecione com retângulo, elipse, laço ou varinha mágica, organize em camadas e grupos com modos de mistura, anime quadro a quadro com tags e cels vinculados e exporte PNG, GIF e PNG animados, sprite sheets, arquivos <code>.ase</code> com camadas ou a própria matriz em JSON, CSV, JavaScript, Python, C e Java para usar direto no seu jogo.<br>
+  Ou monte o jogo no próprio Crivo: o <b>Estúdio de jogo</b> junta cenas com tiles, personagens, inimigos, itens, regras, sons de 8 bits e música, sem código, e exporta o jogo pronto numa página <code>.html</code>.<br>
   Roda de três maneiras: app desktop para Windows (<code>Crivo.exe</code>), servidor local com backend ou arquivo único no navegador (<code>Crivo.html</code>).<br>
   Ou abra direto no navegador, sem baixar nada: <a href="https://ravelroot.github.io/Pixel-Art-Matrix-Editor/">ravelroot.github.io/Pixel-Art-Matrix-Editor</a>.<br>
   Pronto para baixar e usar.
@@ -17,13 +18,17 @@
 
 ---
 
-> **Manual completo:** [`Manual-Crivo.pdf`](Manual-Crivo.pdf) explica as três maneiras de rodar (app desktop, servidor local e arquivo único), cada uma das 23 ferramentas, seleção, camadas e grupos, modos de mistura, tags, tilemaps, slices, cor e paletas, ajustes, arquivos `.ase`, abas, o Caderno (2.3.0), exportação, a matemática por trás dos algoritmos (Bresenham, flood fill, OKLCH, pontilhado de Bayer, LZW do GIF, RLE), a janela Salvar como, o tutorial rápido, a API, a ferramenta em Java, a configuração, a segurança, os testes e a solução de problemas, passo a passo (cópia em [`docs/`](docs/Manual-Crivo.pdf)).
+> **Manual completo:** [`Manual-Crivo.pdf`](Manual-Crivo.pdf) explica as três maneiras de rodar (app desktop, servidor local e arquivo único), cada uma das 23 ferramentas, seleção, camadas e grupos, modos de mistura, tags, tilemaps, slices, cor e paletas, ajustes, arquivos `.ase`, abas, o Caderno (2.3.0), o Estúdio de jogo (2.4.0: o passo a passo do primeiro jogo, cenas, atores, eventos, regras, código em Crivo Script, C++ e Lua, terminal, depuração e exportação do jogo), exportação, a matemática por trás dos algoritmos (Bresenham, flood fill, OKLCH, pontilhado de Bayer, LZW do GIF, RLE), a janela Salvar como, o tutorial rápido, a API, a ferramenta em Java, a configuração, a segurança, os testes e a solução de problemas, passo a passo (cópia em [`docs/`](docs/Manual-Crivo.pdf)).
 
-> **Banco de dados:** [`Banco-de-Dados-Crivo.pdf`](Banco-de-Dados-Crivo.pdf) traz o diagrama de relacionamentos, todas as tabelas (inclusive `tag`, `slice` e `tileset`, da 2.1.0) com campos, tipos, chaves e restrições, o formato binário das células, o controle de versões, consultas prontas, como preparar o PostgreSQL e as regras de integridade e segurança dos dados.
+> **Banco de dados:** [`Banco-de-Dados-Crivo.pdf`](Banco-de-Dados-Crivo.pdf) traz o diagrama de relacionamentos, todas as tabelas (inclusive `tag`, `slice` e `tileset`, da 2.1.0) com campos, tipos, chaves e restrições, o formato binário das células, o controle de versões, consultas prontas, como preparar o PostgreSQL e as regras de integridade e segurança dos dados; na 2.4.0, uma seção sobre o formato `.crivojogo` dos jogos, que fica fora do banco.
 
-> **Versão 2.3.0 (Atual):** o **Caderno**, com menu próprio na barra (entre Quadro e Ajuda) e atalho F8, mostra seus projetos como cadernos numa estante em 3D: escolha um, ele cresce, gira, abre em leque e as páginas viram com as setas, cada uma com uma pixel art em tamanho inteiro (as animadas tocam na própria página). Dá para folhear com ou sem as pixel arts, dar nome e foto de capa a cada caderno e voltar ao editor na página que quiser. Nada muda no formato `.crivo`, na API nem no banco. Detalhes em [Caderno (2.3.0)](#caderno-230).
+> **Ferramentas e desafios:** [`Ferramentas-Crivo.pdf`](Ferramentas-Crivo.pdf) ilustra as ferramentas em cartões, agora também as do Estúdio de jogo, o terminal (F4) e a depuração (F3), e [`Desafios-Crivo.pdf`](Desafios-Crivo.pdf) traz 12 desafios, dos quais seis novos de jogos: primeira fase, inimigo com eventos, placar e regras, função em Lua, função em C++ e terminal e depuração (cópias em [`docs/`](docs/)).
 
-> **Versão 2.2.0 (Anterior):** ao salvar (Ctrl+S), o Crivo abre a janela **Salvar como** do Windows para você escolher a pasta e o nome do arquivo, e as exportações também; na primeira abertura, um **tutorial rápido** mostra o que cada ferramenta faz e como usar (dá para recusar). Nada muda no formato `.crivo`, na API nem no banco. Detalhes em [Salvar e tutorial rápido (2.2.0)](#salvar-e-tutorial-rápido-220).
+> **Versão 2.4.0 (Atual):** o **Estúdio de jogo**, com menu próprio na barra (entre Caderno e Ajuda) e atalho F9, monta jogos de pixel art a partir dos seus desenhos, sem código: cenas com tiles, atores com comportamentos prontos (jogador de plataforma ou com visão de cima, inimigos, itens, saídas, tiros), objetos com eventos e ações (criar, passo, alarmes, colisão, teclas, destruir), pai, profundidade, **código em Crivo Script, C++ e Lua com terminal**, tamanhos de 8 a 1024 px, regras "quando… então…", sons de 8 bits e música, teste na hora (F5) e exportação para um único `.html` que roda em qualquer navegador, inclusive no celular e com controle. Já vem com um jogo de exemplo de duas fases. Nada muda no formato `.crivo`, na API nem no banco. Detalhes em [Estúdio de jogo (2.4.0)](#estúdio-de-jogo-240).
+
+> **Versão 2.3.0 (Anterior):** o **Caderno**, com menu próprio na barra (entre Quadro e Ajuda) e atalho F8, mostra seus projetos como cadernos numa estante em 3D: escolha um, ele cresce, gira, abre em leque e as páginas viram com as setas, cada uma com uma pixel art em tamanho inteiro (as animadas tocam na própria página). Dá para folhear com ou sem as pixel arts, dar nome e foto de capa a cada caderno e voltar ao editor na página que quiser. Nada muda no formato `.crivo`, na API nem no banco. Detalhes em [Caderno (2.3.0)](#caderno-230).
+
+> **Versão 2.2.0:** ao salvar (Ctrl+S), o Crivo abre a janela **Salvar como** do Windows para você escolher a pasta e o nome do arquivo, e as exportações também; na primeira abertura, um **tutorial rápido** mostra o que cada ferramenta faz e como usar (dá para recusar). Nada muda no formato `.crivo`, na API nem no banco. Detalhes em [Salvar e tutorial rápido (2.2.0)](#salvar-e-tutorial-rápido-220).
 
 > **Versão 2.1.1:** o Crivo deixou a licença MIT e passou a ter uma licença de uso própria. Você pode baixar e usar de graça, e o que você cria com ele é seu; modificar, copiar o código e redistribuir não são permitidos. Nada muda no editor. Detalhes em [Licença](#licença).
 
@@ -42,6 +47,7 @@
 - **Camadas e animação:** camadas com visibilidade, opacidade, bloqueio, duplicação e mescla, **grupos** que abrem e fecham, **19 modos de mistura**, camadas de **referência** e camadas de **tiles**; quadros com duração própria, duplicação, reordenação, FPS, **cels vinculados**, **tags** (para frente, para trás ou pingue-pongue, com repetições), papel cebola configurável e reprodução.
 - **Histórico ilimitado sem estourar a memória:** cada traço guarda só os pixels que mudaram; mudanças grandes viram RLE da célula inteira; ações estruturais guardam instantâneos comprimidos. A barra de status mostra quanto o histórico ocupa.
 - **Visualização:** vários projetos abertos em **abas**, janela de **pré-visualização** (F7), **Caderno** em 3D para folhear os projetos (F8), zoom no ponto do cursor (100% a 12800%), arrastar com espaço ou botão do meio, ajustar à tela, grade com linha forte a cada 4, 8, 16 ou 32 pixels, **modo ladrilho** (repete o desenho 3×3 para conferir texturas) e simetria horizontal, vertical ou nos dois eixos.
+- **Estúdio de jogo (2.4.0):** cenas montadas com tiles (sólido, plataforma e perigo), atores com 12 comportamentos prontos, objetos com eventos (criar, passo, alarmes, colisão, teclas, destruir), pai e profundidade, código em Crivo Script, C++ e Lua com terminal, tamanhos de 8 a 1024 px, depuração, partículas, regras "quando… então…" com variáveis e placar, sons de 8 bits, música por cena, teste na hora e exportação do jogo para um `.html` que roda sozinho, com tela de título, pausa, gamepad e botões de toque. Detalhes em [Estúdio de jogo (2.4.0)](#estúdio-de-jogo-240).
 - **Tamanho da matriz:** de 1×1 a 1024×1024, com âncora de nove posições para centralizar ou expandir para um lado, ou escalando o desenho por vizinho mais próximo. Também gira 90° e espelha camadas.
 - **Paletas e cor:** Crivo, Game Boy, NES, Pico-8, CGA, CGA modo 4, Commodore 64 e 1 bit já incluídas. Crie, renomeie, importe (`.hex`, `.gpl`, `.json`, `.txt` do Paint.NET) e exporte as suas, gere uma paleta a partir das cores do desenho ou edite tudo no **editor de paleta**. Modos de cor **RGBA**, **indexado** (com pontilhado opcional) e **tons de cinza**, seletor HSV com alfa e **ajustes** com prévia: brilho e contraste, matiz/saturação/luminosidade, curva de cores, posterizar, remover ruído e matriz de convolução.
 - **Gerador de tons:** a partir da cor escolhida, cria rampas de sombra e luz no espaço de cor OKLCH, com o desvio de matiz típico da pixel art (sombras puxam para o azul, luzes para o amarelo).
@@ -59,6 +65,107 @@
   <img src="docs/images/tela-ladrilho.png" width="49%" alt="Modo ladrilho no tema escuro, repetindo um tile de tijolos 3×3">
   <img src="docs/images/tela-simetria.png" width="49%" alt="Desenho com simetria horizontal e vertical, com os dois eixos tracejados">
 </p>
+
+## Estúdio de jogo (2.4.0)
+
+<p align="center">
+  <img src="docs/images/tela-jogo-cena.png" alt="Estúdio de jogo com a Fase 1 do jogo de exemplo: cenas à esquerda, a cena montada com tiles e atores no centro e a paleta de tiles e atores à direita">
+</p>
+
+<p align="center">
+  <img src="docs/images/tela-jogo-teste.png" width="49%" alt="Jogo de exemplo em teste: a Gotinha pulando entre plataformas, com corações, pontos e vidas no placar">
+  <img src="docs/images/tela-jogo-regras.png" width="49%" alt="Aba Regras com as variáveis pontos e vidas e as regras do jogo de exemplo">
+</p>
+
+O **Estúdio de jogo** transforma as pixel arts do Crivo em jogos 2D que rodam no navegador, sem escrever código. Ele tem menu próprio na barra, **Jogo** (entre **Caderno** e **Ajuda**), e abre por cima do editor com **Jogo → Abrir o estúdio de jogo…** (F9). Na primeira vez, ele já vem com um jogo de exemplo completo, *Gotinha e as moedas*: duas fases, moedas, gosmas, morcegos, coração, faíscas, sons e música, para jogar com F5 e estudar como foi feito.
+
+| Aba | O que faz |
+|---|---|
+| Cenas | Monta as fases: lista de cenas (nova, duplicar, subir, descer, cena inicial), tamanho em tiles (até 512 × 512), tileset, duas camadas de tiles (frente, com colisão, e fundo, só enfeite), cor de fundo, paisagem ao fundo com profundidade (parallax) e música. Ferramentas Pintar tile (`B`), Apagar tile (`E`), Balde de tiles (`G`), Retângulo de tiles (`U`), Colocar ator (`A`) e Mover ator (`V`), com zoom, grade, camada de colisão e a moldura do tamanho da tela. Botão direito apaga; `F` espelha o ator escolhido e `Delete` tira ele da cena; com `Alt`, o ator fica fora da grade. O **inspetor** mostra a posição, o espelho e o **código da instância** do ator escolhido |
+| Atores | Tudo o que se mexe ou interage: sprite, comportamento, pai, profundidade, propriedades, animações (as tags do sprite para parado, andando, pulando, caindo e machucado), sons, área de colisão automática (os pixels visíveis) ou manual, com prévia animada, e os **eventos** do ator, cada um com condição e ações |
+| Sprites | Os desenhos do jogo: o desenho atual, um projeto de outra aba, um arquivo `.crivo` ou uma imagem PNG, GIF, JPEG ou WebP. **Editar no Crivo** abre o sprite numa aba do editor e, ao voltar ao estúdio, ele é atualizado sozinho |
+| Tiles | Recorta um sprite em tiles de 2 a 1024 px (com os tamanhos prontos de 8 a 1024) e marca cada um como vazio, sólido, plataforma (sobe por baixo) ou perigo |
+| Regras | Variáveis (pontos, vidas, chaves…), com placar na tela, e regras "quando… então…" sem código |
+| Código | Scripts em **Crivo Script**, **C++** ou **Lua**, num editor com cores por linguagem, números de linha, posição do cursor, recuo automático, comentar com Ctrl+/ e erro marcado na linha, e um **terminal** que roda código num sandbox da cena aberta |
+| Sons | Efeitos de 8 bits gerados na hora (ondas quadrada, triangular, dente de serra, senoidal e ruído), com sete modelos (pulo, moeda, dano, explosão, power-up, tiro e blip), botão **Aleatório** e o desenho da onda |
+| Jogo | **Tamanho base** de 8, 16, 32, 64, 128, 256, 512 ou 1024 px por tile, resolução (32 a 3840 px), cor de fundo, gravidade, queda máxima, cena inicial, variáveis de pontos e de vidas, mensagens e sons de vitória e de fim de jogo, conferência do que falta e tabela de controles |
+
+- **Comportamentos prontos:** 12 ao todo. Jogador de plataforma (aceleração, pulo mais alto segurando o botão, *coyote time*, pulo guardado, pulo duplo ou mais, descer de plataformas com Baixo + pulo e tiro), jogador com visão de cima (oito direções, para RPG e labirinto), inimigo que patrulha (vira na parede e na beirada), inimigo que persegue, inimigo voador, item coletável (pontos e vida), perigo, saída para outra cena, projétil, bloco sólido (pode quebrar com tiros), decoração e objeto livre (só eventos).
+- **Objetos com eventos e ações:** cada ator funciona como um objeto, com eventos próprios e ações que valem para ele mesmo ("este ator") e, na colisão, para o outro: **Criar**, **Passo** (a cada quadro), **Destruir**, **Alarme** 0 a 3, **Colisão com** um ator, **Tecla apertada**, **segurada** e **solta**, **Saiu da cena**, **Fim da animação** e **Início da cena**. Cada evento pode ter uma condição (variável global, variável do ator, quantidade de atores de um tipo, sorte em %, no chão ou no ar).
+- **Pai, profundidade e variáveis do ator:** um ator pode ter um **pai** e herda os eventos dele (o filho troca um evento igual pelo seu), e colisões, regras e "destruir todos" com o pai valem também para os filhos. A **profundidade** decide quem é desenhado na frente (menor fica na frente). Cada ator na cena tem as próprias variáveis, que as ações somam e mudam e as condições comparam.
+- **Objeto livre:** o comportamento **Objeto livre (só eventos)** não traz lógica pronta e anda com a velocidade que os eventos derem: **Mover numa direção** (graus, 0 para a direita e 90 para cima), **Ir em direção ao jogador**, **Inverter o movimento**, **Parar**, gravidade e colisão com os tiles opcionais e atrito. As ações novas também ligam alarmes, trocam a animação, voltam o ator ao ponto de partida, tocam e param a música e voltam para a cena anterior. No exemplo, o **Morcego guardião** da Fase 2 é feito só de eventos.
+- **Três linguagens:** **Crivo Script**, **C++ adaptado** e **Lua** rodam no mesmo motor, com as mesmas funções, e uma função escrita numa linguagem pode ser chamada pelas outras (no exemplo, `chuva_de_moedas` em Lua chama `bonus_por_vida` em C++). O Crivo lê e interpreta as três, sem compilador nem `eval`, então elas funcionam com a Content-Security-Policy do editor e do jogo exportado.
+  - **C++ adaptado:** `int`, `float`, `double`, `bool`, `auto`, `std::string` e `std::vector<T>` (com `push_back`, `size`, `at`, `front`, `back`), funções com tipo de retorno e parâmetros, `->` e `.`, `global::pontos`, `std::cout << … << std::endl`, `printf` com `%d`, `%f`, `%s` e largura, conversões `(int)` e `static_cast<int>`, `switch`, `do … while`, `for (auto v : lista)` e `++i`; `#include` e `using namespace` são aceitos e ignorados, e variáveis `int` cortam a parte decimal como no C++.
+  - **Lua:** `local`, `if … then … elseif … else … end`, `while … do … end`, `for i = 1, 10, 2 do … end`, `for i, v in ipairs(t) do … end`, `repeat … until`, `function … end` (também anônimas), tabelas `{1, 2, 3}` indexadas a partir de 1, `#t`, `..`, `~=`, `//`, `^`, `nil`, atribuição múltipla e métodos como `("texto"):upper()` e `player():motion_set(0, 50)`; só `nil` e `false` são falsos (`0` e `""` contam como verdadeiro), como em Lua.
+- **Crivo Script:** a linguagem própria do Crivo. Tem `var`, `if`/`else`, `while`, `for`, `repeat`, `do … until`, `break`, `continue`, `function` com `return` e recursão, listas (`[1, 2]`, `lista[0]`), textos, `and`/`or`/`not`, `mod`/`div`, `self`, `other`, `global.nome` e `noone`. Variáveis sem `var` são do ator, como `x`, `y`, `hspeed`, `vspeed`, `speed`, `direction`, `health` ou qualquer nome novo. São mais de 100 funções prontas, para criar e destruir atores, testar colisão, mover, ligar alarmes, ler teclas, mexer nos tiles, tocar sons e música, soltar partículas, trocar de cena, além de matemática, texto e listas. Erros mostram a linha e laços sem fim param sozinhos.
+- **Onde codar:** na aba **Código** (scripts com funções em qualquer das três linguagens; o que fica fora das funções roda quando o jogo começa), na ação **Executar código** de qualquer evento ou regra e no **código da instância** de cada ator colocado na cena.
+- **Terminal:** tem o seletor de linguagem (Crivo Script, C++ ou Lua) no topo. Na aba Código, roda código num sandbox da cena aberta (`print(placar())`, `instance_number("Moeda")`, `step(60)` avança um segundo, `reset()` recomeça, `inspect(player())`, `vars()`). No teste, **Terminal (F4)** liga o terminal ao jogo rodando, com `self` sendo o jogador (`global.pontos = 99`, `instance_create("Moeda", x + 16, y)`, `pause()`, `resume()`), e mostra os `print` e os erros do jogo. `ajuda` lista a linguagem e as funções; ↑ e ↓ voltam aos comandos anteriores.
+- **Editor de código:** cores para palavras-chave, funções, textos, números e comentários em cada linguagem, números de linha, Ln e Col, recuo automático depois de `{`, `then` e `do`, Tab com dois espaços, Ctrl+/ para comentar e descomentar, Ctrl+S para gravar e a conferência na hora, que pinta de vermelho a linha com erro.
+- **Depuração:** **Depuração (F3)** no teste mostra as caixas de colisão, o FPS, a quantidade de atores e as posições da câmera e do jogador.
+- **Tamanho base (8 a 1024 px):** na aba Jogo, a escala de 8, 16, 32, 64, 128, 256, 512 ou 1024 pixels por tile ajusta a resolução (de 160 × 120 até 3840 × 2160), multiplica gravidade, queda, velocidades, pulos e alcances na mesma proporção e vira o tamanho dos tilesets e sprites novos. Os tiles vão de 2 a 1024 px e os sprites até 1024 × 1024, o limite da matriz do Crivo.
+- **O básico funciona sem nenhuma regra:** o jogador pega itens, perde vida com inimigos, perigos e tiles de perigo (pisca e é empurrado), pisa nos inimigos, cai nos buracos, perde uma vida e recomeça a fase, passa de fase na saída, vence na última e vê o fim de jogo quando as vidas acabam.
+- **Regras globais:** 11 gatilhos (começar a cena, um ator tocar outro, apertar um botão, a cada N segundos, uma variável chegar a um valor, ator destruído, não sobrar nenhum ator de um tipo, o jogador levar dano, morrer, pular e chegar à saída) e as mesmas 32 ações dos eventos (somar e mudar variável global ou do ator, destruir, destruir todos de um tipo, dar dano, recuperar vida, criar ator, tocar som, mostrar mensagem com `{variável}`, impulsionar, mudar a velocidade, mover numa direção, ir em direção ao jogador, inverter, parar, gravidade, teletransportar, voltar ao ponto de partida, trocar a animação, ligar alarme, tremer a tela, tocar e parar a música, ir para uma cena, próxima cena, cena anterior, reiniciar a cena, vencer e perder), valendo para todas as cenas ou só para uma.
+- **Música:** cada cena pode ter uma melodia escrita em texto, como `140: C5 E5 G5 C6*2 - G5` (andamento, notas de C0 a B8 com `#` e `b`, `-` para pausa e `*2` para dobrar a duração; `triangular:` depois do andamento troca a onda), que toca em loop.
+- **Testar:** **Testar** (F5 no estúdio, ou **Jogo → Testar o jogo**, Shift+F9, no editor) roda o jogo a partir da cena aberta, por cima do estúdio; Esc volta.
+- **Exportar jogo:** gera um único arquivo `.html` com o jogo inteiro, que abre em qualquer navegador, sem servidor nem internet, com tela de título, pausa, som, controle (gamepad) e botões de toque no celular. A página leva a própria Content-Security-Policy, com o script conferido por hash SHA-256 e sem acesso à rede. **Exportar dados do jogo (JSON)** entrega as cenas, os atores e os sprites (em RLE, como no `.crivo`) para usar em outro motor.
+- **Arquivo `.crivojogo`:** **Arquivo ▾ → Salvar arquivo .crivojogo…** guarda o jogo inteiro num JSON, com os sprites dentro, e **Abrir arquivo .crivojogo…** abre de novo (tudo o que chega é validado). Enquanto você edita, o jogo fica guardado no navegador, com desfazer e refazer (Ctrl+Z e Ctrl+Y) de até 120 passos. A pasta [`examples/`](examples) traz o jogo de exemplo (`gotinha.crivojogo`).
+
+### Como fazer seu primeiro jogo
+
+1. **Abra o estúdio:** **Jogo → Abrir o estúdio de jogo…** (F9). Para começar do zero, use **Arquivo ▾ → Novo jogo em branco**; para estudar, aperte F5 no jogo de exemplo.
+2. **Escolha a escala:** na aba **Jogo**, escolha o **tamanho base** (8 px para um jogo de portátil, 16 ou 32 px para mais detalhe, até 1024 px) e confira a resolução.
+3. **Desenhe os sprites no Crivo:** o personagem com tags `parado`, `andando` e `pulando` (**Quadro → Nova tag**), uma folha de tiles com os quadradinhos lado a lado e os itens e inimigos. Na aba **Sprites**, use **Usar o desenho atual**, **Escolher de uma aba…** ou **Abrir arquivo…**. Para retocar depois, **Editar no Crivo** abre o sprite numa aba e o estúdio atualiza quando você volta (F9).
+4. **Crie o tileset:** na aba **Tiles**, **Novo tileset**, escolha o sprite e o tamanho do tile e marque cada tile como **sólido**, **plataforma** ou **perigo**.
+5. **Crie os atores:** na aba **Atores**, **Novo ator**, escolha o sprite e o comportamento (o primeiro, **Jogador (plataforma)**, já anda e pula), ligue as tags às animações e escolha os sons. Faça também os itens, os inimigos e a **Saída**.
+6. **Monte a cena:** na aba **Cenas**, escolha o tileset, pinte com o **Pintar tile** (B), use o **Balde** (G) e o **Retângulo** (U), troque para a **camada de fundo** para os enfeites e coloque os atores com **Colocar ator** (A). A moldura tracejada mostra o tamanho da tela.
+7. **Dê comportamento:** use as **Regras** para o que vale no jogo todo (pontos, vidas, mensagens), os **eventos** de cada ator para a lógica dele (Criar, Passo, Alarme, Colisão, Teclas) e a ação **Executar código** ou a aba **Código** quando quiser programar em Crivo Script, C++ ou Lua.
+8. **Teste:** aperte **F5**. **F4** abre o terminal ligado ao jogo e **F3** mostra as colisões; Esc volta ao estúdio.
+9. **Salve e publique:** **Arquivo ▾ → Salvar arquivo .crivojogo…** guarda o projeto; **Exportar jogo** gera o `.html` que qualquer pessoa abre no navegador, no computador ou no celular.
+
+O mesmo trecho nas três linguagens (um inimigo que corre atrás do jogador quando ele chega perto), para usar no evento **Passo** com a ação **Executar código**:
+
+**Crivo Script**
+
+```c
+if distance_to(player()) < 64 { move_towards_point(player().x, player().y, 40) } else { hspeed = 0 }
+```
+
+**C++**
+
+```cpp
+if (distance_to(player()) < 64) { move_towards_point(player()->x, player()->y, 40); } else { self->hspeed = 0; }
+```
+
+**Lua**
+
+```lua
+if distance_to(player()) < 64 then move_towards_point(player().x, player().y, 40) else hspeed = 0 end
+```
+
+| Controle do jogo | Teclado | Gamepad |
+|---|---|---|
+| Andar | Setas ou WASD (no jogo de plataforma, Cima também pula) | Direcional ou alavanca |
+| Pular | `Z`, `Espaço` ou `K` | A |
+| Ação (atirar) | `X`, `J` ou `C` | B ou X |
+| Começar e pausar | `Enter` | Start |
+| Recomeçar (na pausa) / ligar e desligar o som | `R` / `M` | — |
+
+<p align="center">
+  <img src="docs/images/tela-jogo-atores.png" width="49%" alt="Aba Atores com a Gotinha: comportamento de jogador de plataforma, propriedades, área de colisão e animações">
+  <img src="docs/images/tela-jogo-eventos.png" width="49%" alt="Morcego guardião, um objeto livre com pai, profundidade e eventos Criar, Alarme, Colisão e Passo">
+</p>
+
+<p align="center">
+  <img src="docs/images/tela-jogo-codigo.png" width="49%" alt="Aba Código com o script efeitos e o terminal rodando print, instance_number, step e listas">
+  <img src="docs/images/tela-jogo-terminal.png" width="49%" alt="Teste com o Terminal do jogo (F4) e a Depuração (F3) mostrando as caixas de colisão e o FPS">
+</p>
+
+<p align="center">
+  <img src="docs/images/tela-jogo-tiles-escuro.png" width="49%" alt="Aba Tiles no tema escuro, com os tiles do campo marcados como sólido, plataforma e perigo">
+  <img src="docs/images/tela-jogo-sons.png" width="49%" alt="Aba Sons com o efeito Pulo, os modelos e o desenho da onda">
+</p>
+
+O motor fica em `js/core/game/`, sem DOM e testado no Node: `engine.js` (física com passo fixo de 1/60 s, colisão com tiles e blocos, comportamentos, objetos com eventos, alarmes, herança e variáveis do ator, regras, animação e câmera), `script.js` (as linguagens: leitores e analisadores de Crivo Script, C++ e Lua e um interpretador comum com limite de passos), `audio.js` (sintetizador de 8 bits e melodias), `project.js` (formato `.crivojogo` e validação de tudo o que é aberto), `compile.js` (sprites em RLE, tags e tilesets), `bundle.js` (a página `.html` exportada) e `sample.js` (o jogo de exemplo). A tela do jogo fica em `js/ui/game-player.js`, o estúdio em `js/ui/game-studio.js`, o terminal em `js/ui/game-terminal.js`, o editor de código em `js/ui/code-editor.js` e o menu em `js/features/game.js`. O motor, a linguagem, o som e a tela são as mesmas funções no estúdio e no jogo exportado, então o que você testa é o que vai para o `.html`. Funciona nas três maneiras de rodar e nos temas claro e escuro. Nada muda no formato `.crivo`, na API nem no banco.
 
 ## Caderno (2.3.0)
 
@@ -189,6 +296,8 @@ A versão 2.1.0 traz para o Crivo os recursos de um editor de pixel art completo
 | `F2` | Propriedades da camada |
 | `F7` | Pré-visualização |
 | `F8` | Caderno: abrir a estante (2.3.0) |
+| `F9` / `Shift+F9` | Estúdio de jogo / testar o jogo (2.4.0) |
+| `F3` / `F4` (no teste do jogo) | Depuração / terminal do jogo (2.4.0) |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Próxima aba / aba anterior |
 | `Ctrl+U` / `Ctrl+M` | Matiz, saturação e luminosidade / curva de cores |
 | `Ctrl+B` | Usar a seleção como pincel |
@@ -209,6 +318,7 @@ A lista completa fica em **Ajuda → Atalhos do teclado** (`?`).
 | **Seleção** | Selecionar tudo, desmarcar, reselecionar, inverter, expandir e contrair (1 a 10 px), selecionar por cor, transformar seleção (rotação em qualquer ângulo com RotSprite, escala de 10% a 800%, espelho, com prévia e um passo no histórico), usar seleção como pincel e pincel padrão |
 | Exibir | Grade, papel cebola, **configurar papel cebola**, modo ladrilho, **slices**, **editar slices**, zoom, tema, **pré-visualização**, **próxima aba** e **aba anterior** |
 | Caderno (2.3.0) | **Abrir a estante…** (F8), **Projetos abertos**, **Projetos salvos**, **Caderno em branco** e **Personalizar caderno…** |
+| Jogo (2.4.0) | **Abrir o estúdio de jogo…** (F9), **Testar o jogo** (Shift+F9), **Usar o desenho atual como sprite**, **Abrir o jogo de exemplo…**, **Abrir arquivo .crivojogo…**, **Salvar arquivo .crivojogo…** e **Exportar jogo (HTML)…** |
 | **Camada** | Nova camada, novo grupo, nova camada de tiles, duplicar, excluir, subir, descer, mesclar com a de baixo, agrupar, desfazer o grupo, propriedades da camada, camada de referência e modo tile |
 | **Quadro** | Novo quadro, novo quadro vinculado, duplicar, excluir, propriedades do quadro, vincular e desvincular célula, nova tag, editar e excluir a tag do quadro, tocar ou pausar |
 | Ajuda | **Tutorial rápido**, atalhos do teclado e sobre o Crivo |
@@ -272,9 +382,9 @@ flowchart LR
 
 | Parte | Linguagem | Responsabilidade |
 |---|---|---|
-| `editor/static/editor/js/core` | JavaScript | Núcleo sem DOM: cores e OKLCH, geometria (Bresenham, elipse, curvas, polígonos, pincel, simetria, pixel perfect), flood fill, pontilhado de Bayer e degradês, seleção com máscara, filtros e ajustes, modos de mistura (`blend.js`), modos de cor (`colormode.js`), ferramentas de paleta, pincel personalizado (`brush.js`), transformação com RotSprite (`transform.js`), tilemaps (`tilemap.js`), tags e reprodução (`animation.js`), codificadores GIF, APNG (`apng.js`), ZIP (`zip.js`) e zlib (`zlib.js`), leitor e gravador `.ase` (`ase-file.js`), RLE, documento, histórico, formato `.crivo`, exportação e paletas |
-| `editor/static/editor/js/features` | JavaScript | Recursos da 2.1.0 que se ligam ao editor pelo ponto de extensão `install(app)` do `main.js`: `layers.js` (menus Camada e Quadro), `selection.js` (menu Seleção), `color.js` (menu Cor) e `files.js` (abrir, abas, exportações novas) |
-| `editor/static/editor/js/ui` | JavaScript | Visor em canvas, ferramentas, painéis, diálogos, armazenamento e atalhos; na 2.1.0, também `layer-dialogs.js` (propriedades de camada e quadro, tags, slices, papel cebola), `palette-editor.js`, `color-picker.js`, `adjustments.js`, `tabs.js` e `minimap.js` (pré-visualização); na 2.2.0, `save-file.js` (janela Salvar como) e `tutorial.js` (tutorial rápido) |
+| `editor/static/editor/js/core` | JavaScript | Núcleo sem DOM: cores e OKLCH, geometria (Bresenham, elipse, curvas, polígonos, pincel, simetria, pixel perfect), flood fill, pontilhado de Bayer e degradês, seleção com máscara, filtros e ajustes, modos de mistura (`blend.js`), modos de cor (`colormode.js`), ferramentas de paleta, pincel personalizado (`brush.js`), transformação com RotSprite (`transform.js`), tilemaps (`tilemap.js`), tags e reprodução (`animation.js`), codificadores GIF, APNG (`apng.js`), ZIP (`zip.js`) e zlib (`zlib.js`), leitor e gravador `.ase` (`ase-file.js`), RLE, documento, histórico, formato `.crivo`, exportação e paletas; na 2.4.0, o motor de jogo em `game/` (física, comportamentos, regras, sons de 8 bits, formato `.crivojogo`, jogo de exemplo e a página `.html` exportada) |
+| `editor/static/editor/js/features` | JavaScript | Recursos da 2.1.0 que se ligam ao editor pelo ponto de extensão `install(app)` do `main.js`: `layers.js` (menus Camada e Quadro), `selection.js` (menu Seleção), `color.js` (menu Cor) e `files.js` (abrir, abas, exportações novas); na 2.3.0, `sketchbook.js` (menu Caderno); na 2.4.0, `game.js` (menu Jogo) |
+| `editor/static/editor/js/ui` | JavaScript | Visor em canvas, ferramentas, painéis, diálogos, armazenamento e atalhos; na 2.1.0, também `layer-dialogs.js` (propriedades de camada e quadro, tags, slices, papel cebola), `palette-editor.js`, `color-picker.js`, `adjustments.js`, `tabs.js` e `minimap.js` (pré-visualização); na 2.2.0, `save-file.js` (janela Salvar como) e `tutorial.js` (tutorial rápido); na 2.4.0, `game-studio.js` (Estúdio de jogo) e `game-player.js` (a tela do jogo, a mesma do `.html` exportado) |
 | `Crivo.exe` e `desktop/` | Go | App desktop para Windows, gerado por `scripts/build-desktop.js`: janela própria com o WebView2, maximizada (F11 alterna a tela cheia), com o `Crivo.html` embutido, atalho no menu Iniciar e a janela Salvar como nativa do Windows (`save_windows.go`) |
 | `Crivo.html` | HTML + JavaScript | O editor inteiro num arquivo só, gerado por `scripts/build-portable.js`: abre direto do disco, sem servidor nem backend |
 | `editor/` | Python (Django) | API REST, validação (inclusive dos campos da 2.1.0), versões dos projetos, paletas, exportação pelo servidor (dados e PNG, com grupos e os modos de mistura de `editor/blend.py`), cabeçalhos de segurança e limite de escritas |
@@ -560,10 +670,10 @@ Alterar o código-fonte, criar versões modificadas ou reaproveitar partes do c�
 ## Desenvolvimento e testes
 
 ```bash
-npm test                                   # 113 testes do núcleo em JavaScript (Node 20+)
+npm test                                   # 135 testes do núcleo em JavaScript (Node 20+)
 python manage.py test editor               # 72 testes da API Django (funcionamento, segurança, migrações e recursos da 2.1.0)
 bash tools/java/test.sh                    # 36 testes da ferramenta em Java
-python -m unittest discover -s tests/e2e   # 52 testes ponta a ponta no Chromium (Playwright): 25 com o Django e 27 no Crivo.html
+python -m unittest discover -s tests/e2e   # 58 testes ponta a ponta no Chromium (Playwright): 28 com o Django e 30 no Crivo.html
 npm run portable                           # gera o Crivo.html de novo a partir do código do editor
 npm run desktop                            # gera o Crivo.exe (precisa do Go); -- --check só confere
 ruff check .                               # estilo, bugs prováveis e regras de segurança no Python
@@ -578,15 +688,15 @@ O `Crivo.exe` é gerado por `scripts/build-desktop.js`, que copia o `Crivo.html`
 
 ## Qualidade e segurança
 
-Resultado da rodada de testes da versão 2.2.0: **263 testes, todos passando**, e nenhum problema apontado pelas ferramentas de análise. Na versão 1.1.0, uma revisão de código independente apontou 10 problemas (entre eles, desfazer durante um arraste embaralhava o histórico, a colagem furava o fundo ao ser movida e a classe Java de sprites médios não compilava); todos foram corrigidos e ganharam testes.
+Resultado da rodada de testes da versão 2.4.0: **265 testes do núcleo, da API e da interface, todos passando**, e nenhum problema apontado pelas ferramentas de análise (a ferramenta em Java não mudou nesta versão e mantém os seus 36 testes). Na versão 1.1.0, uma revisão de código independente apontou 10 problemas (entre eles, desfazer durante um arraste embaralhava o histórico, a colagem furava o fundo ao ser movida e a classe Java de sprites médios não compilava); todos foram corrigidos e ganharam testes.
 
 | Verificação | O que cobre | Resultado |
 |---|---|---|
-| Núcleo JavaScript (113) | Cores, geometria, flood fill, RLE, histórico, formato, exportação (inclusive Java compacta e C com muitas cores), pontilhado, degradês, pixel perfect, seleção, aparar, ladrilho, contorno, filtros e GIF (LZW de ida e volta); na 2.1.0, grupos, modos de mistura, tags, cels vinculados, tilemaps, slices, seleções com máscara, ferramentas novas, modos de tinta, pincel, transformação, modos de cor, ajustes, paleta, `.ase` de ida e volta, APNG, ZIP e o JSON hash e array da sprite sheet; na 2.3.0, paginação, leque das folhas, legenda das páginas, durações dos quadros, detecção de página em branco e leitura do nome e da foto de capa do Caderno | 113 de 113 |
+| Núcleo JavaScript (135) | Cores, geometria, flood fill, RLE, histórico, formato, exportação (inclusive Java compacta e C com muitas cores), pontilhado, degradês, pixel perfect, seleção, aparar, ladrilho, contorno, filtros e GIF (LZW de ida e volta); na 2.1.0, grupos, modos de mistura, tags, cels vinculados, tilemaps, slices, seleções com máscara, ferramentas novas, modos de tinta, pincel, transformação, modos de cor, ajustes, paleta, `.ase` de ida e volta, APNG, ZIP e o JSON hash e array da sprite sheet; na 2.3.0, paginação, leque das folhas, legenda das páginas, durações dos quadros, detecção de página em branco e leitura do nome e da foto de capa do Caderno; na 2.4.0, o motor de jogo: leitura do RLE igual à do editor, sprites, tags e tilesets, validação do `.crivojogo`, física de plataforma e de visão de cima, plataformas de mão única, itens, perigos, buracos e vidas, pisão nos inimigos, saídas e vitória, regras, objetos com eventos (criar, alarmes, passo com condições, teclas, colisão com herança do pai, destruir, saiu da cena e fim da animação), tiros, animações, as linguagens (Crivo Script, C++ adaptado e Lua: laços, funções, listas, tipos do C++, tabelas do Lua, chamadas entre as três, erros com a linha, limite de passos, terminal) e o código nos eventos, nas instâncias e nos scripts, sintetizador de 8 bits, melodias e a CSP com hash da página exportada | 135 de 135 |
 | API Django (72) | Ciclo de projetos e paletas, revisões, conflitos, exportação, PNG, formatos C e Java (a classe grande é compilada e executada com o JDK quando ele existe), o conjunto de segurança abaixo, as migrações e os campos da 2.1.0 (validação, ida e volta, documentos da 2.0 inalterados) | 72 de 72 |
 | Ferramenta Java (36) | Leitura do `.crivo`, RLE, PNG, sprite sheet e matriz, inclusive uma classe grande compilada em memória com o compilador do JDK; na 2.1.0, chaves opcionais, modos de mistura, grupos, `info` e `tags` | 36 de 36 |
 | Paridade de composição | 30 documentos aleatórios com os 19 modos de mistura, grupos (inclusive "pass-through" normais a 100%) e camadas ocultas ou de referência, compostos no editor (JS), no servidor (Python) e na ferramenta Java (`tests/fixtures/blend-parity.json`) | Mesmos pixels nos três |
-| Interface (52) | Editor aberto no Chromium de dois jeitos, contra o Django e como `Crivo.html` direto do disco, inclusive a integração com o app desktop (F11, sair e rascunho): cada ferramenta nova, seleção, colagem flutuante, gestos protegidos (Ctrl+Z no meio do arraste, setas no menu), comandos de imagem, desfazer, preferências inválidas, salvar no servidor e no navegador, baixar e reabrir o `.crivo`, baixar o PNG e o GIF, na 2.1.0 laço, varinha mágica, polígono, curva e modos de tinta, e na 2.2.0 a janela Salvar como (no navegador e no app desktop, com cancelar e Salvar como…) e o tutorial rápido (aparece uma vez, pode ser recusado e cobre as 23 ferramentas), e na 2.3.0 o Caderno (menu próprio, F8, estante, abrir, virar, fim, ocultar as pixel arts, Esc, editar a página e nome e foto de capa), sem nenhum erro no console nem violação de CSP | 52 de 52 |
+| Interface (58) | Editor aberto no Chromium de dois jeitos, contra o Django e como `Crivo.html` direto do disco, inclusive a integração com o app desktop (F11, sair e rascunho): cada ferramenta nova, seleção, colagem flutuante, gestos protegidos (Ctrl+Z no meio do arraste, setas no menu), comandos de imagem, desfazer, preferências inválidas, salvar no servidor e no navegador, baixar e reabrir o `.crivo`, baixar o PNG e o GIF, na 2.1.0 laço, varinha mágica, polígono, curva e modos de tinta, e na 2.2.0 a janela Salvar como (no navegador e no app desktop, com cancelar e Salvar como…) e o tutorial rápido (aparece uma vez, pode ser recusado e cobre as 23 ferramentas), e na 2.3.0 o Caderno (menu próprio, F8, estante, abrir, virar, fim, ocultar as pixel arts, Esc, editar a página e nome e foto de capa), e na 2.4.0 o Estúdio de jogo (F9, pintar tiles, colocar atores, eventos do ator, desfazer e refazer, rascunho no navegador, testar com F5 e Esc, usar o desenho como sprite, exportar a página `.html` e jogar nela, salvar o `.crivojogo`, aba Código, terminal em Lua e C++ no sandbox e no jogo rodando, editor de código), sem nenhum erro no console nem violação de CSP | 58 de 58 |
 | Ruff e Bandit | Estilo, bugs prováveis e padrões inseguros no Python | 0 problemas |
 | App desktop | Build reproduzível do `Crivo.exe` (gerado de novo e comparado byte a byte) e `go vet` no código Go | Idêntico; 0 problemas |
 | `check --deploy` | Configuração de produção do Django | Só avisos opcionais (HSTS em subdomínios, preload e redirecionamento HTTPS, que ficam a cargo do proxy) |
@@ -610,8 +720,9 @@ desktop/                    código do app desktop em Go (janela WebView2, tela 
 editor/                     aplicação Django (modelos, API, validação, exportação, versões)
   static/editor/            o editor: index.html, css/, img/ e js/
     js/core/                núcleo em JavaScript, sem DOM, testado no Node
-    js/features/            recursos ligados pelo install(app): camadas, seleção, cor, arquivos e Caderno
-    js/ui/                  interface: visor, ferramentas, painéis, diálogos, abas, pré-visualização, armazenamento, salvar como, tutorial e Caderno
+      game/                 motor de jogo: física, regras, sons, formato .crivojogo, exportação e jogo de exemplo
+    js/features/            recursos ligados pelo install(app): camadas, seleção, cor, arquivos, Caderno e Jogo
+    js/ui/                  interface: visor, ferramentas, painéis, diálogos, abas, pré-visualização, armazenamento, salvar como, tutorial, Caderno e Estúdio de jogo
   migrations/               esquema do banco, paletas predefinidas, nomes em inglês (0003) e recursos avançados (0004)
   tests/                    testes da API e de segurança
 crivo/                      configurações do projeto Django
@@ -619,7 +730,7 @@ tools/java/                 linha de comando em Java 21
 tests/js/                   testes do núcleo em JavaScript
 tests/fixtures/             documentos do teste de paridade dos modos de mistura (JS, Python e Java)
 tests/e2e/                  teste ponta a ponta da interface (Playwright)
-examples/                   projetos .crivo de exemplo (formato 2), inclusive blend-modes.crivo
+examples/                   projetos .crivo de exemplo (formato 2), inclusive blend-modes.crivo, e o jogo de exemplo gotinha.crivojogo
 scripts/                    servidor estático em Node, geradores do Crivo.html e do Crivo.exe e criação do .env no Windows
 docs/                       manuais em PDF e imagens do README
 .github/workflows/          CI (testes, Ruff, Bandit, check --deploy, Playwright, Docker e build do Crivo.exe) e publicação no GitHub Pages
