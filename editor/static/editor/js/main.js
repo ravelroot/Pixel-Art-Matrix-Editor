@@ -576,6 +576,76 @@ function toggleTheme() {
   applyTheme(next);
 }
 
+const PALETTES = [
+  { id: 'crivo', colors: ['#E6DDCE', '#A3B4BE', '#F6E4A6', '#5D1C16'] },
+  { id: 'bento', colors: ['#F5F4F4', '#BAB7B6', '#4D4B4B', '#000000'] },
+  { id: 'sonda', colors: ['#F3F1EC', '#7FA7B8', '#17212B', '#A8235A'] },
+  { id: 'nexo', colors: ['#E8E8E8', '#D9D1CE', '#AB9D9D', '#000000'] },
+];
+
+function applyPalette(id) {
+  const palette = PALETTES.find((p) => p.id === id) || PALETTES[0];
+  if (palette === PALETTES[0]) delete document.documentElement.dataset.palette;
+  else document.documentElement.dataset.palette = palette.id;
+  viewport.readColors();
+  return palette.id;
+}
+
+function installPalette() {
+  const button = $('#palette');
+  const menu = $('#palette-menu');
+  button.innerHTML = icon('palette', 18);
+  const close = () => {
+    if (menu.hidden) return;
+    if (menu.contains(document.activeElement)) document.activeElement.blur();
+    menu.hidden = true;
+    button.setAttribute('aria-expanded', 'false');
+  };
+  const fill = () => {
+    const current = document.documentElement.dataset.palette || PALETTES[0].id;
+    menu.replaceChildren(
+      ...PALETTES.map((p, i) =>
+        el(
+          'button',
+          {
+            type: 'button',
+            role: 'menuitemradio',
+            'aria-checked': String(p.id === current),
+            'aria-label': `Paleta ${i + 1}`,
+            class: 'menu-item',
+            onclick: () => {
+              close();
+              writePreference('palette', applyPalette(p.id));
+            },
+          },
+          el('span', { class: 'check' }, p.id === current ? '✓' : ''),
+          el('span', { class: 'swatches' }, ...p.colors.map((c) => el('i', { style: { background: c } }))),
+        ),
+      ),
+    );
+  };
+  button.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!menu.hidden) return close();
+    fill();
+    menu.hidden = false;
+    button.setAttribute('aria-expanded', 'true');
+    menu.querySelector('.menu-item[aria-checked="true"]')?.focus();
+  });
+  menu.addEventListener('keydown', (e) => {
+    const items = [...menu.querySelectorAll('.menu-item')];
+    const i = items.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown') items[(i + 1) % items.length].focus();
+    else if (e.key === 'ArrowUp') items[(i - 1 + items.length) % items.length].focus();
+    else if (e.key === 'Escape') {
+      close();
+      button.focus();
+    } else return;
+    e.preventDefault();
+  });
+  document.addEventListener('click', close);
+}
+
 function projectData() {
   const doc = editor.doc;
   doc.palette = palette.current.colors.slice(0, 256);
@@ -868,11 +938,13 @@ editor.on('history', autosave);
 editor.on('saved', autosave);
 
 async function init() {
+  applyPalette(readPreference('palette', 'crivo'));
   applyTheme(readPreference('theme', 'system'));
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     if (readPreference('theme', 'system') === 'system') applyTheme('system');
   });
   $('#theme').addEventListener('click', toggleTheme);
+  installPalette();
   // Same proportion as the project logo (docs/images/logo.svg) and the app icon: pointer at about half the height.
   $('#logo').innerHTML = icon('logo', 18);
   installLayers(app);

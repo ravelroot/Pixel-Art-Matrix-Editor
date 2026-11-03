@@ -50,6 +50,7 @@
 - **Importação e exportação:** PNG e JPEG em tamanho real ou ampliados por vizinho mais próximo; **GIF animado** com transparência e a duração de cada quadro (codificador LZW próprio, sem bibliotecas); **PNG animado (APNG)** e quadros em PNG num `.zip`; arquivos **`.ase`** com camadas, tags e slices (abrir e exportar); sprite sheet horizontal, vertical ou em grade, com JSON das posições no formato do Crivo ou nos formatos hash e array que os motores de jogo leem; dados da matriz em JSON, CSV, JavaScript, Python, C e Java; importação de imagens com detecção automática do tamanho do pixel e fatiamento de sprite sheets.
 - **Salva onde você escolher:** o Ctrl+S abre a janela **Salvar como** do Windows na primeira vez, para escolher a pasta e o nome do arquivo `.crivo`, e as exportações usam a mesma janela. Além disso, no app desktop, projetos e paletas ficam neste computador; com o servidor Django, vão para o banco de dados, com histórico de versões; no [`Crivo.html`](Crivo.html), ficam no navegador (IndexedDB). Um rascunho automático recupera o trabalho se a janela fechar.
 - **Tutorial rápido:** na primeira vez que o Crivo abre, ele pergunta se você quer um tour de oito passos pelas 23 ferramentas, cores, camadas, zoom e salvar. Dá para recusar, e ele fica em **Ajuda → Tutorial rápido**.
+- **Paletas de cores da interface:** o botão de paleta no topo troca a interface entre a paleta original do Crivo e as do Bento, do Sonda e do Nexo, todas com versão clara e escura. A escolha fica salva e volta na próxima vez. Detalhes em [Paletas de cores da interface](#paletas-de-cores-da-interface).
 - **Seguro por padrão:** Content-Security-Policy restrita, CSRF, token de API comparado em tempo constante, limite de escritas por IP, validação de tudo que chega à API e recusa de iniciar em produção com chave secreta fraca. Detalhes em [Qualidade e segurança](#qualidade-e-segurança).
 
 <p align="center">
@@ -61,6 +62,19 @@
   <img src="docs/images/tela-ladrilho.png" width="49%" alt="Modo ladrilho no tema escuro, repetindo um tile de tijolos 3×3">
   <img src="docs/images/tela-simetria.png" width="49%" alt="Desenho com simetria horizontal e vertical, com os dois eixos tracejados">
 </p>
+
+## Paletas de cores da interface
+
+O botão com o ícone de paleta, no canto superior direito ao lado do botão de tema, abre a lista das paletas da interface. A escolhida muda barras, painéis, menus e a área em volta da matriz (fundo, xadrez da transparência, grade, borda, eixos de simetria e cursor) e funciona junto com o tema claro ou escuro. As cores do desenho e as paletas de pintura (Crivo, Game Boy, NES e as outras) não mudam.
+
+| Paleta | De onde vem | Tema claro | Tema escuro |
+| --- | --- | --- | --- |
+| **Crivo** (padrão) | paleta original do Crivo | linho `#E6DDCE`, vinho `#5D1C16`, ardósia `#A3B4BE`, palha `#F6E4A6` | fundo `#1D1613`, destaque palha `#F6E4A6` |
+| **Bento** | painel administrativo Bento | mesa `#F5F4F4`, caixa `#FFFFFF`, tinta `#000000`, alta `#3E6B2A`, queda `#9B2F1E` | mesa `#020202`, caixa `#121111`, destaque `#FFFFFF` |
+| **Sonda** | motor de busca Sonda | papel `#F3F1EC`, folha `#FCFBF8`, tinta `#17212B`, água `#E3ECEF`, sinal `#A8235A` | papel `#0F161B`, água `#172A33`, sinal `#F0679A` |
+| **Nexo** | paleta original do Nexo | papel `#E8E8E8`, pó `#D9D1CE`, pedra `#BAB7B5`, malva `#AB9D9D`, tinta `#000000` | fundo `#000000`, superfície `#121111`, malva `#AB9D9D` |
+
+A escolha fica salva neste navegador (ou no app desktop) junto com as outras preferências. As paletas são variáveis CSS em `:root[data-palette]` no [`editor/static/editor/css/crivo.css`](editor/static/editor/css/crivo.css), e a lista do menu fica em `PALETTES` no [`editor/static/editor/js/main.js`](editor/static/editor/js/main.js). Funciona nas três maneiras de rodar.
 
 ## Estúdio de jogo (2.4.0)
 

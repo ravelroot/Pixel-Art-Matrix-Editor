@@ -7,7 +7,7 @@
 <html lang="pt-BR" data-theme="light">
   <head>
     <meta charset="utf-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-JhD3Whorrouo0ho8BUcn9CgYFaVIjjU1YDGnSXYLSaY='; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-WJwToLowtxt5+B6Ybvxn+bCDKBn3wzuUcSMcMa6kTWo='; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Crivo</title>
     <meta name="description" content="Crivo: editor de pixel art baseado em matrizes, com camadas, animação, histórico ilimitado e exportação para jogos.">
@@ -83,6 +83,201 @@
   --matrix-border: #d6bdb8;
   --axis: #f6e4a6;
   --cursor-light: #faf6ef;
+  --cursor-dark: #000000;
+}
+
+:root[data-palette='bento'] {
+  --wine: #000000;
+  --slate: #bab7b6;
+  --coffee: #4d4b4b;
+  --linen: #f5f4f4;
+  --olive: #3e6b2a;
+  --rose: #e8e7e6;
+  --straw: #e2c288;
+  --bg: #f5f4f4;
+  --surface: #fafaf9;
+  --surface-2: #ffffff;
+  --text: #000000;
+  --text-muted: #4d4b4b;
+  --text-faint: #6b6969;
+  --border: #d3d1d0;
+  --border-strong: #bab7b6;
+  --accent: #000000;
+  --accent-text: #ffffff;
+  --accent-soft: #e8e7e6;
+  --secondary: #2b4c5a;
+  --highlight: #e2c288;
+  --selection: #e8e7e6;
+  --danger: #9b2f1e;
+  --success: #3e6b2a;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  --area: #bab7b6;
+  --checker-a: #ffffff;
+  --checker-b: #e8e7e6;
+  --grid: rgba(0, 0, 0, 0.2);
+  --grid-major: rgba(0, 0, 0, 0.34);
+  --matrix-border: #4d4b4b;
+  --axis: #000000;
+  --cursor-light: #ffffff;
+  --cursor-dark: #000000;
+}
+
+:root[data-palette='bento'][data-theme='dark'] {
+  --bg: #020202;
+  --surface: #121111;
+  --surface-2: #1e1d1d;
+  --text: #ffffff;
+  --text-muted: #d3d1d0;
+  --text-faint: #bab7b6;
+  --border: #333232;
+  --border-strong: #4d4b4b;
+  --accent: #ffffff;
+  --accent-text: #000000;
+  --accent-soft: #333232;
+  --secondary: #99b3bf;
+  --highlight: #513e1a;
+  --selection: #333232;
+  --danger: #e89a87;
+  --success: #9cc787;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  --area: #1e1d1d;
+  --checker-a: #4d4b4b;
+  --checker-b: #333232;
+  --grid: rgba(255, 255, 255, 0.14);
+  --grid-major: rgba(255, 255, 255, 0.3);
+  --matrix-border: #d3d1d0;
+  --axis: #ffffff;
+  --cursor-light: #ffffff;
+  --cursor-dark: #000000;
+}
+
+:root[data-palette='sonda'] {
+  --wine: #a8235a;
+  --slate: #7fa7b8;
+  --coffee: #2d3a46;
+  --linen: #f3f1ec;
+  --olive: #2e7d5b;
+  --rose: #f5e1e9;
+  --straw: #c9dce3;
+  --bg: #f3f1ec;
+  --surface: #f7f5f0;
+  --surface-2: #fcfbf8;
+  --text: #17212b;
+  --text-muted: #2d3a46;
+  --text-faint: #5e6670;
+  --border: #dad6cc;
+  --border-strong: #b9b3a6;
+  --accent: #a8235a;
+  --accent-text: #fcfbf8;
+  --accent-soft: #f5e1e9;
+  --secondary: #3e6f84;
+  --highlight: #c9dce3;
+  --selection: #e3ecef;
+  --danger: #b3261e;
+  --success: #2e7d5b;
+  --shadow: 0 1px 0 rgba(23, 33, 43, 0.04), 0 12px 32px -18px rgba(23, 33, 43, 0.28);
+  --area: #7fa7b8;
+  --checker-a: #fcfbf8;
+  --checker-b: #dad6cc;
+  --grid: rgba(23, 33, 43, 0.2);
+  --grid-major: rgba(23, 33, 43, 0.34);
+  --matrix-border: #2d3a46;
+  --axis: #a8235a;
+  --cursor-light: #fcfbf8;
+  --cursor-dark: #17212b;
+}
+
+:root[data-palette='sonda'][data-theme='dark'] {
+  --bg: #0f161b;
+  --surface: #121a20;
+  --surface-2: #151e25;
+  --text: #e6e9ea;
+  --text-muted: #c6cdd1;
+  --text-faint: #95a1aa;
+  --border: #26323b;
+  --border-strong: #3a4853;
+  --accent: #f0679a;
+  --accent-text: #0f161b;
+  --accent-soft: #3a1a28;
+  --secondary: #6fa8bf;
+  --highlight: #1f3f4c;
+  --selection: #1f3f4c;
+  --danger: #f2847a;
+  --success: #5cc497;
+  --shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 16px 40px -18px rgba(0, 0, 0, 0.7);
+  --area: #172a33;
+  --checker-a: #3a4853;
+  --checker-b: #26323b;
+  --grid: rgba(230, 233, 234, 0.14);
+  --grid-major: rgba(230, 233, 234, 0.3);
+  --matrix-border: #c6cdd1;
+  --axis: #f0679a;
+  --cursor-light: #fcfbf8;
+  --cursor-dark: #0f161b;
+}
+
+:root[data-palette='nexo'] {
+  --wine: #000000;
+  --slate: #ab9d9d;
+  --coffee: #5c5454;
+  --linen: #e8e8e8;
+  --olive: #2f4a35;
+  --rose: #d9d1ce;
+  --straw: #ab9d9d;
+  --bg: #e8e8e8;
+  --surface: #f3f2f1;
+  --surface-2: #f9f8f8;
+  --text: #000000;
+  --text-muted: #5c5454;
+  --text-faint: #777070;
+  --border: #d9d1ce;
+  --border-strong: #bab7b5;
+  --accent: #000000;
+  --accent-text: #e8e8e8;
+  --accent-soft: #d9d1ce;
+  --secondary: #ab9d9d;
+  --highlight: #ab9d9d;
+  --selection: #d9d1ce;
+  --danger: #7a2e2e;
+  --success: #2f4a35;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+  --area: #ab9d9d;
+  --checker-a: #f3f2f1;
+  --checker-b: #d9d1ce;
+  --grid: rgba(0, 0, 0, 0.2);
+  --grid-major: rgba(0, 0, 0, 0.34);
+  --matrix-border: #5c5454;
+  --axis: #000000;
+  --cursor-light: #f3f2f1;
+  --cursor-dark: #000000;
+}
+
+:root[data-palette='nexo'][data-theme='dark'] {
+  --bg: #000000;
+  --surface: #121111;
+  --surface-2: #221e1d;
+  --text: #e8e8e8;
+  --text-muted: #bab7b5;
+  --text-faint: #ab9d9d;
+  --border: #3b3737;
+  --border-strong: #5c5454;
+  --accent: #e8e8e8;
+  --accent-text: #000000;
+  --accent-soft: #221e1d;
+  --secondary: #ab9d9d;
+  --highlight: #3b3737;
+  --selection: #3b3737;
+  --danger: #e0a4a4;
+  --success: #b9d3bd;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  --area: #221e1d;
+  --checker-a: #3b3737;
+  --checker-b: #221e1d;
+  --grid: rgba(232, 232, 232, 0.14);
+  --grid-major: rgba(232, 232, 232, 0.3);
+  --matrix-border: #bab7b5;
+  --axis: #ab9d9d;
+  --cursor-light: #f3f2f1;
   --cursor-dark: #000000;
 }
 
@@ -256,6 +451,24 @@ h2 {
   font-family: var(--mono);
   font-size: 11px;
   opacity: 0.7;
+}
+
+.menu-right {
+  left: auto;
+  right: 0;
+  min-width: 0;
+}
+
+.menu-item .swatches {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.menu-item .swatches i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
 }
 
 .project-name {
@@ -3710,6 +3923,10 @@ p.jogo-dica {
           <button id="undo" type="button" class="icon-button" aria-label="Desfazer"></button>
           <button id="redo" type="button" class="icon-button" aria-label="Refazer"></button>
           <button id="save" type="button" class="icon-button" title="Salvar (Ctrl+S)" aria-label="Salvar"></button>
+          <div class="menu-group">
+            <button id="palette" type="button" class="icon-button" aria-haspopup="true" aria-expanded="false" aria-label="Paleta de cores da interface" title="Paleta de cores da interface"></button>
+            <div id="palette-menu" class="menu menu-right" role="menu" hidden></div>
+          </div>
           <button id="theme" type="button" class="icon-button" aria-label="Alternar tema"></button>
         </div>
       </header>
@@ -8816,6 +9033,7 @@ const BITMAPS = {
   fit: B('###....###', '#........#', '#........#', '..........', '..........', '..........', '#........#', '#........#', '###....###'),
   sun: B('....#....', '.#.....#.', '...###...', '..#####..', '#.#####.#', '..#####..', '...###...', '.#.....#.', '....#....'),
   moon: B('...####..', '..###....', '.###.....', '.###.....', '.###.....', '.###.....', '..###....', '...####..'),
+  palette: B('...#####...', '.##.....##.', '#..##.....#', '#..##.##..#', '#......##.#', '#.##.....#.', '#.##....#..', '.#.....#...', '..#####....'),
   cloud: B('...###....', '..#...#...', '.#.....##.', '#.......#.', '#........#', '.########.'),
   disk: B('#########.', '#.#####.##', '#.#####..#', '#.......##', '#........#', '#.######.#', '#.#....#.#', '#.######.#', '##########'),
   folder: B('####......', '#...#####.', '#........#', '##########', '#........#', '#........#', '#........#', '##########'),
@@ -24055,6 +24273,76 @@ function toggleTheme() {
   applyTheme(next);
 }
 
+const PALETTES = [
+  { id: 'crivo', colors: ['#E6DDCE', '#A3B4BE', '#F6E4A6', '#5D1C16'] },
+  { id: 'bento', colors: ['#F5F4F4', '#BAB7B6', '#4D4B4B', '#000000'] },
+  { id: 'sonda', colors: ['#F3F1EC', '#7FA7B8', '#17212B', '#A8235A'] },
+  { id: 'nexo', colors: ['#E8E8E8', '#D9D1CE', '#AB9D9D', '#000000'] },
+];
+
+function applyPalette(id) {
+  const palette = PALETTES.find((p) => p.id === id) || PALETTES[0];
+  if (palette === PALETTES[0]) delete document.documentElement.dataset.palette;
+  else document.documentElement.dataset.palette = palette.id;
+  viewport.readColors();
+  return palette.id;
+}
+
+function installPalette() {
+  const button = $('#palette');
+  const menu = $('#palette-menu');
+  button.innerHTML = icon('palette', 18);
+  const close = () => {
+    if (menu.hidden) return;
+    if (menu.contains(document.activeElement)) document.activeElement.blur();
+    menu.hidden = true;
+    button.setAttribute('aria-expanded', 'false');
+  };
+  const fill = () => {
+    const current = document.documentElement.dataset.palette || PALETTES[0].id;
+    menu.replaceChildren(
+      ...PALETTES.map((p, i) =>
+        el(
+          'button',
+          {
+            type: 'button',
+            role: 'menuitemradio',
+            'aria-checked': String(p.id === current),
+            'aria-label': `Paleta ${i + 1}`,
+            class: 'menu-item',
+            onclick: () => {
+              close();
+              writePreference('palette', applyPalette(p.id));
+            },
+          },
+          el('span', { class: 'check' }, p.id === current ? '✓' : ''),
+          el('span', { class: 'swatches' }, ...p.colors.map((c) => el('i', { style: { background: c } }))),
+        ),
+      ),
+    );
+  };
+  button.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!menu.hidden) return close();
+    fill();
+    menu.hidden = false;
+    button.setAttribute('aria-expanded', 'true');
+    menu.querySelector('.menu-item[aria-checked="true"]')?.focus();
+  });
+  menu.addEventListener('keydown', (e) => {
+    const items = [...menu.querySelectorAll('.menu-item')];
+    const i = items.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown') items[(i + 1) % items.length].focus();
+    else if (e.key === 'ArrowUp') items[(i - 1 + items.length) % items.length].focus();
+    else if (e.key === 'Escape') {
+      close();
+      button.focus();
+    } else return;
+    e.preventDefault();
+  });
+  document.addEventListener('click', close);
+}
+
 function projectData() {
   const doc = editor.doc;
   doc.palette = palette.current.colors.slice(0, 256);
@@ -24347,11 +24635,13 @@ editor.on('history', autosave);
 editor.on('saved', autosave);
 
 async function init() {
+  applyPalette(readPreference('palette', 'crivo'));
   applyTheme(readPreference('theme', 'system'));
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     if (readPreference('theme', 'system') === 'system') applyTheme('system');
   });
   $('#theme').addEventListener('click', toggleTheme);
+  installPalette();
   // Same proportion as the project logo (docs/images/logo.svg) and the app icon: pointer at about half the height.
   $('#logo').innerHTML = icon('logo', 18);
   installLayers(app);
