@@ -5,8 +5,6 @@ from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Environment variables renamed in 2.0.0 (new name -> 1.x name). The old name is still read as a fallback,
-# and editor.apps reports it as deprecated through a system check (crivo.W001).
 LEGACY_ENV_NAMES = {
     "CRIVO_MAX_UPLOAD_MB": "CRIVO_TAMANHO_MAXIMO_MB",
     "CRIVO_HSTS_SECONDS": "CRIVO_HSTS_SEGUNDOS",
@@ -17,7 +15,6 @@ LEGACY_ENV_NAMES = {
     "CRIVO_TRUSTED_PROXY": "CRIVO_PROXY_CONFIAVEL",
 }
 
-# (old name, new name) for every deprecated variable that was actually used to configure this process.
 DEPRECATED_ENV_VARS = []
 
 
@@ -39,7 +36,7 @@ def env_list(name, default=""):
     return [item.strip() for item in str(env(name, default)).split(",") if item.strip()]
 
 
-VERSION = (BASE_DIR / "VERSION").read_text(encoding="utf-8").strip() if (BASE_DIR / "VERSION").exists() else "2.4.0"
+VERSION = (BASE_DIR / "VERSION").read_text(encoding="utf-8").strip() if (BASE_DIR / "VERSION").exists() else "2.5.0"
 
 DEVELOPMENT_KEY = "crivo-chave-local-de-desenvolvimento-troque-em-producao"
 EXAMPLE_KEYS = {DEVELOPMENT_KEY, "troque-esta-chave"}

@@ -1,5 +1,3 @@
-// PNG and animated PNG (APNG) encoder with no dependencies. Pixels are packed RGBA (R in the low byte),
-// written as 8-bit truecolor + alpha. Async because the zlib step uses CompressionStream (see zlib.js).
 import { crc32, deflate, ByteWriter } from './zlib.js';
 
 export const PNG_SIGNATURE = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -18,15 +16,14 @@ function ihdr(width, height) {
   const w = new ByteWriter(13);
   w.u32be(width);
   w.u32be(height);
-  w.u8(8); // bit depth
-  w.u8(6); // color type: truecolor + alpha
+  w.u8(8);
+  w.u8(6);
   w.u8(0);
   w.u8(0);
   w.u8(0);
   return w.result();
 }
 
-// Scanlines with filter type 0 (none): pixel art compresses well enough without filters.
 function scanlines(pixels, width, height) {
   const row = width * 4;
   const out = new Uint8Array((row + 1) * height);
@@ -51,7 +48,6 @@ export async function encodePNG(pixels, width, height, options = {}) {
   return join([PNG_SIGNATURE, pngChunk('IHDR', ihdr(width, height)), pngChunk('IDAT', data), pngChunk('IEND')]);
 }
 
-// frames: Uint32Array list of the same size; delays in milliseconds; loop: 0 = forever.
 export async function encodeAPNG(frames, width, height, { delays = [], loop = 0, compress = true } = {}) {
   if (!frames.length) throw new Error('Nenhum quadro para exportar.');
   const parts = [PNG_SIGNATURE, pngChunk('IHDR', ihdr(width, height))];
@@ -66,12 +62,12 @@ export async function encodeAPNG(frames, width, height, { delays = [], loop = 0,
     fctl.u32be(sequence++);
     fctl.u32be(width);
     fctl.u32be(height);
-    fctl.u32be(0); // x offset
-    fctl.u32be(0); // y offset
-    fctl.u16be(delay); // delay numerator
-    fctl.u16be(1000); // delay denominator: milliseconds
-    fctl.u8(0); // dispose: none
-    fctl.u8(0); // blend: source (the frame replaces the whole canvas)
+    fctl.u32be(0);
+    fctl.u32be(0);
+    fctl.u16be(delay);
+    fctl.u16be(1000);
+    fctl.u8(0);
+    fctl.u8(0);
     parts.push(pngChunk('fcTL', fctl.result()));
     const data = await deflate(scanlines(frames[i], width, height), { compress });
     if (i === 0) parts.push(pngChunk('IDAT', data));
@@ -86,7 +82,6 @@ export async function encodeAPNG(frames, width, height, { delays = [], loop = 0,
   return join(parts);
 }
 
-// Lists the chunks of a PNG file: [{ type, data, crc, valid }]. Used by the tests and by the importers.
 export function readPNGChunks(bytes) {
   for (let i = 0; i < 8; i++) if (bytes[i] !== PNG_SIGNATURE[i]) throw new Error('Não é um arquivo PNG.');
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);

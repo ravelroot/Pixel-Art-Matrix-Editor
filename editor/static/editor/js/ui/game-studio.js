@@ -1,4 +1,6 @@
-import { el, notify, pickFile, readText, downloadText } from './util.js';
+import { el, notify, pickFile, readText, downloadText, downloadBlob } from './util.js';
+import { encodeGIF } from '../core/gif.js';
+import { scaleNearest } from '../core/export.js';
 import { openDialog, confirm, promptText } from './dialog.js';
 import { icon } from './icons.js';
 import { fileToPixels } from './image.js';
@@ -34,6 +36,15 @@ import {
   RESOLUTION_FOR,
   CODE_LANGS,
   CODE_TEMPLATES,
+  EASES,
+  TWEEN_PROPS,
+  PARTICLE_PRESETS,
+  WEATHER,
+  CAMERA_MODES,
+  SCREEN_FILTERS,
+  TRANSITIONS,
+  MAX_ALARMS,
+  STRING_LIMITS,
   newGame,
   newScene,
   newActor,
@@ -67,8 +78,8 @@ const TOOLS = [
   ['actor', 'Colocar ator', 'plus', 'A'],
   ['select', 'Mover ator', 'move', 'V'],
 ];
-const FLAG_COLORS = { solid: 'rgba(93,28,22,0.55)', platform: 'rgba(122,110,70,0.6)', hazard: 'rgba(208,74,58,0.65)' };
-const FLAG_SHORT = { solid: 'S', platform: 'P', hazard: '!' };
+const FLAG_COLORS = { solid: 'rgba(93,28,22,0.55)', platform: 'rgba(122,110,70,0.6)', hazard: 'rgba(208,74,58,0.65)', ladder: 'rgba(160,120,60,0.55)', water: 'rgba(60,120,190,0.55)', ice: 'rgba(170,220,240,0.6)', bounce: 'rgba(190,90,200,0.55)' };
+const FLAG_SHORT = { solid: 'S', platform: 'P', hazard: '!', ladder: 'H', water: '~', ice: '*', bounce: '^' };
 
 const engine = gameEngine();
 const audio = gameAudio();
@@ -379,7 +390,7 @@ export class GameStudio {
         ),
       ),
       this.body,
-      el('footer', { class: 'jogo-rodape' }, this.statusLine, el('span', { class: 'jogo-ajuda' }, 'F5 testa · Ctrl+Z desfaz · o jogo fica salvo neste navegador enquanto você edita')),
+      el('footer', { class: 'jogo-rodape' }, this.statusLine, el('span', { class: 'jogo-ajuda' }, 'F5 testa · Shift+F5 testa daqui · Ctrl+Z desfaz · o jogo fica salvo neste navegador enquanto você edita')),
     );
     this.dialog.addEventListener('cancel', (e) => {
       e.preventDefault();
@@ -470,7 +481,8 @@ export class GameStudio {
     const k = e.key.toLowerCase();
     if (e.key === 'F5') {
       e.preventDefault();
-      this.test();
+      if (e.shiftKey) this.testHere();
+      else this.test();
       return;
     }
     if (typing) return;
@@ -608,7 +620,24 @@ export class GameStudio {
       field('Tileset', select([['', '(nenhum)'], ...g.tilesets.map((t) => [t.id, t.name])], scene.tileset, (v) => this.edit(() => (scene.tileset = v)))),
       field('Cor de fundo', this.colorInput(scene.background || g.background, (v) => this.edit(() => (scene.background = v)))),
       field('Paisagem ao fundo', select(this.spriteOptions(), scene.backdrop, (v) => this.edit(() => (scene.backdrop = v))), 'Um sprite que se repete atrás da cena, com profundidade.'),
+      field('Profundidade da paisagem (%)', numberInput(scene.parallax ?? 50, (v) => this.edit(() => (scene.parallax = Math.round(Math.max(0, Math.min(100, v)))), false), { min: 0, max: 100 }), '0 fica parada, 100 anda junto com a cena.'),
       field('Música (notas)', this.musicInput(scene), 'Ex.: 140: C5 E5 G5 C6*2 - G5. Opcional: "triangular:" depois do andamento.'),
+      el('h3', {}, 'Luz, clima e câmera'),
+      el(
+        'div',
+        { class: 'jogo-linha' },
+        field('Escuridão (%)', numberInput(scene.ambient || 0, (v) => this.edit(() => (scene.ambient = Math.round(Math.max(0, Math.min(100, v)))), false), { min: 0, max: 100 })),
+        field('Cor da escuridão', this.colorInput(scene.ambientColor || '#0b0812', (v) => this.edit(() => (scene.ambientColor = v), false))),
+      ),
+      el('p', { class: 'jogo-dica' }, 'Com escuridão, só aparece o que a luz dos atores ilumina (Atores → Luz). Explosões, fogo e magia também iluminam.'),
+      field('Câmera', select(CAMERA_MODES, scene.camera || 'smooth', (v) => this.edit(() => (scene.camera = v), false))),
+      el(
+        'div',
+        { class: 'jogo-linha' },
+        field('Clima', select(WEATHER, scene.weather || '', (v) => this.edit(() => (scene.weather = v), false))),
+        field('Zoom', select([['0.5', '50%'], ['1', '100%'], ['1.5', '150%'], ['2', '200%'], ['3', '300%'], ['4', '400%']], String(scene.zoom || 1), (v) => this.edit(() => (scene.zoom = Number(v)), false))),
+      ),
+      checkbox(Boolean(scene.persistent), (v) => this.edit(() => (scene.persistent = v), false), 'Cena persistente (lembra itens pegos, inimigos derrotados e posições ao voltar)'),
       el(
         'div',
         { class: 'jogo-botoes' },
@@ -648,6 +677,8 @@ export class GameStudio {
       }, 'Camada de tiles'),
       checkbox(this.showGrid, (v) => ((this.showGrid = v), this.drawScene()), 'Grade'),
       checkbox(this.showFlags, (v) => ((this.showFlags = v), this.drawScene()), 'Colisão'),
+      el('span', { class: 'jogo-sep' }),
+      button('Testar daqui', () => this.testHere(), { iconName: 'play', title: 'Testa com o jogador no último ponto da cena onde o mouse passou (Shift+F5)' }),
     );
     this.canvas = el('canvas', { class: 'jogo-cena', 'aria-label': 'Cena do jogo. Clique para pintar tiles ou colocar atores.' });
     this.canvas.addEventListener('pointerdown', (e) => this.scenePointer(e, 'down'));
@@ -933,6 +964,7 @@ export class GameStudio {
 
   hover(cell) {
     this.hoverCell = cell;
+    if (cell) this.lastCell = cell;
     const scene = this.scene;
     if (cell && cell.c >= 0 && cell.r >= 0 && cell.c < scene.cols && cell.r < scene.rows) {
       const k = scene.tiles[cell.r * scene.cols + cell.c];
@@ -1057,6 +1089,19 @@ export class GameStudio {
       if (typeof def.props[k] === 'boolean') return checkbox(v, (x) => this.edit(() => (a.props[k] = x), false), label);
       if (k === 'shoot') return field(label, select([['', '(não atira)'], ...g.actors.filter((x) => x.behavior === 'projectile').map((x) => [x.id, x.name])], v, (x) => this.edit(() => (a.props[k] = x), false)), 'Crie um ator "Projétil" para usar aqui. Botão X atira.');
       if (k === 'scene') return field(label, select([['', '(a próxima cena)'], ...this.sceneOptions()], v, (x) => this.edit(() => (a.props[k] = x), false)));
+      if (k === 'effect') return field(label, select(PARTICLE_PRESETS, v, (x) => this.edit(() => (a.props[k] = x), false)));
+      if (k === 'spawns') return field(label, select([['', '(nenhum)'], ...g.actors.filter((x) => x.id !== a.id && !['platformer', 'topdown'].includes(x.behavior)).map((x) => [x.id, x.name])], v, (x) => this.edit(() => (a.props[k] = x), false)), 'O ator criado aparece em cima do gerador, com o evento Criar.');
+      if (k === 'signal') return field(label, textInput(v, (x) => this.edit(() => (a.props[k] = x.trim().toLowerCase().slice(0, 32)), false), 32), 'Nome do sinal enviado quando o jogador entra na área. Atores com o evento Recebeu um sinal e regras com esse gatilho respondem.');
+      if (typeof def.props[k] === 'string') {
+        let control;
+        if (k === 'say') {
+          control = el('textarea', { rows: 4, maxlength: STRING_LIMITS.say, class: 'jogo-fala', spellcheck: 'true' }, v);
+          control.addEventListener('change', () => this.edit(() => (a.props[k] = control.value.slice(0, STRING_LIMITS.say)), false));
+        } else control = textInput(v, (x) => this.edit(() => (a.props[k] = x), false), STRING_LIMITS[k] || 40);
+        const f = field(label, control, k === 'say' ? 'Cada | começa uma página nova. O jogador fala apertando X perto do personagem.' : '');
+        if (k === 'say') f.classList.add('largo');
+        return f;
+      }
       return field(unit ? `${label} (${unit})` : label, numberInput(v, (x) => this.edit(() => (a.props[k] = x), false), { min, max, step }));
     });
     const animFields = def.anims.map((slot) => field(ANIM_LABELS[slot], select([['', '(todos os quadros)'], ...tags.map((t) => [t, t])], a.anims[slot] || '', (x) => this.edit(() => (x ? (a.anims[slot] = x) : delete a.anims[slot])))));
@@ -1125,6 +1170,14 @@ export class GameStudio {
             tags.length ? animFields : el('p', { class: 'jogo-dica' }, 'O sprite não tem tags: o ator toca todos os quadros. Crie tags no Crivo (Quadro → Tags) para ter animações parado, andando e pulando.'),
             def.sounds.length ? el('h3', {}, 'Sons') : null,
             soundFields,
+            el('h3', {}, 'Luz (cenas escuras)'),
+            el(
+              'div',
+              { class: 'jogo-linha' },
+              field('Raio (px, 0 sem luz)', numberInput(a.light?.radius || 0, (v) => this.edit(() => (v > 0 ? (a.light = { radius: Math.round(Math.min(2048, v)), color: a.light?.color || '#ffd98a', flicker: Boolean(a.light?.flicker) }) : delete a.light)), { min: 0, max: 2048 })),
+              a.light ? field('Cor', this.colorInput(a.light.color, (v) => this.edit(() => (a.light.color = v), false))) : null,
+            ),
+            a.light ? checkbox(a.light.flicker, (v) => this.edit(() => (a.light.flicker = v), false), 'Tremula como fogo') : null,
             el('div', { class: 'jogo-botoes' }, button('Colocar na cena', () => {
               this.brushActor = a.id;
               this.tool = 'actor';
@@ -1209,6 +1262,15 @@ export class GameStudio {
       block: 'Ninguém atravessa. Pode quebrar com tiros ou sumir com uma regra.',
       decor: 'Só enfeite, sem colisão.',
       custom: 'Sem lógica pronta: anda com a velocidade que os eventos derem (Mover numa direção, Ir em direção ao jogador, alarmes), com atrito, gravidade e colisão opcionais.',
+      mover: 'Vai e volta na horizontal (ou na vertical) pelo alcance e leva quem estiver em cima. "Só segura por cima" deixa passar por baixo.',
+      spring: 'Joga o jogador para o alto quando ele pisa. Use a tag "Ativo" para a mola esticada.',
+      checkpoint: 'Ao ser tocado, guarda o ponto de volta: se o jogador morrer, recomeça aqui. A tag "Ativo" mostra o ponto aceso.',
+      npc: 'Fala com o jogador quando ele aperta X por perto. Separe as páginas da fala com |. Dispara o evento "Fim do diálogo".',
+      pathfinder: 'Persegue o jogador contornando paredes com o algoritmo A* sobre os tiles sólidos. Bom para labirintos e jogos vistos de cima.',
+      turret: 'Fica parada e atira o projétil escolhido no jogador quando ele está no alcance (e, se marcado, sem parede no meio).',
+      zone: 'Uma área invisível no jogo: quando o jogador entra, envia o sinal e roda o evento Colisão. Use o tamanho da caixa de colisão para cobrir a área. Na depuração (F3), aparece em verde.',
+      spawner: 'Cria o ator escolhido no intervalo definido, até o máximo vivos ao mesmo tempo. Com alcance maior que 0, só cria quando o jogador está perto. Bom para ondas de inimigos e itens que reaparecem.',
+      emitter: 'Solta o efeito de partículas escolhido no intervalo definido. Com alcance maior que 0, só solta quando o jogador está perto, o que poupa partículas em fases grandes.',
     }[b];
   }
 
@@ -1462,7 +1524,40 @@ export class GameStudio {
         el('p', { class: 'jogo-dica' }, 'Escolha o tipo e clique nos tiles. Botão direito volta para vazio.'),
         brush,
         tiles,
+        el('h3', {}, 'Tiles animados'),
+        el('p', { class: 'jogo-dica' }, 'O tile pintado na cena troca de desenho sozinho no jogo, na sequência e na velocidade escolhidas (água, lava, tochas). A colisão continua a do tile pintado.'),
+        this.tileAnimsEditor(t),
       ),
+    );
+  }
+
+  tileAnimsEditor(t) {
+    const anims = t.anims || [];
+    const parse = (v) => String(v).split(/[^0-9]+/).map(Number).filter((n) => Number.isFinite(n) && n > 0).slice(0, 32);
+    return el(
+      'div',
+      { class: 'jogo-form' },
+      anims.length
+        ? anims.map((a, i) =>
+            el(
+              'div',
+              { class: 'jogo-linha jogo-anim-tile' },
+              field('Tile pintado', numberInput(a.tile, (v) => this.edit(() => (a.tile = Math.round(v)), false), { min: 1, max: 65535 })),
+              field('Sequência (tiles)', textInput(a.frames.join(' '), (v) => this.edit(() => {
+                const frames = parse(v);
+                if (frames.length > 1) a.frames = frames;
+              }, false), 160)),
+              field('Quadros por segundo', numberInput(a.fps, (v) => this.edit(() => (a.fps = v), false), { min: 0.5, max: 60, step: 0.5 })),
+              button('', () => this.edit(() => {
+                anims.splice(i, 1);
+                if (!anims.length) delete t.anims;
+              }), { iconName: 'trash', danger: true, title: 'Tirar esta animação' }),
+            ),
+          )
+        : el('p', { class: 'jogo-dica' }, 'Nenhum tile animado.'),
+      el('div', { class: 'jogo-botoes' }, button('Tile animado', () => this.edit(() => {
+        (t.anims ||= []).push({ tile: this.brushTile || 1, frames: [this.brushTile || 1, (this.brushTile || 1) + 1], fps: 4 });
+      }), { iconName: 'plus' })),
     );
   }
 
@@ -1499,6 +1594,15 @@ export class GameStudio {
       code: 'Código',
       color: 'Cor',
       count: 'Quantidade',
+      prop: 'Propriedade',
+      ease: 'Curva',
+      preset: 'Efeito',
+      signal: 'Sinal',
+      speaker: 'Quem fala',
+      zoom: 'Zoom (1 = 100%)',
+      factor: 'Velocidade (0,5 = metade)',
+      radius: 'Raio da luz (px, 0 apaga)',
+      slot: 'Espaço (0 a 9)',
     }[name];
     let control;
     if (name === 'a') control = select(this.actorOptions(), obj[name], set);
@@ -1512,8 +1616,16 @@ export class GameStudio {
     else if (name === 'lang') return null;
     else if (name === 'code') control = this.codeArea(obj.code || '', (v) => this.edit(() => (obj.code = v), false), 7, obj.lang || 'crivo', (l) => this.edit(() => (obj.lang = l), false));
     else if (name === 'color') control = this.colorInput(obj[name] || '#f6e4a6', set);
-    else if (name === 'text') control = textInput(obj[name], set, obj.type === 'music' ? 400 : 120);
-    else if (name === 'alarm') control = select([0, 1, 2, 3].map((n) => [String(n), `Alarme ${n}`]), String(obj[name] ?? 0), (v) => set(Number(v)));
+    else if (name === 'text') control = textInput(obj[name], set, obj.type === 'music' || obj.type === 'dialog' ? 600 : 120);
+    else if (name === 'alarm') control = select(Array.from({ length: MAX_ALARMS }, (_, n) => [String(n), `Alarme ${n}`]), String(obj[name] ?? 0), (v) => set(Number(v)));
+    else if (name === 'prop') control = select(TWEEN_PROPS, obj[name] || 'y', set);
+    else if (name === 'ease') control = select(EASES, obj[name] || 'out_quad', set);
+    else if (name === 'preset') control = select(PARTICLE_PRESETS, obj[name] || 'explosion', set);
+    else if (name === 'signal') control = textInput(obj[name] || '', (v) => set(v.trim().toLowerCase().slice(0, 32)), 32);
+    else if (name === 'speaker') control = textInput(obj[name] || '', set, 40);
+    else if (name === 'slot') control = select(Array.from({ length: 10 }, (_, n) => [String(n), `Espaço ${n}`]), String(obj[name] ?? 0), (v) => set(Number(v)));
+    else if (name === 'zoom') control = numberInput(obj[name] ?? 1, set, { min: 0.25, max: 8, step: 0.25 });
+    else if (name === 'factor') control = numberInput(obj[name] ?? 0.5, set, { min: 0.05, max: 4, step: 0.05 });
     else if (name === 'local') control = textInput(obj[name], (v) => set(v.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9_]/g, '').slice(0, 24)), 24);
     else if (name === 'toggle') control = select([['on', 'Ligar'], ['off', 'Desligar']], obj[name] || 'on', set);
     else if (name === 'other') control = select(this.actorOptions('(qualquer um)'), obj[name], set);
@@ -1526,6 +1638,7 @@ export class GameStudio {
     if (name === 'name' && !g.vars.length) control = el('span', { class: 'jogo-dica' }, 'Crie uma variável acima.');
     const out = field(label, control);
     if (name === 'text' || name === 'code') out.classList.add('largo');
+    if (name === 'text' && obj.type === 'dialog') out.querySelector('input')?.setAttribute('placeholder', 'Separe as páginas com |. Use {pontos} para variáveis.');
     if (name === 'code') out.classList.add('codigo');
     return out;
   }
@@ -1707,6 +1820,19 @@ export class GameStudio {
           ),
           el('div', { class: 'jogo-linha' }, field('Largura (px)', numberInput(g.width, set('width'), { min: 32, max: 3840 })), field('Altura (px)', numberInput(g.height, set('height'), { min: 32, max: 2160 }))),
           field('Cor de fundo', this.colorInput(g.background, set('background'))),
+          el(
+            'div',
+            { class: 'jogo-linha' },
+            field('Filtro de tela', select(SCREEN_FILTERS, g.filter || '', set('filter'))),
+            field('Transição entre cenas', select(TRANSITIONS, g.transition ?? 'fade', set('transition'))),
+          ),
+          field('Velocidade do texto dos diálogos (letras/s)', numberInput(g.textSpeed || 40, set('textSpeed'), { min: 5, max: 400 })),
+          el(
+            'div',
+            { class: 'jogo-linha' },
+            checkbox(Boolean(g.hpBars), set('hpBars'), 'Barra de vida nos inimigos feridos'),
+            checkbox(Boolean(g.damageNumbers), set('damageNumbers'), 'Números de dano'),
+          ),
           el('p', { class: 'jogo-dica' }, 'A tela do jogo é ampliada pelo maior número inteiro que cabe na janela, sem borrar os pixels. 160×120 lembra um portátil; 256×144 é 16:9.'),
           el('h3', {}, 'Física'),
           el('div', { class: 'jogo-linha' }, field('Gravidade (px/s²)', numberInput(g.gravity, set('gravity'), { min: 0, max: 200000 })), field('Queda máxima (px/s)', numberInput(g.maxFall, set('maxFall'), { min: 10, max: 200000 }))),
@@ -1730,13 +1856,15 @@ export class GameStudio {
               'tbody',
               {},
               [
-                ['Setas ou WASD', 'Andar (no jogo de plataforma, Cima também pula)'],
+                ['Setas ou WASD', 'Andar (no jogo de plataforma, Cima pula ou sobe a escada)'],
                 ['Z, Espaço ou K', 'Pular'],
-                ['X, J ou C', 'Ação (atirar)'],
+                ['X, J ou C', 'Ação (atirar, falar, avançar diálogo)'],
+                ['Shift ou L', 'Investida (se o ator tiver)'],
+                ['Mouse', 'Clique nos atores (evento "Clique do mouse")'],
                 ['Enter', 'Começar e pausar'],
                 ['R (na pausa)', 'Recomeçar'],
                 ['M', 'Liga e desliga o som'],
-                ['Controle (gamepad)', 'Direcional, A pula, B ou X age, Start pausa'],
+                ['Controle (gamepad)', 'Direcional, A pula, B ou X age, Y ou RB investe, Start pausa'],
                 ['Celular', 'Botões na tela'],
               ].map(([k, v]) => el('tr', {}, el('td', {}, el('kbd', {}, k)), el('td', {}, v))),
             ),
@@ -1752,7 +1880,16 @@ export class GameStudio {
     return compileGame(this.game, this.cache);
   }
 
-  test(sceneId = this.sceneId) {
+  testHere() {
+    const cell = this.hoverCell || this.lastCell;
+    if (this.tab !== 'scene' || !cell) {
+      notify('Passe o mouse na cena e aperte Shift+F5 para testar com o jogador naquele ponto.', 'info', 4000);
+      return;
+    }
+    this.test(this.sceneId, { x: Math.floor(cell.px), y: Math.floor(cell.py) });
+  }
+
+  test(sceneId = this.sceneId, at = null) {
     if (this.testing) return;
     const problems = checkGame(this.game).filter((p) => p.includes('jogador'));
     const data = this.compiled();
@@ -1785,11 +1922,19 @@ export class GameStudio {
     overlay.append(terminal.root);
     overlay.querySelector('.jogo-teste-topo').insertBefore(button('Terminal (F4)', toggleTerminal, { title: 'Mostra o terminal para rodar código no jogo' }), overlay.querySelector('.jogo-teste-topo .button'));
     overlay.querySelector('.jogo-teste-topo').insertBefore(button('Depuração (F3)', () => this.testing?.run?.toggleDebug(), { title: 'Mostra caixas de colisão, FPS e posições' }), overlay.querySelector('.jogo-teste-topo .button'));
+    const recButton = button('Gravar GIF (F6)', () => this.toggleRecording(), { title: 'Grava o jogo rodando e salva um GIF animado, ampliado sem borrar os pixels' });
+    recButton.classList.add('jogo-gravar');
+    overlay.querySelector('.jogo-teste-topo').insertBefore(recButton, overlay.querySelector('.jogo-teste-topo .button'));
     this.testing.terminal = terminal;
+    this.testing.canvas = canvas;
+    this.testing.recButton = recButton;
     this.testing.onKey = (e) => {
       if (e.key === 'F4') {
         e.preventDefault();
         toggleTerminal();
+      } else if (e.key === 'F6') {
+        e.preventDefault();
+        this.toggleRecording();
       }
     };
     window.addEventListener('keydown', this.testing.onKey, true);
@@ -1798,12 +1943,59 @@ export class GameStudio {
       if (entry.kind === 'error' && terminal.root.hidden) toggleTerminal();
     };
     this.testing.run = player.play({ engine, audio, script, onLog, data, canvas, scene: sceneId, skipTitle: true, host, onExit: () => this.stopTest() });
+    if (at && this.testing.run.game.place(at.x, at.y)) terminal.print(`Jogador colocado em x ${at.x}, y ${at.y}.`, 'info');
     terminal.print('Terminal ligado ao jogo. Digite ajuda para ver as funções. self é o jogador.', 'info');
     canvas.focus?.();
   }
 
+  toggleRecording() {
+    const t = this.testing;
+    if (!t) return;
+    if (t.rec) {
+      this.finishRecording();
+      return;
+    }
+    const canvas = t.canvas;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    const limit = Math.max(25, Math.min(375, Math.floor(48e6 / (w * h * 4))));
+    const rec = { frames: [], w, h, limit };
+    rec.timer = setInterval(() => {
+      if (!this.testing || this.testing.rec !== rec) return;
+      rec.frames.push(new Uint32Array(ctx.getImageData(0, 0, w, h).data.buffer));
+      if (rec.frames.length >= rec.limit) this.finishRecording();
+    }, 40);
+    t.rec = rec;
+    t.recButton.textContent = 'Parar e salvar GIF (F6)';
+    t.recButton.classList.add('gravando');
+    notify(`Gravando o jogo (até ${Math.round(limit / 25)} s). F6 para e salva o GIF.`, 'info', 3000);
+  }
+
+  async finishRecording() {
+    const t = this.testing;
+    const rec = t?.rec;
+    if (!rec) return null;
+    clearInterval(rec.timer);
+    t.rec = null;
+    if (t.recButton) {
+      t.recButton.textContent = 'Gravar GIF (F6)';
+      t.recButton.classList.remove('gravando');
+    }
+    if (rec.frames.length < 2) {
+      notify('Grave pelo menos um instante de jogo para fazer o GIF.', 'warning');
+      return null;
+    }
+    const k = Math.max(1, Math.min(4, Math.floor(480 / Math.max(rec.w, rec.h))));
+    const frames = k > 1 ? rec.frames.map((f) => scaleNearest(f, rec.w, rec.h, k)) : rec.frames;
+    const gif = encodeGIF(frames, rec.w * k, rec.h * k, { delays: frames.map(() => 40) });
+    this.lastGif = { bytes: gif.length, frames: frames.length, width: rec.w * k, height: rec.h * k };
+    return downloadBlob(new Blob([gif], { type: 'image/gif' }), fileNameFor(`${this.game.name}-jogando`, 'gif'), { title: 'Salvar GIF do jogo' });
+  }
+
   stopTest() {
     if (!this.testing) return;
+    if (this.testing.rec) this.finishRecording();
     window.removeEventListener('keydown', this.testing.onKey, true);
     this.testing.run?.stop();
     this.testing.overlay.remove();

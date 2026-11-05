@@ -39,8 +39,6 @@ class EditorTests:
     url = ""
     browser = None
 
-    # The quick tutorial shows only on the first run, and a headless browser cannot answer the "Save as" window:
-    # the tests start as if the tutorial had already been seen and save by download (they test both on their own).
     SETUP_SCRIPT = """
         try { localStorage.setItem('crivo.tutorial', '"shown"'); } catch {}
         window.showSaveFilePicker = undefined;
@@ -61,7 +59,6 @@ class EditorTests:
         self.context.close()
         self.assertEqual(self.errors, [], "the page must not log console errors (including CSP violations)")
 
-    # helpers ----------------------------------------------------------------------------------------------
     def point(self, x, y):
         return self.page.evaluate(
             """([x, y]) => {
@@ -91,7 +88,6 @@ class EditorTests:
         self.page.get_by_role("button", name=title, exact=True).click()
         self.page.get_by_role("menuitem", name=item).click()
 
-    # tests ------------------------------------------------------------------------------------------------
     def test_dither_draws_the_checkerboard_pattern(self):
         self.tool("d", "dither")
         self.page.evaluate("() => window.crivo.editor.setState('density', 50)")
@@ -340,7 +336,6 @@ class EditorTests:
         stored = self.page.evaluate("() => [localStorage.getItem('crivo.ferramenta'), JSON.parse(localStorage.getItem('crivo.ramp'))]")
         self.assertEqual(stored, [None, {"steps": 5, "intensity": 60, "shift": 10}])
 
-    # files & workspace (2.1) ------------------------------------------------------------------------------
     def tab_count(self):
         return self.page.locator("#doc-tabs .doc-tab").count()
 
@@ -561,6 +556,99 @@ class EditorTests:
         self.assertEqual(self.page.locator(".jogo-teste").count(), 0)
         self.page.keyboard.press("Escape")
 
+    def test_pixel_art_menu_scales_with_scale2x_reduces_colors_and_shades(self):
+        self.tool("b", "pencil")
+        self.drag((1, 1), (6, 6))
+        self.drag((1, 6), (6, 1))
+        width = self.page.evaluate("() => window.crivo.editor.doc.width")
+        self.menu("Imagem", "Ampliar 2× (Scale2x)")
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.doc.width"), width * 2)
+        self.page.keyboard.press("Control+z")
+        self.assertEqual(self.page.evaluate("() => window.crivo.editor.doc.width"), width, "Scale2x is one undo step")
+        self.menu("Imagem", "Sombrear automaticamente")
+        colors = self.page.evaluate("() => new Set(window.crivo.editor.activeCell().filter((c) => c >>> 24)).size")
+        self.assertGreater(colors, 1, "auto shading adds a light and a dark tone")
+        self.menu("Imagem", "Reduzir cores…")
+        self.page.locator("dialog[open] input").fill("1")
+        self.page.locator("dialog[open]").get_by_role("button", name="Confirmar").click()
+        colors = self.page.evaluate("() => new Set(window.crivo.editor.activeCell().filter((c) => c >>> 24)).size")
+        self.assertEqual(colors, 1)
+        self.menu("Imagem", "Contorno seletivo (sel-out)")
+        self.assertNotEqual(self.pixel(0, 1), 0, "the outline goes around the drawing")
+        before = self.page.evaluate("() => window.crivo.app.palette.current.colors.length")
+        self.menu("Cor", "Rampa com desvio de matiz…")
+        self.page.locator("dialog[open] input").fill("5")
+        self.page.locator("dialog[open]").get_by_role("button", name="Confirmar").click()
+        for _ in range(30):
+            if self.page.evaluate(f"() => window.crivo.app.palette.current.colors.length > {before}"):
+                break
+            confirm = self.page.locator("dialog[open]").get_by_role("button", name="Confirmar")
+            if confirm.count():
+                confirm.first.click()
+            self.page.wait_for_timeout(100)
+        self.assertGreater(self.page.evaluate("() => window.crivo.app.palette.current.colors.length"), before)
+        self.assertFalse(self.page.evaluate("() => window.crivo.app.palette.current.preset"), "the ramp goes into an editable copy")
+
+    def test_game_studio_dark_level_with_dialog_ladder_lights_and_new_fields(self):
+        self.page.locator("#viewport").hover()
+        self.page.keyboard.press("F9")
+        self.page.wait_for_selector("dialog.jogo[open]")
+        self.assertEqual(self.studio("s.game.scenes.length"), 3)
+        self.page.locator(".jogo-lista .jogo-item", has_text="Fase 3").click()
+        self.assertEqual(self.page.locator(".jogo-lado select").nth(2).input_value() in ("embers", "smooth", "1"), True)
+        self.assertEqual(self.studio("s.scene.ambient"), 78)
+        self.page.locator(".jogo-aba", has_text="Atores").click()
+        self.page.locator(".jogo-item", has_text="Mineiro").click()
+        self.assertIn("Que escuro", self.page.locator("textarea.jogo-fala").input_value())
+        self.page.locator(".jogo-aba", has_text="Tiles").click()
+        self.page.locator(".jogo-lista .jogo-item", has_text="Campo").click()
+        self.assertEqual(self.page.locator(".jogo-anim-tile").count(), 2, "the sample has animated water and crystals")
+        self.page.locator(".jogo-aba", has_text="Atores").click()
+        self.page.locator(".jogo-item", has_text="Aviso da saída").click()
+        self.assertEqual(self.page.locator(".jogo-painel input[maxlength='32']").first.input_value(), "saida")
+        self.page.locator(".jogo-aba", has_text="Cenas").click()
+        self.page.keyboard.press("F5")
+        self.page.wait_for_selector(".jogo-teste canvas")
+        self.page.wait_for_timeout(300)
+        self.assertGreater(self.studio("s.testing.run.game.world.ambient"), 0.5)
+        self.assertGreater(self.studio("s.testing.run.game.world.drops.length"), 10, "embers fall in the mine")
+        self.studio("(s.testing.run.game.world.player.x = 34, true)")
+        self.page.wait_for_timeout(150)
+        self.page.keyboard.press("x")
+        self.page.wait_for_function("() => window.crivo.app.gameStudio.testing.run.game.world.dialog")
+        self.assertEqual(self.studio("s.testing.run.game.world.dialog.speaker"), "Mineiro")
+        for _ in range(20):
+            if not self.studio("Boolean(s.testing.run.game.world.dialog)"):
+                break
+            self.page.keyboard.press("x")
+            self.page.wait_for_timeout(80)
+        self.assertFalse(self.studio("Boolean(s.testing.run.game.world.dialog)"), "the dialog closes after the last page")
+        self.studio("(s.testing.run.game.place(180, 96), true)")
+        self.page.keyboard.down("ArrowUp")
+        self.page.wait_for_timeout(500)
+        self.page.keyboard.up("ArrowUp")
+        self.assertLess(self.studio("s.testing.run.game.world.player.y"), 80, "the player climbs the ladder")
+        self.page.keyboard.press("F6")
+        self.page.wait_for_timeout(500)
+        self.assertGreater(self.studio("s.testing.rec.frames.length"), 3)
+        with self.page.expect_download() as download:
+            self.page.keyboard.press("F6")
+        self.assertTrue(download.value.suggested_filename.endswith("-jogando.gif"))
+        self.assertGreaterEqual(self.studio("s.lastGif.width"), 480, "the GIF is enlarged without blurring")
+        self.assertIsNone(self.studio("s.testing.rec"))
+        self.page.keyboard.press("Enter")
+        self.page.wait_for_timeout(100)
+        before = self.studio("s.testing.run.game.time")
+        self.page.wait_for_timeout(200)
+        self.assertEqual(self.studio("s.testing.run.game.time"), before, "paused")
+        self.page.keyboard.press(".")
+        self.page.wait_for_timeout(150)
+        self.assertAlmostEqual(self.studio("s.testing.run.game.time") - before, 1 / 60, places=4)
+        self.page.keyboard.press("Enter")
+        self.page.keyboard.press("Escape")
+        self.assertEqual(self.page.locator(".jogo-teste").count(), 0)
+        self.page.keyboard.press("Escape")
+
     def test_game_studio_uses_the_drawing_as_a_sprite_and_exports_a_playable_page(self):
         self.tool("b", "pencil")
         self.drag((2, 2), (6, 2), steps=4)
@@ -620,7 +708,6 @@ class EditorTests:
         png = Path(download.value.path()).read_bytes()
         self.assertEqual(png[:8], b"\x89PNG\r\n\x1a\n")
         self.assertIn(b"acTL", png)
-        # Dropping a .crivo file on the canvas opens it in another tab.
         self.page.evaluate(
             """() => {
                 const data = { format: 'crivo', version: 2, name: 'Solto', width: 4, height: 4, fps: 8, layers: [{ id: 'c1', name: 'C' }], frames: [{ id: 'q1' }], cells: [] };
@@ -632,7 +719,6 @@ class EditorTests:
         self.page.wait_for_function("() => window.crivo.editor.doc.name === 'Solto'")
         self.assertEqual(self.tab_count(), 3)
 
-    # quick tutorial and the "Save as" window -------------------------------------------------------------
     def test_first_run_tutorial_shows_once_and_can_be_declined(self):
         context = self.browser.new_context(viewport={"width": 1440, "height": 900})
         context.add_init_script("window.showSaveFilePicker = undefined;")
@@ -651,7 +737,6 @@ class EditorTests:
             page.wait_for_timeout(200)
             self.assertEqual(page.locator("dialog.tour").count(), 0, "the tutorial is offered only once")
 
-            # Ajuda › Tutorial rápido opens it again, straight on the first step, and covers every tool.
             page.get_by_role("button", name="Ajuda", exact=True).click()
             page.get_by_role("menuitem", name="Tutorial rápido").click()
             self.assertEqual(page.locator(".tour-step").text_content(), "1 de 8")
@@ -696,7 +781,6 @@ class EditorTests:
             context.close()
 
     def test_save_opens_the_save_as_window_once_and_exports_ask_too(self):
-        # Chrome and Edge open the system "Save as" window through showSaveFilePicker; here it is a stand-in.
         self.page.evaluate(
             """() => {
                 window.__picks = [];
@@ -722,13 +806,11 @@ class EditorTests:
         self.assertEqual(json.loads(text)["format"], "crivo")
         self.assertTrue(self.page.evaluate("() => Boolean(window.crivo.editor.project.id || window.crivo.editor.project.local)"), "it also goes to Projetos salvos")
 
-        # The next Ctrl+S writes to the same file without asking again.
         self.drag((1, 3), (5, 3))
         self.page.keyboard.press("Control+s")
         self.page.wait_for_function("() => window.__writes.length === 2")
         self.assertEqual(self.page.evaluate("() => window.__picks.length"), 1)
 
-        # "Salvar como…" (Ctrl+Shift+S) always asks; canceling saves nothing.
         self.page.evaluate("() => { window.__cancel = true; }")
         self.page.keyboard.press("Control+Shift+s")
         self.page.wait_for_function("() => window.__picks.length === 2")
@@ -736,7 +818,6 @@ class EditorTests:
         self.assertEqual(self.page.evaluate("() => window.__writes.length"), 2)
         self.assertIn("Salvamento cancelado", self.page.inner_text("#toasts"))
 
-        # Exports open the window too, with the image type; canceling keeps the export dialog open.
         self.menu("Arquivo", "Exportar imagem (PNG, JPEG ou GIF)…")
         self.page.get_by_role("button", name="Salvar…").click()
         self.page.wait_for_function("() => window.__picks.length === 3")
@@ -750,7 +831,6 @@ class EditorTests:
         self.assertEqual(self.page.evaluate("() => window.__writes[2][1]"), "image/png")
         self.page.wait_for_function("() => !document.querySelector('dialog.dialog')")
 
-    # color (2.1) ------------------------------------------------------------------------------------------
     def test_color_brightness_dialog_previews_and_cancel_restores(self):
         self.tool("b", "pencil")
         self.drag((4, 4), (4, 4), steps=1)
@@ -775,7 +855,7 @@ class EditorTests:
 
     def test_color_indexed_mode_snaps_colors_and_palette_edit_remaps(self):
         palette = self.page.evaluate("() => window.crivo.app.palette.current.colors.map((c) => c >>> 0)")
-        self.page.evaluate("() => window.crivo.editor.setColor('primary', 0xff1020f0)")  # #f02010: not in the palette
+        self.page.evaluate("() => window.crivo.editor.setColor('primary', 0xff1020f0)")
         self.tool("b", "pencil")
         self.drag((2, 2), (2, 2), steps=1)
         self.assertNotIn(self.pixel(2, 2), palette)
@@ -787,7 +867,6 @@ class EditorTests:
         self.assertIn(self.page.evaluate("() => window.crivo.editor.state.primaryColor"), palette, "the drawing color snaps too")
         self.page.evaluate("() => window.crivo.editor.setColor('primary', 0xff00ff00)")
         self.assertIn(self.page.evaluate("() => window.crivo.editor.state.primaryColor"), palette)
-        # Editing the entry of that color in the palette editor recolors the pixel (a preset is copied first).
         index = palette.index(self.pixel(2, 2))
         self.page.get_by_role("button", name="Editar paleta", exact=True).click()
         dialog = self.page.locator("dialog[open]")
@@ -804,7 +883,6 @@ class EditorTests:
         self.assertEqual(self.page.evaluate("() => window.crivo.editor.doc.colorMode || 'rgba'"), "rgba", "undo goes back to RGBA")
         self.assertEqual(self.pixel(2, 2), 0xFF1020F0)
 
-    # layers & animation (2.1) -----------------------------------------------------------------------------
     def layers_state(self):
         return self.page.evaluate(
             "() => { const d = window.crivo.editor.doc; return d.layers.map((c) => [c.name, c.kind, c.parent ? d.layer(c.parent).name : null, c.blendMode, c.reference]); }"
@@ -877,7 +955,6 @@ class EditorTests:
         linked = self.page.evaluate("() => { const d = window.crivo.editor.doc; const c = d.layers[0].id; return [d.frames.length, d.cell(d.frames[1].id, c)[2 * 32 + 2] === d.cell(d.frames[2].id, c)[2 * 32 + 2], d.isLinked(d.frames[1].id, c)]; }")
         self.assertEqual(linked, [4, True, True])
         self.assertGreaterEqual(self.page.locator(".frame-list .link-mark").count(), 2)
-        # Tilemap layer: pixel mode creates a tile, tile mode places it elsewhere.
         self.menu("Camada", "Nova camada de tiles…")
         dialog = self.page.locator("dialog[open]")
         dialog.get_by_label("Largura do tile").fill("4")
@@ -988,11 +1065,10 @@ class SingleFileTest(EditorTests, unittest.TestCase):
         self.page.reload()
         self.page.wait_for_selector("body.ready")
         self.menu("Arquivo", "Projetos salvos…")
-        self.page.locator(".project-list .project").first.wait_for()  # the list loads from IndexedDB without blocking
+        self.page.locator(".project-list .project").first.wait_for()
         self.assertEqual(self.page.locator(".project-list .project").count(), 1, "the project stayed saved in the browser")
         self.page.locator(".project-list .project").get_by_role("button", name="Abrir").click()
         self.page.wait_for_function("() => !document.querySelector('.project-list')")
-        # The dialog closes first and the project loads from IndexedDB right after: wait for its pixels.
         self.page.wait_for_function(
             "([x, y, c]) => { const e = window.crivo.editor; return e.project.local && e.activeCell()[y * e.doc.width + x] >>> 0 === c; }", arg=[3, 1, color]
         )
@@ -1096,7 +1172,6 @@ class SingleFileTest(EditorTests, unittest.TestCase):
 
         self.tool("b", "pencil")
         self.drag((2, 2), (6, 2))
-        # Saving opens the Windows "Save as" window (desktop/save_windows.go) and writes the chosen file.
         self.page.keyboard.press("Control+s")
         self.page.wait_for_function("() => window.__calls.includes('writeFile')")
         self.assertIn("saveDialog:Sem título.crivo:crivo", self.page.evaluate("() => window.__calls"))

@@ -39,7 +39,6 @@ function sampleDocument() {
   px[23] = GREEN;
   doc.cell(f2.id, child.id)[3] = GREEN;
   doc.cell(f1.id, top.id)[5] = RED;
-  // Linked cel: frame 3 shares frame 1's buffer (the document API when available, the same array otherwise).
   if (typeof doc.linkCels === 'function') doc.linkCels(child.id, [f1.id, f3.id]);
   else doc.cells.set(doc.key(f3.id, child.id), px);
   doc.tags = [{ id: 't1', name: 'andar', from: f1.id, to: f2.id, direction: 'pingpong', repeat: 2, color: '#ff8000' }];
@@ -208,7 +207,7 @@ test('zip: store-only archive opens in Python zipfile with matching CRCs', async
   try {
     listing = JSON.parse(execFileSync('python3', ['-c', script, path], { encoding: 'utf8' }));
   } catch (error) {
-    if (error.code === 'ENOENT') return; // no Python on this machine: the structural checks above still ran
+    if (error.code === 'ENOENT') return;
     throw error;
   }
   assert.deepEqual(listing, files.map((f) => [f.name, f.data.length, '89504e470d0a1a0a']));

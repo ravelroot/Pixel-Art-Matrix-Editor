@@ -166,7 +166,6 @@ test('rotsprite: any angle and scale only reuse the original colors', () => {
   const diagonal = rotSprite({ width: 4, height: 4, pixels: new Uint32Array(16).fill(RED) }, 45);
   assert.ok(diagonal.width >= 5 && diagonal.width <= 6, 'the box grows to hold the rotated square');
   assert.ok(diagonal.mask, 'corners outside the rotated square are not covered');
-  // Scale2x keeps a single pixel square and rounds diagonals.
   assert.deepEqual([...scale2x(Uint32Array.of(RED), 1, 1)], [RED, RED, RED, RED]);
 });
 

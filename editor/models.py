@@ -3,8 +3,6 @@ import uuid
 from django.db import models
 from django.db.models import F, Q
 
-# Values accepted in the .crivo document (format 2.1 additions). Kept here so the CHECK constraints and the API
-# validation (editor.services) share one list.
 COLOR_MODES = ("rgba", "indexed", "grayscale")
 BLEND_MODES = (
     "normal",
@@ -72,10 +70,8 @@ class Layer(models.Model):
     locked = models.BooleanField(default=False)
     blend_mode = models.CharField(max_length=16, default="normal")
     kind = models.CharField(max_length=8, default="image")
-    # Key of the group layer that contains this one (same project), or null for a top-level layer.
     parent_key = models.CharField(max_length=40, null=True, blank=True)
     collapsed = models.BooleanField(default=False)
-    # Key of the tileset used by a tilemap layer, or null.
     tileset_key = models.CharField(max_length=40, null=True, blank=True)
     reference = models.BooleanField(default=False)
 
@@ -120,9 +116,7 @@ class Cell(models.Model):
     encoding = models.CharField(max_length=16, default="rle-rgba")
     pixels = models.BinaryField()
     size_bytes = models.PositiveIntegerField()
-    # Linked cel: key of the frame (same layer) whose cel this one shares. `pixels` still holds a copy.
     link_frame_key = models.CharField(max_length=40, null=True, blank=True)
-    # Tilemap layers: RLE of the Uint32 tile indices (columns x rows). `pixels` still holds the rendered pixels.
     tiles = models.BinaryField(null=True, blank=True)
 
     class Meta:
@@ -166,7 +160,6 @@ class Slice(models.Model):
     y = models.SmallIntegerField()
     width = models.PositiveSmallIntegerField()
     height = models.PositiveSmallIntegerField()
-    # 9-slice center and pivot, relative to the slice; all four (or both) are set, or none.
     center_x = models.PositiveSmallIntegerField(null=True, blank=True)
     center_y = models.PositiveSmallIntegerField(null=True, blank=True)
     center_width = models.PositiveSmallIntegerField(null=True, blank=True)
@@ -207,7 +200,6 @@ class Tileset(models.Model):
     tile_width = models.PositiveSmallIntegerField()
     tile_height = models.PositiveSmallIntegerField()
     tile_count = models.PositiveSmallIntegerField()
-    # RLE (same encoding as Cell.pixels) of every tile, concatenated in order; tile 0 is the empty tile.
     tiles = models.BinaryField()
 
     class Meta:

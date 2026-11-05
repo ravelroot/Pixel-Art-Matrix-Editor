@@ -77,8 +77,8 @@ test('compileGame bakes frames, tag animations, tilesets and the visible bounds'
   assert.deepEqual(hero.anims.andando, { frames: [2, 3], loop: true });
   assert.ok(hero.frames.every((f) => f.d > 0 && typeof f.px === 'string'));
   const ts = data.tilesets[0];
-  assert.deepEqual([ts.tw, ts.th, ts.columns, ts.count], [8, 8, 4, 8]);
-  assert.equal(data.scenes.length, 2);
+  assert.deepEqual([ts.tw, ts.th, ts.columns, ts.count], [8, 8, 4, 16]);
+  assert.equal(data.scenes.length, 3);
   assert.deepEqual(checkGame(sampleGame()), []);
   const px = new Uint32Array(16);
   px[5] = 0xff000000;
@@ -133,7 +133,8 @@ test('scene helpers resize, flood fill and remove references', () => {
   assert.ok(g.scenes.every((sc) => sc.entities.every((e) => e.actor !== 'ator_moeda')));
   removeEverywhere(g, 'scene', 'cena_1');
   assert.equal(g.start, 'cena_2');
-  assert.equal(removeEverywhere(g, 'scene', 'cena_2'), false);
+  assert.equal(removeEverywhere(g, 'scene', 'cena_2'), true);
+  assert.equal(removeEverywhere(g, 'scene', 'cena_3'), false);
 });
 
 test('a platformer player falls, lands on solid tiles and walks', () => {

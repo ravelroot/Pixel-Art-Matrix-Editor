@@ -1,4 +1,3 @@
-// Dialogs of the layers worker: layer and frame properties, tags, onion skin, slices, tilemap layers, linked cels.
 import { BLEND_MODES, BLEND_LABELS } from '../core/blend.js';
 import { createTileset } from '../core/tilemap.js';
 import { el, notify } from './util.js';
@@ -313,7 +312,6 @@ export async function sliceDialog(editor, sliceId = null) {
   return run(editor, 'Novo slice', (d) => d.addSlice(values));
 }
 
-// List of slices with buttons to add, edit and delete.
 export async function slicesDialog(editor) {
   for (;;) {
     const doc = editor.doc;

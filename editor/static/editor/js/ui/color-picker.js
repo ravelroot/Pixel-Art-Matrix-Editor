@@ -1,5 +1,3 @@
-// Color picker: saturation/value square, hue strip, alpha slider, hex field and optional HSV/RGB sliders.
-// Used by the color panel (primary/secondary colors) and by the palette editor.
 import { pack, unpack, colorToHex, hexToColor, rgbToHsv, hsvToRgb, alpha as alphaOf } from '../core/colors.js';
 import { grayOf } from '../core/colormode.js';
 import { el, notify } from './util.js';
@@ -8,7 +6,6 @@ import { openDialog } from './dialog.js';
 const SQUARE = 160;
 
 export class HsvPicker {
-  // gray: the picker only produces grays (grayscale color mode). sliders: shows the HSV and RGB sliders.
   constructor({ color = 0xff000000, gray = false, sliders = false, onInput = null } = {}) {
     this.gray = gray;
     this.onInput = onInput;
@@ -94,7 +91,6 @@ export class HsvPicker {
   setColor(c) {
     const [r, g, b] = unpack(c);
     const [h, s, v] = rgbToHsv(r, g, b);
-    // Grays and black have no hue of their own: keep the current one so the square does not jump to red.
     if (s > 0 || this.h === undefined) this.h = Math.round(h);
     this.s = this.gray ? 0 : s;
     this.v = v;
@@ -179,7 +175,6 @@ export class HsvPicker {
   }
 }
 
-// Modal picker. onInput receives every change (live preview); resolves with the color or null (canceled).
 export function colorPickerDialog({ color, title = 'Escolher cor', gray = false, onInput = null } = {}) {
   const picker = new HsvPicker({ color, gray, sliders: true, onInput });
   return openDialog({

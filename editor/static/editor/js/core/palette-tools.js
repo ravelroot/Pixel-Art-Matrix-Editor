@@ -1,5 +1,3 @@
-// Pure helpers of the palette editor. Colors are packed RGBA numbers. The *Order functions return index lists,
-// so the editor can move other per-entry data (such as where each entry came from) along with the colors.
 import { unpack, pack, rgbToOklab, oklabToRgb, rgbToHsv, clamp } from './colors.js';
 
 const BLACK = pack(0, 0, 0);
@@ -10,8 +8,6 @@ function describe(c) {
   return { h, s, L: rgbToOklab(r, g, b)[0] };
 }
 
-// key: 'hue' (grays first, by lightness), 'lightness' (OKLab L, dark → light) or 'saturation' (gray → vivid).
-// Stable: equal colors keep their order.
 export function sortOrder(colors, key = 'hue') {
   const info = colors.map(describe);
   const order = colors.map((_, i) => i);
@@ -34,7 +30,6 @@ export function sortColors(colors, key = 'hue') {
   return sortOrder(colors, key).map((i) => colors[i]);
 }
 
-// Indices of the first occurrence of each color.
 export function dedupeOrder(colors) {
   const seen = new Set();
   const order = [];
@@ -55,7 +50,6 @@ export function reverseColors(colors) {
   return [...colors].reverse();
 }
 
-// `steps` colors from a to b (both included), interpolated in OKLab; the alpha is interpolated linearly.
 export function rampBetween(a, b, steps) {
   const n = clamp(Math.round(steps), 2, 256);
   const [r1, g1, b1, a1] = unpack(a);
@@ -72,7 +66,6 @@ export function rampBetween(a, b, steps) {
   return colors;
 }
 
-// Replaces the entries from index i to j (any order, both included) by a ramp of `steps` colors between them.
 export function insertRamp(colors, i, j, steps) {
   const [from, to] = i <= j ? [i, j] : [j, i];
   const ramp = rampBetween(colors[i], colors[j], steps);
@@ -80,7 +73,6 @@ export function insertRamp(colors, i, j, steps) {
   return [...colors.slice(0, from), ...ramp, ...colors.slice(to + 1)];
 }
 
-// Cuts the palette or grows it with `fill` (black) up to n colors.
 export function resizePalette(colors, n, fill = BLACK) {
   const size = clamp(Math.round(n), 1, 256);
   if (colors.length >= size) return colors.slice(0, size);

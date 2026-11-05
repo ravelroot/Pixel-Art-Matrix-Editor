@@ -10,7 +10,7 @@ const STYLE = [
   '.toque{position:fixed;inset:auto 0 0 0;height:42vh;pointer-events:none;user-select:none;-webkit-user-select:none}',
   '.toque button{position:absolute;pointer-events:auto;width:64px;height:64px;border-radius:50%;border:2px solid rgba(250,246,239,.5);background:rgba(43,29,23,.45);color:#faf6ef;font:700 22px system-ui;touch-action:none}',
   '.toque-esq{left:16px;bottom:56px}.toque-dir{left:96px;bottom:56px}.toque-cima{left:56px;bottom:124px;width:56px!important;height:56px!important}.toque-baixo{left:56px;bottom:0;width:56px!important;height:48px!important}',
-  '.toque-a{right:16px;bottom:72px}.toque-b{right:96px;bottom:40px}.toque-start{right:16px;top:-24px;width:44px!important;height:44px!important;font-size:18px!important}',
+  '.toque-a{right:16px;bottom:72px}.toque-b{right:96px;bottom:40px}.toque-c{right:176px;bottom:24px;width:52px!important;height:52px!important}.toque-start{right:16px;top:-24px;width:44px!important;height:44px!important;font-size:18px!important}',
   '@media (pointer:fine){.toque{display:none}}',
 ].join('');
 

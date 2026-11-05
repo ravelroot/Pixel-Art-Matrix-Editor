@@ -170,9 +170,6 @@ export function scaleDetection(pixels, width, height) {
   return Math.max(1, g);
 }
 
-// Pixel perfect: three consecutive points of a stroke form an "L corner" when the first and the
-// third are diagonal neighbors and the middle one touches both by the sides. Removing the middle one leaves
-// the line 1 pixel thick, without doubled steps.
 export function lCorner(a, b, c) {
   if (Math.abs(a[0] - c[0]) !== 1 || Math.abs(a[1] - c[1]) !== 1) return false;
   const touchesA = (b[0] === a[0] && Math.abs(b[1] - a[1]) === 1) || (b[1] === a[1] && Math.abs(b[0] - a[0]) === 1);
@@ -191,8 +188,6 @@ export function pixelPerfect(points) {
   return output;
 }
 
-// Closed polygon through the given [x, y] vertices (pixel coordinates). Filled: every pixel whose center is
-// inside (even-odd rule) plus the edges, so thin or self-crossing shapes keep their outline.
 export function polygon(points, filled, point) {
   if (!points.length) return;
   const n = points.length;
@@ -226,7 +221,6 @@ export function polygon(points, filled, point) {
   }
 }
 
-// Cubic Bézier from p0 to p3 with control points c1 and c2 ([x, y] each), as a connected 1 px path.
 export function bezier(p0, c1, c2, p3, point) {
   const length = Math.hypot(c1[0] - p0[0], c1[1] - p0[1]) + Math.hypot(c2[0] - c1[0], c2[1] - c1[1]) + Math.hypot(p3[0] - c2[0], p3[1] - c2[1]);
   const steps = Math.max(1, Math.ceil(length));

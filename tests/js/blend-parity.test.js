@@ -5,8 +5,6 @@ import { deserialize } from '../../editor/static/editor/js/core/format.js';
 import { BLEND_MODES } from '../../editor/static/editor/js/core/blend.js';
 import { hex } from './fixtures/make_blend_fixtures.mjs';
 
-// tests/fixtures/blend-parity.json is written by tests/js/fixtures/make_blend_fixtures.mjs. The same pixels are
-// checked by the server (editor/tests/test_features_2_1.py) and by the Java tool (tools/java Tests.java).
 const fixture = JSON.parse(readFileSync(new URL('../fixtures/blend-parity.json', import.meta.url), 'utf8'));
 
 test('blend parity: the editor renders every fixture document as recorded', () => {

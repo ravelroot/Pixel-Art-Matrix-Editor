@@ -2,16 +2,6 @@ package io.github.ravelroot.crivo;
 
 import java.util.List;
 
-/**
- * Layer blend modes (Crivo 2.1), with the same math, operation by operation, as the editor (core/blend.js) and the
- * server (editor/blend.py).
- *
- * <p>{@code normal} keeps the 2.0 path ({@link Color#blend}). Every other mode uses the W3C Compositing and Blending
- * Level 1 formulas on doubles in [0, 1]: αs = (alpha / 255) · opacity, Cs' = (1 − αb) · Cs + αb · B(Cb, Cs),
- * αo = αs + αb · (1 − αs), Co = (αs · Cs' + αb · Cb · (1 − αs)) / αo, channel = floor(Co · 255 + 0.5),
- * alpha = floor(αo · 255 + 0.5), and αo = 0 gives the transparent pixel 0. addition = min(1, b + s),
- * subtract = max(0, b − s), divide = min(1, b / s) with s = 0 → 1. Pixels are ARGB integers.
- */
 public final class Blend {
 
     public static final List<String> MODES = List.of(
@@ -95,8 +85,6 @@ public final class Blend {
     }
 
     private static double[] setSat(double[] c, double s) {
-        // Indices from the largest to the smallest component, with a stable sort so ties keep the R, G, B order
-        // (as [0, 1, 2].sort((i, j) => c[j] - c[i]) in core/blend.js).
         int[] order = {0, 1, 2};
         for (int i = 1; i < 3; i++) {
             for (int j = i; j > 0 && c[order[j - 1]] < c[order[j]]; j--) {
@@ -130,7 +118,6 @@ public final class Blend {
         return Math.min(255, Math.max(0, (int) Math.floor(v * 255 + 0.5)));
     }
 
-    /** Composites one ARGB source pixel over an ARGB backdrop pixel with a layer opacity in [0, 1]. */
     public static int blend(int backdrop, int source, double opacity, String mode) {
         if (mode.equals("normal")) {
             return Color.blend(backdrop, source, opacity);
@@ -159,7 +146,6 @@ public final class Blend {
         return Color.argb(out[0], out[1], out[2], round(ao));
     }
 
-    /** Composites a whole layer (same size as {@code target}) onto {@code target}. */
     public static void composite(int[] target, int[] source, double opacity, String mode) {
         if (opacity <= 0) {
             return;

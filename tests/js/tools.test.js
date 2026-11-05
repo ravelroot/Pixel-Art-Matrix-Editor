@@ -44,7 +44,6 @@ test('dither: density controls the exact fraction of painted pixels', () => {
     for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if (patternPixel(x, y, density, 4)) painted++;
     assert.equal(painted, Math.round(64 * density));
   }
-  // 50% in Bayer 4×4 is a perfect checkerboard.
   for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) assert.equal(patternPixel(x, y, 0.5, 4), (x + y) % 2 === 0);
 });
 

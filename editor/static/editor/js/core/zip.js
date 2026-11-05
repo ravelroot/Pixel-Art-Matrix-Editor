@@ -1,5 +1,3 @@
-// Store-only ZIP writer (no compression: the entries are PNGs, already compressed) with CRC-32,
-// local file headers, central directory and end record. Names are written as UTF-8 (flag bit 11).
 import { crc32, ByteWriter } from './zlib.js';
 
 function dosDateTime(date) {
@@ -8,7 +6,6 @@ function dosDateTime(date) {
   return { time, day };
 }
 
-// files: [{ name, data: Uint8Array }]. Returns the .zip bytes.
 export function createZip(files, { date = new Date() } = {}) {
   const w = new ByteWriter(1024 + files.reduce((t, f) => t + f.data.length + 100, 0));
   const { time, day } = dosDateTime(date);
@@ -19,9 +16,9 @@ export function createZip(files, { date = new Date() } = {}) {
     const crc = crc32(f.data);
     const offset = w.length;
     w.u32(0x04034b50);
-    w.u16(20); // version needed
-    w.u16(0x0800); // UTF-8 names
-    w.u16(0); // method: stored
+    w.u16(20);
+    w.u16(0x0800);
+    w.u16(0);
     w.u16(time);
     w.u16(day);
     w.u32(crc);
@@ -36,8 +33,8 @@ export function createZip(files, { date = new Date() } = {}) {
   const start = w.length;
   for (const c of central) {
     w.u32(0x02014b50);
-    w.u16(20); // version made by
-    w.u16(20); // version needed
+    w.u16(20);
+    w.u16(20);
     w.u16(0x0800);
     w.u16(0);
     w.u16(time);
@@ -46,11 +43,11 @@ export function createZip(files, { date = new Date() } = {}) {
     w.u32(c.size);
     w.u32(c.size);
     w.u16(c.name.length);
-    w.u16(0); // extra
-    w.u16(0); // comment
-    w.u16(0); // disk
-    w.u16(0); // internal attributes
-    w.u32(0); // external attributes
+    w.u16(0);
+    w.u16(0);
+    w.u16(0);
+    w.u16(0);
+    w.u32(0);
     w.u32(c.offset);
     w.bytes(c.name);
   }

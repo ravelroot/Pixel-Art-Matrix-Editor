@@ -18,7 +18,6 @@ export function validateSide(v) {
   return n;
 }
 
-// Default values of the layer fields added in 2.1.0 (writers omit them when they hold these values).
 export const LAYER_DEFAULTS = { blendMode: 'normal', kind: 'image', parent: null, collapsed: false, tileset: null, reference: false };
 
 function isEmpty(px) {
@@ -37,12 +36,10 @@ export class PixelDocument {
     this.layers = [];
     this.frames = [];
     this.cells = new Map();
-    // Linked cels: cell key → key of the source cel (same layer). Linked keys share the same Uint32Array.
     this.links = new Map();
     this.tags = [];
     this.slices = [];
     this.tilesets = [];
-    // Tilemap cels: cell key → Uint32Array of tile indices (columns × rows).
     this.tileCells = new Map();
     if (!options.empty) {
       this.addLayer('Camada 1');
@@ -94,9 +91,6 @@ export class PixelDocument {
     return this.layers.find((c) => c.id === id) ?? null;
   }
 
-  // ---- layers and groups ---------------------------------------------------------------------------------
-
-  // `parent` undefined: the new layer joins the group of the layer just below the insertion point.
   addLayer(name, position = this.layers.length, parent = undefined, kind = 'image') {
     if (parent === undefined) parent = position > 0 ? (this.layers[position - 1]?.parent ?? null) : null;
     const layer = {
@@ -124,7 +118,6 @@ export class PixelDocument {
     return this.layer(id)?.kind === 'group';
   }
 
-  // True when layer `id` is inside group `groupId` (at any depth).
   isDescendant(id, groupId) {
     let c = this.layer(id);
     const seen = new Set();
@@ -150,7 +143,6 @@ export class PixelDocument {
     return this.layers.filter((c) => c.parent === groupId);
   }
 
-  // A layer is drawn only when it and every group above it are visible.
   isVisible(id) {
     let c = this.layer(id);
     let guard = 0;
@@ -161,7 +153,6 @@ export class PixelDocument {
     return true;
   }
 
-  // Index range [start, end] of a layer and everything inside it (a group's children sit right below it).
   block(id) {
     const end = this.layerIndex(id);
     if (end < 0) return null;
@@ -198,8 +189,6 @@ export class PixelDocument {
     return true;
   }
 
-  // Moves a layer (with its children, when it is a group) one step up (+1) or down (-1) among its siblings.
-  // Reaching the edge of its group takes it out of the group; meeting an expanded group puts it inside.
   moveLayer(id, delta) {
     const range = this.block(id);
     if (!range) return false;
@@ -218,7 +207,6 @@ export class PixelDocument {
         moveBlock(end + 1 - length + 1);
         return true;
       }
-      // The sibling above: the item whose parent is ours, owning the layer `next`.
       let sibling = next;
       while (sibling && sibling.parent !== layer.parent) sibling = this.layer(sibling.parent);
       if (!sibling) return false;
@@ -243,7 +231,6 @@ export class PixelDocument {
         moveBlock(start - 1);
         return true;
       }
-      // Sibling below: `previous` is its top (a layer or a group header).
       const [siblingStart] = this.block(previous.id);
       moveBlock(siblingStart);
       return true;
@@ -251,7 +238,6 @@ export class PixelDocument {
     return false;
   }
 
-  // Wraps the layer (with its children) in a new group placed right above it.
   groupLayer(id, name = null) {
     const range = this.block(id);
     if (!range) return null;
@@ -261,7 +247,6 @@ export class PixelDocument {
     return group;
   }
 
-  // Removes the group header and gives its children to the group's parent.
   ungroup(id) {
     const group = this.layer(id);
     if (!group || group.kind !== 'group') return false;
@@ -324,8 +309,6 @@ export class PixelDocument {
     return true;
   }
 
-  // ---- linked cels -----------------------------------------------------------------------------------------
-
   sourceKey(k) {
     return this.links.get(k) ?? k;
   }
@@ -337,7 +320,6 @@ export class PixelDocument {
     return false;
   }
 
-  // Links the cel of `layerId` in every frame of `frameIds` to the cel of `sourceFrameId` (default: the first).
   linkCels(layerId, frameIds, sourceFrameId = frameIds[0]) {
     const layer = this.layer(layerId);
     if (!layer || layer.kind === 'group') return false;
@@ -348,7 +330,6 @@ export class PixelDocument {
     for (const f of frameIds) {
       const k = this.key(f, layerId);
       if (k === source || this.links.get(k) === source || this.frameIndex(f) < 0) continue;
-      // Cels that followed k now follow the new source as well.
       for (const [d, s] of this.links) if (s === k) this.links.set(d, source);
       this.links.delete(k);
       this.links.set(k, source);
@@ -380,7 +361,6 @@ export class PixelDocument {
     return true;
   }
 
-  // Makes every linked key point to its source's arrays again (after operations that rebuild the cells).
   relink() {
     for (const [k, source] of [...this.links]) {
       const [q, c] = source.split(':');
@@ -393,15 +373,12 @@ export class PixelDocument {
     }
   }
 
-  // ---- frames -------------------------------------------------------------------------------------------------
-
   addFrame(position = this.frames.length, duration = null) {
     const frame = { id: newId('q'), duration };
     this.frames.splice(position, 0, frame);
     return frame;
   }
 
-  // New frame whose cels are linked to the cels of `sourceFrameId`.
   addLinkedFrame(sourceFrameId, position = this.frameIndex(sourceFrameId) + 1) {
     const i = this.frameIndex(sourceFrameId);
     if (i < 0) return null;
@@ -450,8 +427,6 @@ export class PixelDocument {
     return true;
   }
 
-  // ---- tags and slices ------------------------------------------------------------------------------------------
-
   addTag({ name, from, to, direction = 'forward', repeat = 0, color = '#5d1c16' } = {}) {
     let a = this.frameIndex(from);
     let b = this.frameIndex(to);
@@ -462,7 +437,6 @@ export class PixelDocument {
     return tag;
   }
 
-  // The innermost tag that contains the frame (the one with the smallest range).
   tagAt(frameIndex) {
     let best = null;
     for (const t of this.tags) {
@@ -480,10 +454,6 @@ export class PixelDocument {
     return slice;
   }
 
-  // ---- composition -----------------------------------------------------------------------------------------
-
-  // Groups composite their children: a group in normal mode at 100% passes them straight through; otherwise
-  // the children are composited into a separate buffer that is then blended with the group's mode and opacity.
   composite(frameIndex, dest = new Uint32Array(this.total), { includeHidden = false, includeReference = false } = {}) {
     dest.fill(0);
     const frame = this.frames[frameIndex];
@@ -514,8 +484,6 @@ export class PixelDocument {
     };
     return draw(null, dest, 0);
   }
-
-  // ---- geometry ------------------------------------------------------------------------------------------------
 
   afterGeometry(oldWidth) {
     this.relink();
@@ -561,6 +529,22 @@ export class PixelDocument {
           dest[y * newWidth + x] = origin[sy * this.width + sx];
         }
       }
+      this.cells.set(k, dest);
+    }
+    this.width = newWidth;
+    this.height = newHeight;
+    this.afterGeometry(oldWidth);
+  }
+
+  scaleWith(newWidth, newHeight, fn) {
+    newWidth = validateSide(newWidth);
+    newHeight = validateSide(newHeight);
+    const oldWidth = this.width;
+    const oldHeight = this.height;
+    for (const [k, origin] of this.cells) {
+      if (this.links.has(k)) continue;
+      const dest = fn(origin, oldWidth, oldHeight);
+      if (!dest || dest.length !== newWidth * newHeight) throw new Error('A escala não gerou o tamanho esperado.');
       this.cells.set(k, dest);
     }
     this.width = newWidth;
@@ -635,8 +619,6 @@ export class PixelDocument {
     return [...colors.keys()];
   }
 
-  // ---- history -------------------------------------------------------------------------------------------------
-
   snapshot() {
     const cells = new Map();
     for (const [k, px] of this.cells) {
@@ -685,7 +667,6 @@ export class PixelDocument {
     this.relink();
   }
 
-  // Re-renders the pixels of every tilemap cel (after loading or editing tiles).
   renderTiles() {
     renderTilesets(this);
   }

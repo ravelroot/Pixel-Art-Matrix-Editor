@@ -1,6 +1,3 @@
-// .aseprite / .ase reader and writer, implemented from the public file format specification
-// (docs/ase-file-specs.md in the Aseprite repository). Little-endian binary: a 128-byte header, then frames
-// made of chunks. Images are zlib streams (see zlib.js), so both directions are async.
 import { PixelDocument, newId } from './document.js';
 import { deflate, inflate, ByteWriter } from './zlib.js';
 import { colorToHex, hexToColor } from './colors.js';
@@ -85,7 +82,6 @@ class Reader {
 
 const rgba = (r, g, b, a = 255) => ((a << 24) | (b << 16) | (g << 8) | r) >>> 0;
 
-// Converts raw PIXEL[] bytes of the sprite color depth into packed RGBA.
 function toRGBA(raw, count, depth, palette, transparentIndex, opaqueIndex) {
   const out = new Uint32Array(count);
   if (depth === 32) {
@@ -111,7 +107,6 @@ function readTiles(raw, count, bits) {
   return out;
 }
 
-// Parses the chunks without decompressing anything (synchronous part of the reader).
 export function parseAseprite(bytes) {
   if (!(bytes instanceof Uint8Array)) bytes = new Uint8Array(bytes);
   const r = new Reader(bytes);
@@ -246,7 +241,6 @@ export function parseAseprite(bytes) {
         const target = userTargets.shift();
         if (flags & 2 && target && 'color' in target) target.color = colorToHex(rgba(r.u8(), r.u8(), r.u8()));
       }
-      // Color profile, cel extra, external files, masks and anything unknown are skipped.
       if (type !== CHUNK.userData) userTargets = targets;
       r.p = end;
     }
@@ -260,7 +254,6 @@ function setLink(doc, layerId, sourceFrameId, frameId) {
   else doc.cells.set(doc.key(frameId, layerId), doc.cell(sourceFrameId, layerId).slice());
 }
 
-// Reads a .aseprite/.ase file into a PixelDocument (async: the images are zlib streams).
 export async function readAseprite(bytes, { name = 'Sem título' } = {}) {
   const file = parseAseprite(bytes);
   const { header } = file;
@@ -278,7 +271,6 @@ export async function readAseprite(bytes, { name = 'Sem título' } = {}) {
   }
   if (!doc.frames.length) doc.addFrame();
 
-  // Tilesets: the image is tileWidth × (tileHeight × count), in the sprite color depth.
   const tilesets = new Map();
   for (const ts of file.tilesets) {
     const tiles = [];
@@ -294,7 +286,6 @@ export async function readAseprite(bytes, { name = 'Sem título' } = {}) {
   doc.tilesets = [...tilesets.values()];
   if (!(doc.tileCells instanceof Map)) doc.tileCells = new Map();
 
-  // Child levels → tree → flat list, bottom to top, with each group right above its children.
   const root = { children: [] };
   const stack = [root];
   file.layers.forEach((info, index) => {
@@ -371,7 +362,6 @@ export async function readAseprite(bytes, { name = 'Sem título' } = {}) {
           }
         }
       }
-      // Tile indices, when the cel sits on the document tile grid.
       if (cel.x % tw === 0 && cel.y % th === 0) {
         const cols = Math.ceil(W / tw);
         const rows = Math.ceil(H / th);
@@ -416,8 +406,6 @@ export async function readAseprite(bytes, { name = 'Sem título' } = {}) {
   return doc;
 }
 
-// ---------------------------------------------------------------------------------------------------------
-
 function writeString(w, s) {
   const b = new TextEncoder().encode(String(s ?? ''));
   w.u16(b.length);
@@ -441,7 +429,6 @@ function contentBox(px, W, H) {
   return x1 < 0 ? null : { x: x0, y: y0, width: x1 - x0 + 1, height: y1 - y0 + 1 };
 }
 
-// Flat list (bottom → top, groups above their children) → file order (pre-order, group before children).
 export function layerFileOrder(layers) {
   const ids = new Set(layers.map((l) => l.id));
   const children = new Map();
@@ -471,8 +458,6 @@ function chunk(w, type, fill) {
   w.setU32(start, w.length - start);
 }
 
-// Writes the document as a 32-bit RGBA .aseprite file. compress: false writes raw cels (type 0);
-// palette: colors for the palette chunk (default: doc.palette, or the colors in use).
 export async function writeAseprite(doc, { compress = true, palette: colors = null } = {}) {
   const useZlib = compress && typeof CompressionStream === 'function';
   const W = doc.width;
@@ -485,7 +470,6 @@ export async function writeAseprite(doc, { compress = true, palette: colors = nu
   const order = layerFileOrder(doc.layers);
   const tags = Array.isArray(doc.tags) ? doc.tags : [];
   const slices = Array.isArray(doc.slices) ? doc.slices : [];
-  // Tilesets (images stacked vertically, always zlib) and the tilemap layers that can be written as tilemaps.
   const tilesets = [];
   for (const ts of Array.isArray(doc.tilesets) ? doc.tilesets : []) {
     const n = ts.tileWidth * ts.tileHeight;
@@ -497,17 +481,17 @@ export async function writeAseprite(doc, { compress = true, palette: colors = nu
   const tilesetIndex = (layer) => (layer.kind === 'tilemap' && layer.tileset != null ? tilesets.findIndex((t) => t.ts.id === layer.tileset) : -1);
 
   const w = new ByteWriter(4096);
-  w.u32(0); // file size, patched at the end
+  w.u32(0);
   w.u16(HEADER_MAGIC);
   w.u16(doc.frames.length);
   w.u16(W);
   w.u16(H);
   w.u16(32);
-  w.u32(1 | 2); // layer opacity valid; group blend/opacity valid
+  w.u32(1 | 2);
   w.u16(speed);
   w.u32(0);
   w.u32(0);
-  w.u8(0); // transparent index (indexed only)
+  w.u8(0);
   w.zeros(3);
   w.u16(palette.length);
   w.u8(1);
@@ -518,7 +502,6 @@ export async function writeAseprite(doc, { compress = true, palette: colors = nu
   w.u16(16);
   w.zeros(84);
 
-  // Linked cels: the first frame that uses a pixel buffer is written, the next ones point to it.
   const firstUse = new Map(order.map(({ layer }) => [layer.id, new Map()]));
   for (let f = 0; f < doc.frames.length; f++) {
     const frame = doc.frames[f];
@@ -549,7 +532,7 @@ export async function writeAseprite(doc, { compress = true, palette: colors = nu
       tilesets.forEach(({ ts, count, data }, i) => {
         chunk(w, CHUNK.tileset, () => {
           w.u32(i);
-          w.u32(2 | 4); // tiles inside this file; tile 0 is the empty tile
+          w.u32(2 | 4);
           w.u32(count);
           w.u16(ts.tileWidth);
           w.u16(ts.tileHeight);

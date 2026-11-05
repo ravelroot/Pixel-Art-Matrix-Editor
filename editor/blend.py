@@ -122,8 +122,6 @@ def _sat(c):
 
 
 def _set_sat(c, s):
-    # Indices of the largest, middle and smallest components: a stable sort from the largest down, so ties keep the
-    # R, G, B order (as `[0, 1, 2].sort((i, j) => c[j] - c[i])` in core/blend.js).
     hi, mid, lo = sorted(range(3), key=lambda i: -c[i])
     out = [0.0, 0.0, 0.0]
     if c[hi] > c[lo]:
@@ -176,7 +174,6 @@ def _composite_into(target, pixels, opacity, mode):
     if opacity <= 0:
         return
     if mode == "normal":
-        # Exactly the 2.0.0 loop (editor.rle.composite).
         for i, c in enumerate(pixels):
             if not c >> 24:
                 continue

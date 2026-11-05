@@ -1,5 +1,41 @@
 # Histórico de versões
 
+## 2.5.0 — 05/11/2026
+
+**Motor de jogo profissional:** o Estúdio de jogo ganhou o que se espera de um motor completo, sem perder o jeito sem código. O jogo de exemplo ganhou a **Fase 3: a mina escura**, com escuridão, tochas, água animada, escada, plataforma móvel, mola, lampião (ponto de controle), mineiro que fala, um morcego que acha o caminho e uma área de gatilho que avisa da saída.
+
+**Física e tiles:** quatro tipos novos de tile: **escada** (sobe e desce, o topo vira chão), **água** (gravidade e queda reduzidas, braçadas e respingos), **gelo** (sólido e escorregadio) e **mola** (sólido que quica alto). O jogador de plataforma ganhou **pulo na parede**, **investida** (Shift ou L, também no controle), subir escadas e nadar, com animações próprias; o jogador visto de cima ganhou a investida em oito direções.
+
+**Comportamentos novos:** **plataforma móvel** (horizontal ou vertical, pausa nas pontas, leva quem está em cima, de mão única ou sólida), **mola**, **ponto de controle** (o jogador volta para o último aceso ao morrer, e ele pode recuperar a vida), **personagem que fala** (NPC com páginas, nome e evento Fim do diálogo), **inimigo que acha o caminho** (A* sobre os tiles sólidos), **torre que atira** (mira e linha de visão), **área de gatilho** (invisível, envia um sinal quando o jogador entra, uma vez ou sempre), **emissor de partículas** (solta um dos oito efeitos num intervalo, com alcance opcional) e **gerador de atores** (cria um ator num intervalo, até um máximo vivos, para ondas de inimigos e itens que reaparecem). São 21 comportamentos.
+
+**Câmera, luz e tela:** câmera suave, com zona morta, presa ao jogador ou fixa, **zoom** com transição e seguir qualquer ator; **escuridão** por cena com cor própria e **luz** por ator (raio, cor e tremulação), em anéis no estilo da pixel art, com o brilho das explosões, do fogo e da magia; **clima** (chuva, neve, folhas e brasas); oito efeitos de partículas prontos; piscar a tela, **câmera lenta**, **hitstop**, texto flutuante; transições entre cenas (esmaecer e íris) e filtros de tela (linhas de varredura, CRT, LCD e vinheta).
+
+**Lógica:** eventos novos (Tocou o chão, Levou dano, Recebeu um sinal, Clique do mouse, Desenhar, Desenhar na tela e Fim do diálogo), 12 alarmes, condições novas (botão segurado, jogador perto, linha de visão e **expressão em código**), 17 ações novas (tween, sinal, diálogo, texto flutuante, efeito, piscar, zoom, câmera segue, câmera lenta, congelar, luz, escuridão, tamanho, ponto de controle, salvar, carregar e **esperar**, que continua o resto da lista depois de alguns segundos, para cenas de corte em sequência) e três gatilhos novos nas regras (sinal, ponto de controle e tocar o chão). **Sinais** ligam atores e regras sem depender de colisão; **diálogos** pausam o jogo e digitam o texto letra por letra; **tweens** animam posição, opacidade, escala, rotação e luz com nove curvas.
+
+**Código:** mais de 50 funções novas no motor (câmera, efeitos, luz, clima, tween, sinais, diálogos, A* com `path_find` e `move_path_towards`, `raycast`, `line_of_sight`, `collision_line`, `instance_list`, salvar com `game_save`, `game_load`, `save_set` e `save_get`, pontos de controle, mouse e desenho com `draw_self`, `draw_sprite`, `draw_rect`, `draw_circle`, `draw_line`, `draw_text` e `draw_bar`), propriedades novas (`xscale`, `yscale`, `angle`, `image_index`, `image_speed`, `light`, `climbing`, `in_water`, `dashing`, `on_wall`, `active`, `mouse_x`, `mouse_y`) e **mapas e tabelas** nas três linguagens: `{ vida: 3 }` e `for (var chave, valor in mapa)` no Crivo Script, tabelas com chaves e `pairs` no Lua e `std::map` no C++. O `ajuda` do terminal lista tudo por assunto.
+
+**Estúdio:** campos novos na cena (profundidade da paisagem, escuridão, cor da escuridão, clima, câmera e zoom), no ator (luz e fala em várias linhas), no tileset (**tiles animados** com sequência e velocidade) e na aba Jogo (filtro de tela, transição e velocidade do texto). **Testar daqui** (Shift+F5 ou o botão na barra da cena) começa o teste no ponto onde o mouse passou. A **Depuração** mostra o tempo do passo, os pares de colisão, as partículas, o zoom, o estado do jogador, as setas de velocidade, o caminho do A*, a zona morta e as variáveis globais. O terminal do teste agora abre e fecha com F4 (antes ficava sempre visível) e o jogo usa o espaço todo quando ele está fechado. **Gravar GIF (F6)** grava o teste a 25 quadros por segundo, por até 15 s, e salva um GIF ampliado sem borrar os pixels. Com o jogo pausado, a tecla `.` avança **quadro a quadro**.
+
+**Barras de vida e dano:** opções novas na aba Jogo mostram uma barra de vida em cima dos inimigos feridos e números de dano subindo sobre quem levou o golpe.
+
+**Controle:** o gamepad vibra quando o jogador leva dano (mais forte quando ele morre) e `gamepad_rumble(força, segundos)` vibra pelo código, no estúdio e no jogo exportado.
+
+**Cenas persistentes:** com a opção nova na aba Cenas, uma cena lembra os itens pegos, os inimigos derrotados, as posições, a vida e as variáveis dos atores colocados quando o jogador volta, sem rodar o evento Criar de novo; recomeçar a cena ou o jogo volta tudo ao início.
+
+**Desempenho:** com mais de 32 atores, as colisões usam uma grade espacial e só testam quem está perto (com 121 atores espalhados, cerca de 270 pares em vez de 7.260).
+
+**Pixel art:** o menu Imagem ganhou **contorno interno**, **contorno seletivo (sel-out)**, **sombra projetada**, **sombrear automaticamente** (luz e sombra com desvio de matiz no OKLCH), **limpar pixels soltos**, **reduzir cores…** (corte mediano e k-médias no OKLab), **mapa de degradê** (pela paleta atual) e **ampliar 2×, 3× e 4×** com **Scale2x**, **Scale3x** e Scale4x, que suavizam as diagonais sem criar cores. Todos respeitam a seleção e são um passo no histórico. O menu Cor ganhou a **rampa com desvio de matiz**, que cria de 3 a 16 cores a partir da cor principal no OKLCH (sombras para o azul, luzes para o amarelo) e acrescenta à paleta. O núcleo fica em `js/core/pixelart.js` e o menu em `js/features/pixelart.js`.
+
+**Arquivos:** o `.crivojogo` passa para a versão 2, com os campos novos de cenas, atores, tilesets e do jogo; os jogos da 2.4.0 abrem com os valores padrão e tudo continua validado. `examples/gotinha.crivojogo` foi gerado de novo com as três fases. O `Crivo.html` e o `Crivo.exe` foram gerados de novo (o `.exe` continua reproduzível byte a byte).
+
+**Código limpo:** os comentários que ainda existiam no código (JavaScript, CSS, Python, Go, Java, Dockerfile e configurações) e o cabeçalho de comentário do `Crivo.html` gerado saíram; as diretivas `//go:build` continuam, porque o compilador do Go depende delas.
+
+**Testes:** 170 testes do núcleo (35 novos: 26 do motor e das linguagens e 9 de pixel art), 72 da API, 36 da ferramenta Java e 62 ponta a ponta (dois novos em cada maneira: o menu Imagem e a Fase 3 no estúdio).
+
+**Documentação:** README com a seção nova "Motor profissional e pixel art (2.5.0)", sete capturas novas e a do menu Imagem atualizada; os quatro PDFs: o manual ganhou a página de novidades da 2.5.0 e o capítulo 22, as Ferramentas ganharam os cartões dos tiles, comportamentos e comandos novos, os Desafios ganharam quatro desafios (13 a 16) e o Banco de dados ganhou a seção do `.crivojogo` versão 2.
+
+**Compatibilidade:** nada muda no formato `.crivo`, na API nem no banco de dados; não há migração nova.
+
 ## 2.4.0 — 02/11/2026
 
 **Estúdio de jogo:** um menu novo na barra, **Jogo** (entre Caderno e Ajuda), abre por cima do editor o **Estúdio de jogo** (**Abrir o estúdio de jogo…**, F9), um motor completo para criar jogos de pixel art sem código, com sete abas: **Cenas**, **Atores**, **Sprites**, **Tiles**, **Regras**, **Sons** e **Jogo**. Na primeira vez, ele abre com um jogo de exemplo de duas fases, *Gotinha e as moedas* (também em `examples/gotinha.crivojogo`).

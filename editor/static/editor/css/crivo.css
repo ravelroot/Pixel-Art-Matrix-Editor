@@ -871,7 +871,6 @@ input[type='checkbox'] {
   justify-content: space-between;
 }
 
-/* Color worker (2.1): color picker, palette editor and adjustment dialogs. */
 .hsv-picker {
   display: grid;
   gap: 8px;
@@ -1540,7 +1539,6 @@ kbd {
   }
 }
 
-/* Layers and animation (2.1.0): groups, tilesets, tags, linked cels, slices */
 .layer.group .name {
   font-weight: 600;
 }
@@ -1687,7 +1685,6 @@ kbd {
   border: 1px solid var(--border);
 }
 
-/* Files & workspace (2.1): document tabs above the canvas, preview window, drop target. */
 .area {
   display: flex;
   flex-direction: column;
@@ -1822,7 +1819,6 @@ kbd {
   outline-offset: -6px;
 }
 
-/* 2.1 tools: two tools per row (related tools side by side), so the toolbar fits 23 tools. */
 .app {
   grid-template-columns: 90px minmax(0, 1fr) 300px;
 }
@@ -1862,7 +1858,6 @@ kbd {
   }
 }
 
-/* Quick tutorial (first run, and Ajuda › Tutorial rápido): a dimmed screen with the parts being explained lit up */
 .tour {
   position: fixed;
   inset: 0;
@@ -3017,6 +3012,14 @@ kbd {
   min-width: 0;
 }
 
+.jogo-campo textarea.jogo-fala {
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.45;
+}
+
 .jogo-campo input[type='color'] {
   width: 64px;
   height: 30px;
@@ -3091,6 +3094,10 @@ p.jogo-dica {
   padding: 6px 10px;
   background: var(--surface-2);
   border-bottom: 1px solid var(--border);
+}
+
+.jogo-ferramentas .button {
+  white-space: nowrap;
 }
 
 .jogo-ferramentas .jogo-check {
@@ -3189,6 +3196,23 @@ p.jogo-dica {
 
 .flag-hazard {
   background: #d04a3a;
+}
+
+.flag-ladder {
+  background: #a0783c;
+}
+
+.flag-water {
+  background: #3c78be;
+}
+
+.flag-ice {
+  background: #8ec7dc;
+  color: #1d1613;
+}
+
+.flag-bounce {
+  background: #be5ac8;
 }
 
 .jogo-num {
@@ -3655,6 +3679,10 @@ p.jogo-dica {
   grid-template-rows: auto minmax(0, 1fr) minmax(160px, 34%);
 }
 
+.terminal[hidden] {
+  display: none;
+}
+
 .jogo-teste-terminal {
   margin: 0 12px 12px;
 }
@@ -3663,6 +3691,12 @@ p.jogo-dica {
   color: #efe6d8;
   background: #30251f;
   border-color: #66524a;
+}
+
+.jogo-teste-topo .button.jogo-gravar.gravando {
+  color: #faf6ef;
+  background: #a3322a;
+  border-color: #d04a3a;
 }
 
 .terminal input.terminal-entrada,

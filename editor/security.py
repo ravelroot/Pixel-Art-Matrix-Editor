@@ -78,7 +78,6 @@ class WriteLimitMiddleware:
     forged by another site) do not use up anyone's quota. Counting is done separately in each server process."""
 
     WINDOW = 60.0
-    # Shared by every instance in the process (Django creates one per handler).
     history = {}
     lock = threading.Lock()
 

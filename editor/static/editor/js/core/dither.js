@@ -1,6 +1,3 @@
-// Ordered dithering with Bayer matrices.
-// Each matrix cell holds a threshold between 0 and 1; a pixel gets the "upper" color
-// when the value (density or gradient t) goes past the threshold of its position.
 
 function bayer(n) {
   if (n === 1) return [[0]];
@@ -25,7 +22,6 @@ export const BAYER = {
   8: bayer(8),
 };
 
-// Threshold normalized at the center of each step: (v + 0.5) / n².
 export function bayerThreshold(x, y, n = 4) {
   const m = BAYER[n] ?? BAYER[4];
   const yy = ((y % n) + n) % n;
@@ -33,12 +29,10 @@ export function bayerThreshold(x, y, n = 4) {
   return (m[yy][xx] + 0.5) / (n * n);
 }
 
-// Dither brush: true when pixel (x, y) gets the primary color for the given density (0 to 1).
 export function patternPixel(x, y, density, n = 4) {
   return bayerThreshold(x, y, n) < density;
 }
 
-// Value t (0 to 1) of a linear gradient from A to B at pixel (x, y): projection of vector AP onto AB.
 export function linearGradient(x, y, ax, ay, bx, by) {
   const dx = bx - ax;
   const dy = by - ay;
@@ -48,7 +42,6 @@ export function linearGradient(x, y, ax, ay, bx, by) {
   return t < 0 ? 0 : t > 1 ? 1 : t;
 }
 
-// Value t (0 to 1) of a radial gradient centered at A with radius |AB|.
 export function radialGradient(x, y, ax, ay, bx, by) {
   const radius = Math.hypot(bx - ax, by - ay);
   if (radius === 0) return 0;
@@ -56,12 +49,10 @@ export function radialGradient(x, y, ax, ay, bx, by) {
   return t > 1 ? 1 : t;
 }
 
-// Picks between the start and end colors for pixel (x, y) with value t, using ordered dithering.
 export function gradientColor(x, y, t, start, end, n = 4) {
   return t > bayerThreshold(x, y, n) ? end : start;
 }
 
-// Computes the whole gradient over a list of indices (or the whole matrix) and returns [index, color] pairs.
 export function gradient(width, height, { ax, ay, bx, by, type = 'linear', matrix = 4, start, end, indices = null }) {
   const value = type === 'radial' ? radialGradient : linearGradient;
   const result = [];

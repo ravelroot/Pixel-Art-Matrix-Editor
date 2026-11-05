@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { encodeGIF, lzw } from '../../editor/static/editor/js/core/gif.js';
 import { pack } from '../../editor/static/editor/js/core/colors.js';
 
-// Minimal decoder (LZW + blocks) only to check what the encoder produces.
 function unlzw(data, minSize) {
   const clear = 1 << minSize;
   const end = clear + 1;

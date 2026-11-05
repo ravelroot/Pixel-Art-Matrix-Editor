@@ -44,7 +44,6 @@ function readSide(input) {
   return n;
 }
 
-// open(doc): where the new document goes (features/files.js opens it in a new tab).
 export async function newDialog(editor, open = (d) => editor.load(d)) {
   const name = el('input', { type: 'text', value: 'Sem título', maxlength: 120 });
   const l = numberField('Largura', 32, { max: MAX_SIDE });
@@ -358,7 +357,6 @@ export async function exportDataDialog(editor, currentPalette) {
   });
 }
 
-// file: an image already chosen (drag and drop); open(doc): where a new document goes (a new tab).
 export async function importImageDialog(editor, { file = null, open = (d) => editor.load(d) } = {}) {
   file = file ?? (await pickFile('image/png,image/jpeg,image/gif,image/webp,image/bmp'));
   if (!file) return;

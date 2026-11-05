@@ -16,7 +16,6 @@ from .rle import RLEError
 
 log = logging.getLogger("crivo.api")
 
-# Error messages ({"error": "..."}) are shown to the user by the editor, so they stay in Portuguese.
 
 
 def error(message, status=400, **extra):
@@ -172,7 +171,6 @@ def export(request, project_id):
     content_type, extension = exporter.FORMATS[fmt]
     response = HttpResponse(exporter.generate(fmt, data, p.name), content_type=f"{content_type}; charset=utf-8")
     if request.GET.get("download"):
-        # A Java file must be named after its public class (PascalCase), or javac refuses it.
         base = exporter.identifier(p.name, "pascal" if fmt == "java" else "camel")
         response["Content-Disposition"] = f'attachment; filename="{base}.{extension}"'
     return response

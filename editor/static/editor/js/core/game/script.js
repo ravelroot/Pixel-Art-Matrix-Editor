@@ -3,6 +3,14 @@ export function gameScript() {
   const OPS2 = new Set(['==', '!=', '<=', '>=', '&&', '||', '+=', '-=', '*=', '/=', '++', '--']);
   const OPS1 = '+-*/%<>=!(){}[],;.?:';
   const NOT_FOUND = Symbol('nao-encontrado');
+  const isMap = (v) => Boolean(v && typeof v === 'object' && v.__map === true && v.data);
+  const newMap = () => ({
+    __map: true,
+    data: Object.create(null),
+    describe() {
+      return `{${Object.entries(this.data).map(([k, v]) => `${k}: ${typeof v === 'string' ? JSON.stringify(v) : format(v)}`).join(', ')}}`;
+    },
+  });
   const BREAK = { stop: 'break' };
   const CONTINUE = { stop: 'continue' };
   const LIMIT = 200000;
@@ -213,7 +221,7 @@ export function gameScript() {
       const t = peek(k);
       let isType = false;
       if (t.t === 'id' && t.v === 'std' && peek(k + 1).t === 'op' && peek(k + 1).v === '::') {
-        isType = ['string', 'vector', 'array', 'map', 'list', 'deque'].includes(peek(k + 2).v);
+        isType = ['string', 'vector', 'array', 'map', 'unordered_map', 'list', 'deque'].includes(peek(k + 2).v);
       } else if (t.t === 'id' && CPP_TYPES.has(t.v)) isType = true;
       else if (t.t === 'kw' && (t.v === 'unsigned' || t.v === 'signed')) isType = true;
       if (!isType) return 0;
@@ -288,6 +296,7 @@ export function gameScript() {
     function cppDecl() {
       const line = peek().line;
       const type = readType();
+      const mapType = type === 'map' || type === 'unordered_map';
       const int = ['int', 'long', 'short', 'char', 'size_t', 'uint8_t', 'int32_t', 'int64_t', 'uint32_t'].includes(type) && type !== 'char';
       const name = ident();
       if (isOp('(')) {
@@ -340,6 +349,7 @@ export function gameScript() {
           expect(')');
           init = args[0] || null;
         }
+        if (!init && mapType) init = { k: 'table', entries: [], items: [], line };
         decls.push({ name: current, init, int });
         if (!isOp(',')) break;
         next();
@@ -418,6 +428,19 @@ export function gameScript() {
       if (isKw('for')) {
         next();
         expect('(');
+        if (!cpp && isKw('var') && peek(1).t === 'id' && ((peek(2).t === 'id' && peek(2).v === 'in') || (isOp(',', 2) && peek(3).t === 'id' && peek(4).t === 'id' && peek(4).v === 'in'))) {
+          next();
+          const first = ident();
+          let second = null;
+          if (isOp(',')) {
+            next();
+            second = ident();
+          }
+          next();
+          const list = expression();
+          expect(')');
+          return { k: 'forin', key: second ? first : null, value: second || first, list, base: 0, mapKeys: !second, body: statement(), line };
+        }
         const init = isOp(';') ? null : !cpp && isKw('var') ? varDecl() : cpp && typeAhead() ? cppDecl() : simple();
         if (cpp && isOp(':')) {
           next();
@@ -674,6 +697,24 @@ export function gameScript() {
         const e = expression();
         expect(')');
         return e;
+      }
+      if (t.t === 'op' && t.v === '{' && !cpp) {
+        if (!isOp('}') && !(['id', 'str', 'num', 'kw'].includes(peek().t) && isOp(':', 1))) {
+          p--;
+          fail('não esperava "{" aqui (para criar um mapa, use { nome: valor })');
+        }
+        const entries = [];
+        if (!isOp('}')) {
+          do {
+            if (isOp('}')) break;
+            const key = next();
+            if (key.t !== 'id' && key.t !== 'str' && key.t !== 'num' && key.t !== 'kw') fail('use { nome: valor } para criar um mapa');
+            expect(':');
+            entries.push({ key: { k: 'str', v: String(key.v), line }, value: expression() });
+          } while (isOp(',') && next());
+        }
+        expect('}');
+        return { k: 'table', entries, items: [], line };
       }
       if (t.t === 'op' && (t.v === '[' || (cpp && t.v === '{'))) {
         const close = t.v === '[' ? ']' : '}';
@@ -1024,13 +1065,24 @@ export function gameScript() {
     function table() {
       const line = expect('{').line;
       const items = [];
+      const entries = [];
       while (!isOp('}')) {
-        if (toks[p].t === 'id' && isOp('=', 1)) fail('tabelas com chaves (nome = valor) ainda não são suportadas; use listas {1, 2, 3}');
-        items.push(expression());
+        if (toks[p].t === 'id' && isOp('=', 1)) {
+          const key = next().v;
+          next();
+          entries.push({ key: { k: 'str', v: key, line }, value: expression() });
+        } else if (isOp('[')) {
+          next();
+          const key = expression();
+          expect(']');
+          expect('=');
+          entries.push({ key, value: expression() });
+        } else items.push(expression());
         if (isOp(',') || isOp(';')) next();
         else break;
       }
       expect('}');
+      if (entries.length) return { k: 'table', entries, items, line };
       return { k: 'array', items, line };
     }
 
@@ -1259,6 +1311,18 @@ export function gameScript() {
       }
       case 'forin': {
         const list = ev(node.list, scope, st);
+        if (isMap(list)) {
+          for (const key of Object.keys(list.data)) {
+            const k = node.base && /^\d+$/.test(key) ? Number(key) : key;
+            if (node.keyOnly || node.mapKeys) scope.set(node.value, k);
+            else {
+              if (node.key) scope.set(node.key, k);
+              scope.set(node.value, list.data[key]);
+            }
+            if (loopBody(node.body, scope, st)) break;
+          }
+          return;
+        }
         if (!Array.isArray(list) && typeof list !== 'string') throw new ScriptError('o for só percorre listas e textos', node.line);
         const items = Array.isArray(list) ? list.slice() : [...list];
         for (let i = 0; i < items.length; i++) {
@@ -1370,8 +1434,13 @@ export function gameScript() {
     return self;
   }
 
+  function mapKey(k) {
+    return typeof k === 'number' && Number.isInteger(k) ? String(k) : format(k);
+  }
+
   function getMember(target, name, st, line) {
     if (target === null || target === undefined) throw new ScriptError(`noone não tem "${name}"`, line);
+    if (isMap(target)) return name in target.data ? target.data[name] : null;
     if (Array.isArray(target)) {
       if (name === 'length') return target.length;
       throw new ScriptError(`lista não tem "${name}"`, line);
@@ -1392,6 +1461,12 @@ export function gameScript() {
         return node.v;
       case 'array':
         return node.items.map((x) => ev(x, scope, st));
+      case 'table': {
+        const m = newMap();
+        node.items.forEach((x, i) => (m.data[String(i + 1)] = ev(x, scope, st)));
+        for (const e of node.entries) m.data[mapKey(ev(e.key, scope, st))] = ev(e.value, scope, st);
+        return m;
+      }
       case 'self':
         return st.env.self ?? null;
       case 'other':
@@ -1413,6 +1488,10 @@ export function gameScript() {
         return getMember(ev(node.obj, scope, st), node.name, st, node.line);
       case 'index': {
         const arr = ev(node.obj, scope, st);
+        if (isMap(arr)) {
+          const key = mapKey(ev(node.index, scope, st));
+          return key in arr.data ? arr.data[key] : null;
+        }
         const i = Math.floor(numberOf(ev(node.index, scope, st), node.line)) - (node.base || 0);
         if (typeof arr === 'string') return arr[i] ?? '';
         if (!Array.isArray(arr)) throw new ScriptError('só dá para usar [ ] numa lista', node.line);
@@ -1437,7 +1516,12 @@ export function gameScript() {
       case 'len': {
         const a = ev(node.a, scope, st);
         if (Array.isArray(a) || typeof a === 'string') return a.length;
-        throw new ScriptError('# só mede listas e textos', node.line);
+        if (isMap(a)) {
+          let n = 0;
+          while (String(n + 1) in a.data) n++;
+          return n || Object.keys(a.data).length;
+        }
+        throw new ScriptError('# só mede listas, textos e tabelas', node.line);
       }
       case 'cast': {
         const v = ev(node.a, scope, st);
@@ -1523,6 +1607,21 @@ export function gameScript() {
       if (name === 'front') return obj[0] ?? null;
       if (name === 'back') return obj[obj.length - 1] ?? null;
     }
+    if (isMap(obj)) {
+      const key = args.length ? mapKey(args[0]) : '';
+      if (name === 'size' || name === 'length' || name === 'len') return Object.keys(obj.data).length;
+      if (name === 'count' || name === 'contains' || name === 'has') return key in obj.data ? 1 : 0;
+      if (name === 'erase' || name === 'remove') return delete obj.data[key], undefined;
+      if (name === 'keys') return Object.keys(obj.data);
+      if (name === 'values') return Object.values(obj.data);
+      if (name === 'clear') return Object.keys(obj.data).forEach((k) => delete obj.data[k]), undefined;
+      if (name === 'empty') return Object.keys(obj.data).length === 0;
+      if (name === 'get' || name === 'at') {
+        if (!(key in obj.data) && name === 'at') throw new ScriptError(`a chave "${key}" não existe`, node.line);
+        return key in obj.data ? obj.data[key] : args.length > 1 ? args[1] : null;
+      }
+      if (name === 'set' || name === 'insert') return (obj.data[key] = args[1]), undefined;
+    }
     if (typeof obj === 'string') {
       if (name === 'size' || name === 'length' || name === 'len') return obj.length;
       if (name === 'substr' || name === 'sub') return node.args.length > 1 ? obj.substr(numberOf(args[0], node.line) - (name === 'sub' ? 1 : 0), name === 'sub' ? numberOf(args[1], node.line) - numberOf(args[0], node.line) + 1 : numberOf(args[1], node.line)) : obj.slice(numberOf(args[0], node.line) - (name === 'sub' ? 1 : 0));
@@ -1573,6 +1672,18 @@ export function gameScript() {
       return undefined;
     }
     if (node.name === 'tostring') return format(args[0]);
+    if (node.name === 'map_create' || node.name === 'ds_map_create') return newMap();
+    if (node.name.startsWith('map_') && ['map_set', 'map_get', 'map_has', 'map_delete', 'map_keys', 'map_size'].includes(node.name)) {
+      const m = args[0];
+      if (!isMap(m)) throw new ScriptError(`${node.name} precisa de um mapa (map_create())`, node.line);
+      const key = mapKey(args[1]);
+      if (node.name === 'map_set') return (m.data[key] = args[2]), undefined;
+      if (node.name === 'map_get') return key in m.data ? m.data[key] : args.length > 2 ? args[2] : null;
+      if (node.name === 'map_has') return key in m.data;
+      if (node.name === 'map_delete') return delete m.data[key], undefined;
+      if (node.name === 'map_keys') return Object.keys(m.data);
+      return Object.keys(m.data).length;
+    }
     if (node.name === 'tonumber') return typeof args[0] === 'number' ? args[0] : Number.isFinite(Number(args[0])) ? Number(args[0]) : null;
     if (node.name === 'to_string' || node.name === 'std_to_string') return format(args[0]);
     if (node.name === 'stoi') return Math.trunc(numberOf(args[0], node.line));
@@ -1650,11 +1761,19 @@ export function gameScript() {
       }
       const obj = ev(target.obj, scope, st);
       if (obj === null || obj === undefined) throw new ScriptError(`noone não tem "${target.name}"`, target.line);
+      if (isMap(obj)) {
+        obj.data[target.name] = value;
+        return;
+      }
       if (typeof obj !== 'object' || Array.isArray(obj) || !st.env.set) throw new ScriptError(`não dá para mudar "${target.name}" em ${format(obj)}`, target.line);
       st.env.set(obj, target.name, value);
       return;
     }
     const arr = ev(target.obj, scope, st);
+    if (isMap(arr)) {
+      arr.data[mapKey(ev(target.index, scope, st))] = value;
+      return;
+    }
     const i = Math.floor(numberOf(ev(target.index, scope, st), target.line)) - (target.base || 0);
     if (!Array.isArray(arr)) throw new ScriptError('só dá para usar [ ] numa lista', target.line);
     if (i < 0 || i > 100000) throw new ScriptError(`posição fora da lista: ${i}`, target.line);
@@ -1662,5 +1781,5 @@ export function gameScript() {
     arr[i] = value;
   }
 
-  return { LANGS, NOT_FOUND, ScriptError, tokenize, parse, compile, check, run, library, format, truthy, MATH };
+  return { LANGS, NOT_FOUND, ScriptError, tokenize, parse, compile, check, run, library, format, truthy, MATH, isMap, newMap };
 }

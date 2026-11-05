@@ -1,6 +1,3 @@
-// Several documents open at once, one per tab above the canvas. The active document lives in the editor
-// (editor.doc, editor.history...); the others are parked as sessions (Editor.captureSession) together with
-// their zoom and scroll, and come back exactly as they were.
 import { PixelDocument } from '../core/document.js';
 import { History } from '../core/history.js';
 import { el, notify } from './util.js';
@@ -24,7 +21,6 @@ export class Tabs {
     return this.tabs.length;
   }
 
-  // Name and modified flag of tab i (the active one reads from the editor).
   info(i) {
     const s = i === this.active ? this.editor : this.tabs[i].session;
     return { name: s.doc.name, modified: Boolean(s.modified) };
@@ -62,7 +58,6 @@ export class Tabs {
     this.activate((this.active + delta + this.tabs.length) % this.tabs.length);
   }
 
-  // A blank, untouched "Sem título" is replaced instead of piling up an empty tab.
   pristine() {
     const e = this.editor;
     if (e.modified || e.history.canUndo || e.history.canRedo || e.project.id || e.project.local) return false;
@@ -70,7 +65,6 @@ export class Tabs {
     return true;
   }
 
-  // Opens a document in a new tab (or in the current one, when it is a blank untitled document).
   open(doc, project = { id: null, local: null, revision: null }) {
     if (this.editor.state.playing) this.editor.stop();
     if (!this.pristine()) {
@@ -84,7 +78,6 @@ export class Tabs {
     this.editor.emit('tab', { index: this.active });
   }
 
-  // Index of the tab that holds a saved project (server id or browser id), or -1.
   find(project) {
     return this.tabs.findIndex((t, i) => {
       const p = i === this.active ? this.editor.project : t.session.project;

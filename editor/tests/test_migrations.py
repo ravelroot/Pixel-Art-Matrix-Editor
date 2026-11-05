@@ -55,7 +55,6 @@ class EnglishSchemaMigrationTest(TransactionTestCase):
         Quadro.objects.create(projeto=projeto, chave="q2", posicao=1, duracao_ms=200)
         pixels = encode(PIXELS)
         Celula.objects.create(quadro=quadro, camada=camada, pixels=pixels, tamanho_bytes=len(pixels))
-        # Revision content as Crivo 1.x stored it: zlib-compressed JSON of a format version 1 document.
         self.old_document = {
             "formato": "crivo",
             "versao": 1,
@@ -110,7 +109,6 @@ class EnglishSchemaMigrationTest(TransactionTestCase):
         self.assertEqual(Palette.objects.filter(preset=True).count(), self.preset_count)
         self.assertGreater(self.preset_count, 0)
 
-        # And back: unapplying 0003 restores the 1.x schema with the same rows.
         old = _migrate(PORTUGUESE_SCHEMA)
         projeto = old.get_model("editor", "Projeto").objects.get(pk=self.project_id)
         self.assertEqual((projeto.nome, projeto.largura, projeto.versao_formato, projeto.revisao), ("Poção", 4, 1, 2))

@@ -1,10 +1,3 @@
-// Saving files through the system "Save as" window, so the person chooses the folder and the name:
-// - desktop app (Crivo.exe): the native Windows window, through window.crivoDesktop.saveDialog and writeFile
-//   (desktop/main.go);
-// - Chrome and Edge (Django server or Crivo.html): the File System Access API (showSaveFilePicker), which
-//   opens the same Windows window;
-// - other browsers: an ordinary download to the Downloads folder.
-// This module imports nothing, so ui/util.js can build on it.
 
 const TYPES = {
   crivo: ['Projeto do Crivo', 'application/json'],
@@ -29,16 +22,12 @@ function describe(name) {
   return { extension, description, mime };
 }
 
-// True when saving opens the "Save as" window (desktop app, Chrome or Edge).
 export function canChooseLocation() {
   return Boolean(desktop() || browserPicker());
 }
 
-// The picker could not open here (no click or key press right before it, or an unsupported type).
 export class PickerUnavailable extends Error {}
 
-// Opens the "Save as" window. Returns where to save ({ label, path } or { label, handle })
-// or null when the person cancels. Throws PickerUnavailable when there is no window to open.
 export async function chooseLocation(name, { title = 'Salvar', purpose = 'export' } = {}) {
   const { extension, description, mime } = describe(name);
   const app = desktop();
@@ -71,7 +60,6 @@ function base64(blob) {
   });
 }
 
-// Writes the file to a place returned by chooseLocation (replacing what was there).
 export async function writeToLocation(target, blob) {
   if (target.path) {
     await desktop().writeFile(target.path, await base64(blob));
@@ -85,7 +73,6 @@ export async function writeToLocation(target, blob) {
   }
 }
 
-// Plain browser download, to the Downloads folder.
 export function download(blob, name) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -97,8 +84,6 @@ export function download(blob, name) {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
-// Saves a file asking where, when possible. Returns { saved: target } when the person chose the folder,
-// { downloaded: true } when it went to the Downloads folder, or null when the person canceled.
 export async function saveBlob(blob, name, options = {}) {
   if (canChooseLocation()) {
     let target;

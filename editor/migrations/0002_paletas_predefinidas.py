@@ -1,9 +1,5 @@
 from django.db import migrations
 
-# This migration runs against the historical 1.x models of 0001 (Paleta/CorPaleta with the Portuguese field
-# names nome, descricao, predefinida, cores, posicao). Until 2.0.0 it imported editor.paletas.sincronizar_predefinidas;
-# that module is now editor.palettes and works with the English schema of 0003, so the preset data and the sync
-# logic are frozen here exactly as they were when this migration was first applied. Do not import app code here.
 
 
 def _colors(text):

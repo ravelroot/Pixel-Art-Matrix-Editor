@@ -1,5 +1,3 @@
-// Color and shape filters applied to a pixel matrix. They all return [index, newColor] pairs
-// only for the pixels that change, so the interface records everything as a single history step.
 import { unpack, pack, rgbToOklab, oklabToRgb, rgbToOklch, oklchToRgb, hexToColor, clamp } from './colors.js';
 
 const NEIGHBORS_4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -7,7 +5,6 @@ const NEIGHBORS_8 = [...NEIGHBORS_4, [1, 1], [1, -1], [-1, 1], [-1, -1]];
 
 const allowed = (filter, i) => !filter || filter(i);
 
-// 1 px outer outline: transparent pixels that touch (4 or 8 neighbors) an opaque pixel.
 export function outline(pixels, width, height, color, { neighbors = 4, filter = null } = {}) {
   const list = neighbors === 8 ? NEIGHBORS_8 : NEIGHBORS_4;
   const changes = [];
@@ -86,7 +83,6 @@ export function nearest(color, preparedPalette) {
   return best;
 }
 
-// Replaces each opaque pixel with the nearest palette color (Euclidean distance in OKLab). Keeps the alpha.
 export function convertToPalette(pixels, palette, { filter = null } = {}) {
   const prepared = preparePalette(palette);
   if (!prepared.length) return [];
@@ -96,7 +92,6 @@ export function convertToPalette(pixels, palette, { filter = null } = {}) {
   });
 }
 
-// Lightens (step > 0) or darkens (step < 0) a color by adding the step to the OKLCH L.
 export function lightnessStep(color, step) {
   const [r, g, b, a] = unpack(color);
   if (!a) return color >>> 0;
@@ -104,7 +99,6 @@ export function lightnessStep(color, step) {
   return pack(...oklchToRgb(clamp(L + step, 0, 1), C, H), a);
 }
 
-// Ramp: palette sorted from the darkest to the lightest color (OKLab L).
 export function paletteRamp(palette) {
   const prepared = preparePalette(palette);
   const unique = new Map();
@@ -112,8 +106,6 @@ export function paletteRamp(palette) {
   return [...unique.values()].sort((a, b) => a.lab[0] - b.lab[0]);
 }
 
-// Moves the color one step along the palette ramp (up lightens, down darkens).
-// A color outside the palette first goes to the nearest color.
 export function paletteStep(color, ramp, direction) {
   if (!(color >>> 24) || !ramp.length) return color >>> 0;
   const rgb = color & 0x00ffffff;

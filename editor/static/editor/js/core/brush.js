@@ -1,11 +1,7 @@
-// Brush helpers for the drawing tools: ink modes, custom brushes (made from a selection), spray, blur and jumble.
 import { overlay, pack } from './colors.js';
 
 export const INK_MODES = ['simple', 'composite', 'lockAlpha', 'behind'];
 
-// Result of painting `src` over the pixel `dst` with an ink mode, or null when the pixel must not change.
-// simple: replaces the pixel (2.0.0 behavior); composite: blends over it (alpha compositing);
-// lockAlpha: only where the pixel is not transparent, keeping its alpha; behind: paints under what is there.
 export function applyInk(dst, src, mode = 'simple') {
   dst >>>= 0;
   src >>>= 0;
@@ -21,7 +17,6 @@ export function applyInk(dst, src, mode = 'simple') {
   return src;
 }
 
-// Deterministic pseudo-random generator (mulberry32): rng() returns a float in [0, 1).
 export function seededRandom(seed) {
   let a = seed >>> 0;
   return () => {
@@ -33,7 +28,6 @@ export function seededRandom(seed) {
   };
 }
 
-// `count` random points inside the circle of `radius` around (cx, cy), uniformly spread over the area.
 export function sprayPoints(cx, cy, radius, count, rng = Math.random) {
   const points = [];
   for (let k = 0; k < count; k++) {
@@ -50,12 +44,10 @@ export function sprayPoints(cx, cy, radius, count, rng = Math.random) {
   return points;
 }
 
-// Number of spray points per tick for a radius and a density (1–100 %).
 export function sprayCount(radius, density) {
   return Math.max(1, Math.round(Math.PI * radius * radius * (density / 100) * 0.06));
 }
 
-// Custom brush from a region { width, height, pixels, mask? }: only its visible pixels are kept.
 export function brushFromRegion(region) {
   const points = [];
   const ox = Math.floor(region.width / 2);
@@ -73,8 +65,6 @@ export function brushFromRegion(region) {
   return { width: region.width, height: region.height, pixels: region.pixels.slice(), points };
 }
 
-// Blur of one pixel: average of its 3×3 neighborhood weighted by alpha. Transparent pixels stay transparent and
-// the alpha of the pixel is kept, so blurring never spreads color into empty areas. read(x, y) gives a pixel.
 export function blurPixel(read, width, height, x, y) {
   const center = read(x, y) >>> 0;
   const alpha = center >>> 24;
@@ -100,7 +90,6 @@ export function blurPixel(read, width, height, x, y) {
   return pack(Math.round(r / weight), Math.round(g / weight), Math.round(b / weight), alpha) >>> 0;
 }
 
-// Jumble: index of a random neighbor (8 around, within the matrix and accepted by `allowed`) to swap with i.
 export function jumbleTarget(x, y, width, height, rng = Math.random, allowed = () => true) {
   const options = [];
   for (let dy = -1; dy <= 1; dy++) {
@@ -116,7 +105,6 @@ export function jumbleTarget(x, y, width, height, rng = Math.random, allowed = (
   return options[Math.min(options.length - 1, Math.floor(rng() * options.length))];
 }
 
-// Swaps random neighboring pixels of the given [x, y] points in place (the set of colors never changes).
 export function jumble(pixels, width, height, points, rng = Math.random, allowed = () => true) {
   for (const [x, y] of points) {
     if (x < 0 || y < 0 || x >= width || y >= height || !allowed(x, y)) continue;

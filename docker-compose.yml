@@ -23,7 +23,6 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      # Renamed variables fall back to their 1.x names, so an existing .env keeps working.
       CRIVO_DEBUG: "false"
       CRIVO_SECRET_KEY: ${CRIVO_SECRET_KEY:?Defina CRIVO_SECRET_KEY no arquivo .env}
       CRIVO_ALLOWED_HOSTS: ${CRIVO_ALLOWED_HOSTS:-localhost,127.0.0.1}
@@ -46,5 +45,4 @@ services:
 
 volumes:
   postgres-data:
-    # Volume name used by Crivo 1.x, kept so existing databases are reused after the upgrade.
     name: crivo_dados-postgres

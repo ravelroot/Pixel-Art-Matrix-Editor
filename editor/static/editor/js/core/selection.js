@@ -1,9 +1,4 @@
-// Selections and region operations on Uint32Array matrices (packed RGBA).
-// A selection is { x, y, width, height, mask? }: `mask` is a Uint8Array(width * height) (1 = selected) for
-// non-rectangular selections. A missing (or null) mask means the whole rectangle is selected, so plain
-// rectangles keep exactly the 2.0.0 shape { x, y, width, height }.
 
-// Normalizes two corners (in any order) into a rectangle { x, y, width, height } clipped to the matrix.
 export function rectFrom(x0, y0, x1, y1, docWidth, docHeight) {
   let xa = Math.max(0, Math.min(x0, x1));
   let ya = Math.max(0, Math.min(y0, y1));
@@ -13,7 +8,6 @@ export function rectFrom(x0, y0, x1, y1, docWidth, docHeight) {
   return { x: xa, y: ya, width: xb - xa + 1, height: yb - ya + 1 };
 }
 
-// Clips any selection (it may be outside the matrix) to the document bounds. Masks are cropped and trimmed.
 export function clipToDocument(r, docWidth, docHeight) {
   if (!r) return null;
   const rect = rectFrom(r.x, r.y, r.x + r.width - 1, r.y + r.height - 1, docWidth, docHeight);
@@ -32,8 +26,6 @@ export function contains(r, x, y) {
   return !r.mask || r.mask[(y - r.y) * r.width + (x - r.x)] !== 0;
 }
 
-// Makes a selection canonical: trims its mask to the bounding box of the selected pixels, drops the mask when
-// the whole box is selected and returns null when nothing is selected.
 export function trimMask(r) {
   if (!r) return null;
   if (!r.mask) return { x: r.x, y: r.y, width: r.width, height: r.height };
@@ -66,7 +58,6 @@ export function trimMask(r) {
   return out;
 }
 
-// Selection as a document-sized mask (1 = selected). A null selection gives an empty mask.
 export function toDocumentMask(r, docWidth, docHeight) {
   const out = new Uint8Array(docWidth * docHeight);
   const c = clipToDocument(r, docWidth, docHeight);
@@ -83,7 +74,6 @@ export function fromDocumentMask(mask, docWidth, docHeight) {
   return trimMask({ x: 0, y: 0, width: docWidth, height: docHeight, mask });
 }
 
-// Selection made of the given pixel indices (or of the pixels for which select(x, y) is called).
 export function selectionFromIndices(indices, docWidth, docHeight) {
   const mask = new Uint8Array(docWidth * docHeight);
   for (const i of indices) if (i >= 0 && i < mask.length) mask[i] = 1;
@@ -100,7 +90,6 @@ export function selectionFromPoints(draw, docWidth, docHeight) {
 
 export const SELECTION_MODES = ['replace', 'add', 'subtract', 'intersect'];
 
-// Combines the current selection with a new shape: replace, add (union), subtract or intersect.
 export function combineSelections(current, shape, mode, docWidth, docHeight) {
   if (mode === 'replace' || !SELECTION_MODES.includes(mode)) return clipToDocument(shape, docWidth, docHeight);
   if (mode === 'add' && !current) return clipToDocument(shape, docWidth, docHeight);
@@ -114,15 +103,12 @@ export function combineSelections(current, shape, mode, docWidth, docHeight) {
   return fromDocumentMask(a, docWidth, docHeight);
 }
 
-// Everything that is not selected (no selection: everything).
 export function invertSelection(r, docWidth, docHeight) {
   const m = toDocumentMask(r, docWidth, docHeight);
   for (let i = 0; i < m.length; i++) m[i] ^= 1;
   return fromDocumentMask(m, docWidth, docHeight);
 }
 
-// Grows (amount > 0) or shrinks (amount < 0) the selection by whole pixels, with a square brush (a rectangle
-// grows into a rectangle). Outside the matrix counts as not selected.
 export function expandSelection(r, amount, docWidth, docHeight) {
   if (!r || !amount) return clipToDocument(r, docWidth, docHeight);
   const grow = amount > 0;
@@ -156,7 +142,6 @@ export function expandSelection(r, amount, docWidth, docHeight) {
   return fromDocumentMask(m, docWidth, docHeight);
 }
 
-// Outline of the selected area as unit edges merged into runs: [x0, y0, x1, y1] in matrix coordinates.
 export function selectionEdges(r) {
   if (!r) return [];
   const { x: ox, y: oy, width: w, height: h } = r;
@@ -187,8 +172,6 @@ export function selectionEdges(r) {
   return edges;
 }
 
-// Copies the pixels of a selection into a new matrix { width, height, pixels, mask? }. Pixels outside the mask
-// come out transparent and the region carries a copy of the mask.
 export function extractRegion(pixels, docWidth, r) {
   const output = new Uint32Array(r.width * r.height);
   for (let y = 0; y < r.height; y++) {
@@ -203,9 +186,6 @@ export function extractRegion(pixels, docWidth, r) {
   return region;
 }
 
-// Calls paint(index, color) for each pixel of the region pasted at (x0, y0), clipping to the document.
-// With opaqueOnly, transparent pixels of the region do not erase what is below. Pixels outside the region's
-// mask (if any) are never pasted.
 export function pasteRegion(region, docWidth, docHeight, x0, y0, paint, { opaqueOnly = false } = {}) {
   for (let y = 0; y < region.height; y++) {
     const ty = y0 + y;
@@ -221,7 +201,6 @@ export function pasteRegion(region, docWidth, docHeight, x0, y0, paint, { opaque
   }
 }
 
-// Indices of all selected pixels of a selection (or of the whole matrix, if r is null).
 export function indicesOf(r, docWidth, docHeight) {
   const area = r ?? { x: 0, y: 0, width: docWidth, height: docHeight };
   const mask = area.mask;
@@ -241,7 +220,6 @@ export function indicesOf(r, docWidth, docHeight) {
   return output;
 }
 
-// Smallest rectangle that contains all non-transparent pixels of several matrices of the same size.
 export function contentBounds(matrices, width, height) {
   let xa = width;
   let ya = height;
@@ -263,7 +241,6 @@ export function contentBounds(matrices, width, height) {
   return { x: xa, y: ya, width: xb - xa + 1, height: yb - ya + 1 };
 }
 
-// Shifts the matrix with wrap-around: what leaves on one side comes back on the other.
 export function shiftWrapped(pixels, width, height, dx, dy) {
   const output = new Uint32Array(pixels.length);
   const mx = ((dx % width) + width) % width;

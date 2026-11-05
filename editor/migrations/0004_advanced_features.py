@@ -47,7 +47,6 @@ class Migration(migrations.Migration):
     dependencies = [("editor", "0003_english_schema")]
 
     operations = [
-        # 1. New columns on existing tables (defaults or NULL keep every existing row valid).
         migrations.AddField(model_name="project", name="color_mode", field=models.CharField(default="rgba", max_length=10)),
         migrations.AddField(model_name="layer", name="blend_mode", field=models.CharField(default="normal", max_length=16)),
         migrations.AddField(model_name="layer", name="kind", field=models.CharField(default="image", max_length=8)),
@@ -57,7 +56,6 @@ class Migration(migrations.Migration):
         migrations.AddField(model_name="layer", name="reference", field=models.BooleanField(default=False)),
         migrations.AddField(model_name="cell", name="link_frame_key", field=models.CharField(blank=True, max_length=40, null=True)),
         migrations.AddField(model_name="cell", name="tiles", field=models.BinaryField(blank=True, null=True)),
-        # 2. New tables.
         migrations.CreateModel(
             name="Tag",
             fields=[
@@ -111,7 +109,6 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "tileset", "ordering": ["project", "position"]},
         ),
-        # 3. Constraints.
         migrations.AddConstraint(
             model_name="project",
             constraint=models.CheckConstraint(condition=models.Q(("color_mode__in", ("rgba", "indexed", "grayscale"))), name="project_color_mode_valid"),

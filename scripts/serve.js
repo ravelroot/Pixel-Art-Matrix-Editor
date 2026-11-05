@@ -16,7 +16,6 @@ const types = {
   '.ico': 'image/x-icon',
 };
 
-// The same security headers as the Django server (editor/security.py).
 const SECURITY = {
   'Content-Security-Policy':
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",

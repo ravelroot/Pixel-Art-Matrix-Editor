@@ -79,7 +79,7 @@ export function compileGame(game, cache = new Map()) {
     if (!s) continue;
     const columns = Math.max(1, Math.floor(s.w / t.tileWidth));
     const rows = Math.max(1, Math.floor(s.h / t.tileHeight));
-    tilesets.push({ id: t.id, name: t.name, sprite: s.id, tw: t.tileWidth, th: t.tileHeight, columns, count: columns * rows, flags: { ...t.flags } });
+    tilesets.push({ id: t.id, name: t.name, sprite: s.id, tw: t.tileWidth, th: t.tileHeight, columns, count: columns * rows, flags: { ...t.flags }, anims: (t.anims || []).map((a) => ({ tile: a.tile, frames: a.frames.slice(), fps: a.fps })) });
   }
   const actors = game.actors.map((a) => ({
     id: a.id,
@@ -92,6 +92,7 @@ export function compileGame(game, cache = new Map()) {
     hitbox: a.hitbox ? { ...a.hitbox } : null,
     parent: a.parent || '',
     depth: a.depth || 0,
+    light: a.light ? { ...a.light } : null,
     events: (a.events || []).map((ev) => ({ ...ev, if: ev.if ? { ...ev.if } : undefined, then: ev.then.map((x) => ({ ...x })) })),
   }));
   const scenes = game.scenes.map((s) => ({
@@ -102,10 +103,17 @@ export function compileGame(game, cache = new Map()) {
     tileset: s.tileset,
     background: s.background || game.background,
     backdrop: byId.has(s.backdrop) ? s.backdrop : '',
+    parallax: s.parallax ?? 50,
     music: s.music || '',
+    ambient: s.ambient || 0,
+    ambientColor: s.ambientColor || '#0b0812',
+    weather: s.weather || '',
+    camera: s.camera || 'smooth',
+    zoom: s.zoom || 1,
+    persistent: Boolean(s.persistent),
     tiles: s.tiles.slice(),
     back: Array.isArray(s.back) ? s.back.slice() : null,
-    entities: s.entities.map((e) => ({ actor: e.actor, x: e.x, y: e.y, flip: e.flip, code: e.code || '', lang: e.lang || 'crivo' })),
+    entities: s.entities.map((e) => ({ id: e.id, actor: e.actor, x: e.x, y: e.y, flip: e.flip, code: e.code || '', lang: e.lang || 'crivo' })),
   }));
   return {
     name: game.name,
@@ -129,6 +137,11 @@ export function compileGame(game, cache = new Map()) {
     vars: game.vars.map((v) => ({ ...v })),
     rules: game.rules.map((r) => ({ scene: r.scene, when: { ...r.when }, then: r.then.map((a) => ({ ...a })) })),
     scripts: (game.scripts || []).map((x) => ({ name: x.name, lang: x.lang || 'crivo', code: x.code })),
+    filter: game.filter || '',
+    transition: game.transition ?? 'fade',
+    textSpeed: game.textSpeed || 40,
+    hpBars: Boolean(game.hpBars),
+    damageNumbers: Boolean(game.damageNumbers),
     start: game.start,
   };
 }
@@ -143,5 +156,7 @@ export function checkGame(game) {
     if (!s.tileset && s.tiles.some((t) => t)) problems.push(`A cena "${s.name}" tem tiles mas nenhum tileset escolhido.`);
   }
   for (const a of game.actors) if (!a.sprite) problems.push(`O ator "${a.name}" não tem sprite.`);
+  for (const a of game.actors) if ((a.behavior === 'turret' || (a.behavior === 'platformer' && a.props.shoot)) && a.props.shoot && !game.actors.some((x) => x.id === a.props.shoot)) problems.push(`O ator "${a.name}" atira um projétil que não existe mais.`);
+  for (const a of game.actors) if (a.behavior === 'turret' && !a.props.shoot) problems.push(`A torre "${a.name}" não tem projétil: escolha um em "Atira (projétil)".`);
   return problems;
 }

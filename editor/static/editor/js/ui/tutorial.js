@@ -1,12 +1,8 @@
-// Quick tutorial: on the first run, Crivo asks once whether the person wants a short tour (they can decline).
-// The tour lights up each part of the screen and explains, in a few lines, what every tool does and how to
-// use it, then how to save. It can be opened again in Ajuda › Tutorial rápido.
 import { el, readPreference, writePreference } from './util.js';
 import { icon } from './icons.js';
 import { TOOLS } from './tools.js';
 import { canChooseLocation } from './save-file.js';
 
-// localStorage "crivo.tutorial": null = never shown; afterwards 'shown', 'declined' or 'finished'.
 const PREFERENCE = 'tutorial';
 
 export const tutorialPending = () => readPreference(PREFERENCE, null) === null;
@@ -102,8 +98,6 @@ function union(rects) {
   };
 }
 
-// Puts the card next to the highlighted area, on the first side (in order of preference) where it fits
-// without covering what is lit up. On the left and right sides it may slide down below a lit area.
 function place(card, area, avoid = [], prefer = ['right', 'left', 'below', 'above']) {
   const margin = 12;
   const gap = 14;
@@ -145,8 +139,6 @@ function place(card, area, avoid = [], prefer = ['right', 'left', 'below', 'abov
   card.style.top = `${Math.round(clampY(spot[1]))}px`;
 }
 
-// Boxes of neighbouring buttons (that touch and line up) become one, so a group of tools lights up as a
-// single area. Boxes that only brush against each other stay apart.
 function merge(boxes) {
   const area = (b) => b.width * b.height;
   const list = boxes.map((b) => ({ ...b }));
@@ -180,13 +172,11 @@ const svg = (tag, attrs = {}) => {
 
 let running = null;
 
-// welcome: true on the first run (asks before starting); false when opened from the Ajuda menu.
 export function startTutorial({ welcome = false } = {}) {
   if (running) return running;
   writePreference(PREFERENCE, 'shown');
   const list = steps();
   const dialog = el('dialog', { class: 'tour', 'aria-labelledby': 'tour-title' });
-  // The dimmed screen is a rectangle with a mask: each lit box is a black (see-through) rounded rectangle.
   const shade = svg('svg', { class: 'tour-shade', 'aria-hidden': 'true' });
   const holes = svg('g');
   const mask = svg('mask', { id: 'tour-mask', maskUnits: 'userSpaceOnUse', x: 0, y: 0, width: '100%', height: '100%' });
@@ -198,10 +188,9 @@ export function startTutorial({ welcome = false } = {}) {
   const card = el('section', { class: 'tour-card' });
   dialog.append(shade, rings, card);
 
-  // Lighting up a part may scroll the side panels to it; they go back to where they were at the end.
   const scrolled = [document.scrollingElement, ...document.querySelectorAll('.sidebar, .tools')].filter(Boolean).map((n) => [n, n.scrollTop, n.scrollLeft]);
   let index = welcome ? -1 : 0;
-  let current = null; // the targets of the current step, with their rings
+  let current = null;
 
   running = new Promise((resolve) => {
     const finish = (result) => {
@@ -219,7 +208,6 @@ export function startTutorial({ welcome = false } = {}) {
     const ringAt = (box, className = 'tour-ring') =>
       el('div', { class: className, style: { left: `${box.x}px`, top: `${box.y}px`, width: `${box.width}px`, height: `${box.height}px` } });
 
-    // Lights up the given elements; returns the lit boxes (the card avoids covering them).
     function highlight(nodes) {
       rings.replaceChildren();
       const pad = 4;
@@ -235,7 +223,6 @@ export function startTutorial({ welcome = false } = {}) {
       return boxes;
     }
 
-    // While the pointer is over a tool in the list, its button on the screen gets its own ring.
     function focusTool(id, on) {
       rings.querySelector('.tour-ring.focus')?.remove();
       const target = on && current?.find((c) => c.node === toolButton(id));
@@ -311,7 +298,7 @@ export function startTutorial({ welcome = false } = {}) {
       index = i < 0 && welcome ? -1 : Math.max(0, Math.min(list.length - 1, i));
       card.classList.remove('tour-enter');
       render();
-      void card.offsetWidth; // restarts the entrance animation
+      void card.offsetWidth;
       card.classList.add('tour-enter');
     }
 

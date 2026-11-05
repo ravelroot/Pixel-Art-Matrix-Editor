@@ -30,11 +30,10 @@ import { install as installColor } from './features/color.js';
 import { install as installFiles } from './features/files.js';
 import { install as installSketchbook } from './features/sketchbook.js';
 import { install as installGame } from './features/game.js';
+import { install as installPixelArt } from './features/pixelart.js';
 
-const VERSION = '2.4.0';
+const VERSION = '2.5.0';
 
-// In the desktop app (Crivo.exe), the Windows program creates window.crivoDesktop before this page loads.
-// In the browser and in Crivo.html it does not exist, and nothing that depends on it is shown.
 const DESKTOP = typeof window.crivoDesktop?.toggleFullscreen === 'function' ? window.crivoDesktop : null;
 
 const editor = new Editor();
@@ -85,7 +84,6 @@ function buildTools() {
     } else if (key === 'shadeMode') {
       buildOptions();
     } else if (TOOLS.find((f) => f.id === editor.state.tool)?.options.includes(key) && !$('#options').contains(document.activeElement)) {
-      // Change made by a shortcut or by code: redraws the bar to show the current value.
       buildOptions();
     }
   });
@@ -308,9 +306,6 @@ const MENUS = [
   ['Ajuda', ['tutorial', 'shortcuts', 'about']],
 ];
 
-// Feature modules (features/*.js) receive this object in install(app) and plug into the app through it:
-// they add commands to app.commands, menu entries with app.addMenuItems / app.addMenu, keyboard shortcuts
-// with app.addShortcut and option widgets with app.addToolOptions. Keep each feature inside its own module.
 const extraShortcuts = [];
 const extraToolOptions = [];
 const app = {
@@ -329,7 +324,6 @@ const app = {
   rebuildMenus: () => buildMenus(),
   rebuildTools: () => buildTools(),
   rebuildOptions: () => buildOptions(),
-  // Adds command ids to an existing menu, after the item `after` (or at the end).
   addMenuItems(menu, ids, after = null) {
     const entry = MENUS.find(([title]) => title === menu);
     if (!entry) throw new Error(`Unknown menu: ${menu}`);
@@ -337,16 +331,13 @@ const app = {
     if (i >= 0) entry[1].splice(i + 1, 0, ...ids);
     else entry[1].push(...ids);
   },
-  // Adds a new top-level menu before the menu `before` (or before "Ajuda").
   addMenu(title, ids, before = 'Ajuda') {
     const i = MENUS.findIndex(([t]) => t === before);
     MENUS.splice(i < 0 ? MENUS.length : i, 0, [title, ids]);
   },
-  // shortcut: { key: 'b', ctrl: false, shift: false, alt: false, run: () => {} }; key is KeyboardEvent.key in lower case.
   addShortcut(shortcut) {
     extraShortcuts.push({ ctrl: false, shift: false, alt: false, ...shortcut });
   },
-  // builder(op, items) appends widgets for the tool option `op` to `items` and returns true when it handled it.
   addToolOptions(builder) {
     extraToolOptions.push(builder);
   },
@@ -375,7 +366,6 @@ function buildMenus() {
   let openMenu = null;
   const close = () => {
     if (!openMenu) return;
-    // Takes focus away from an item that is about to disappear, so keyboard shortcuts work again.
     if (openMenu.menu.contains(document.activeElement)) document.activeElement.blur();
     openMenu.menu.hidden = true;
     openMenu.button.setAttribute('aria-expanded', 'false');
@@ -459,7 +449,6 @@ function flipLayer(axis) {
   editor.editStructure(label, (d) => d.flipCell(editor.activeCell(), axis));
 }
 
-// Replaces the exact primary color with the secondary one on the current layer, in every frame (respects the selection).
 function replaceColor() {
   if (!editor.canEditLayer()) return;
   const { primaryColor: from, secondaryColor: to } = editor.state;
@@ -491,7 +480,6 @@ function rotate(dir) {
   viewport.fit();
 }
 
-// Color and outline filters: act on the current cell and, if there is a selection, only inside it.
 function applyFilter(label, fn) {
   if (!editor.canEditLayer()) return;
   const d = editor.doc;
@@ -529,7 +517,6 @@ function paste() {
   const background = editor.activeCell().slice();
   editor.applyChanges('Colar', changes, { silent: true });
   editor.setSelection({ x, y, width: region.width, height: region.height });
-  // The pasted content "floats" over the background: Move pixels (V) carries only it, without dragging or punching holes in what is below.
   editor.floating = { key: editor.activeKey, region, background, x, y, version: editor.history.version };
   editor.setState('tool', 'movePixels');
 }
@@ -656,15 +643,10 @@ function projectData() {
   };
 }
 
-// Name suggested in the Save as window: the project name as typed (spaces and accents are fine on Windows).
 const projectFileName = (name) => `${String(name).replace(/[<>:"/\\|?*\u0000-\u001f]/g, '').trim().replace(/[. ]+$/, '') || 'Sem título'}.crivo`;
 
-// Where each open document was saved on disk in this session (path in the desktop app, handle in the browser).
-// The next Ctrl+S writes there again without asking; "Salvar como…" always asks.
 const fileTargets = new WeakMap();
 
-// Saves the project: asks where (the Windows "Save as" window) the first time, writes the .crivo file there and
-// also keeps it in "Projetos salvos" (browser, desktop app or server). copy = "Salvar como…".
 async function save(copy = false) {
   const base = projectData();
   const doc = editor.doc;
@@ -677,7 +659,6 @@ async function save(copy = false) {
         return;
       }
     } catch (error) {
-      // No Save as window here (for example, the browser blocked it): keeps only the internal save.
       if (!(error instanceof PickerUnavailable)) throw error;
     }
   }
@@ -841,8 +822,6 @@ function shortcuts(e) {
   if (e.defaultPrevented) return;
   if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.closest('.menu'))) return;
   if (document.querySelector('dialog[open]')) return;
-  // While the mouse button is still pressed (stroke, shape, selection or drag in progress), only Esc works:
-  // any other command would change the document in the middle of the gesture and scramble the history.
   if (controller.active) {
     if (e.key === 'Escape') {
       controller.cancel();
@@ -929,7 +908,6 @@ const autosave = delay(() => {
   saveDraft({ data: serialize(doc), project: editor.project, modified: editor.modified, savedAt: new Date().toISOString() });
 }, 1200);
 
-// Saves the draft right away, without waiting for autosave. Used when closing the tab or the desktop app.
 function saveDraftNow() {
   autosave.cancel();
   return saveDraft({ data: serialize(editor.doc), project: editor.project, modified: editor.modified, savedAt: new Date().toISOString() });
@@ -945,7 +923,6 @@ async function init() {
   });
   $('#theme').addEventListener('click', toggleTheme);
   installPalette();
-  // Same proportion as the project logo (docs/images/logo.svg) and the app icon: pointer at about half the height.
   $('#logo').innerHTML = icon('logo', 18);
   installLayers(app);
   installSelection(app);
@@ -953,6 +930,7 @@ async function init() {
   installFiles(app);
   installSketchbook(app);
   installGame(app);
+  installPixelArt(app);
   buildTools();
   buildOptions();
   buildView();
@@ -966,7 +944,6 @@ async function init() {
     saveDraftNow();
   });
   if (DESKTOP) {
-    // F11 works anywhere in the app, even with a dialog open or while typing in a field.
     window.addEventListener(
       'keydown',
       (e) => {
@@ -976,7 +953,6 @@ async function init() {
       },
       true,
     );
-    // The app calls this before closing the window (Alt+F4 or the X), so the draft does not lose the last strokes.
     window.__crivoBeforeClose = saveDraftNow;
   }
   const draft = await readDraft();
@@ -997,7 +973,6 @@ async function init() {
     palette.load();
   }
   document.body.classList.add('ready');
-  // First run: offers the quick tutorial once (the person can decline). It stays in Ajuda › Tutorial rápido.
   if (tutorialPending()) startTutorial({ welcome: true });
 }
 

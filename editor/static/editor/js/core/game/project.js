@@ -1,7 +1,7 @@
 import { newId } from '../document.js';
 
 export const GAME_FORMAT = 'crivo-jogo';
-export const GAME_VERSION = 1;
+export const GAME_VERSION = 2;
 export const GAME_EXTENSION = 'crivojogo';
 export const MAX_SCENE_SIDE = 512;
 export const MAX_VIEW = 3840;
@@ -20,8 +20,8 @@ export const CODE_TEMPLATES = {
 export const RESOLUTION_FOR = { 8: [160, 120], 16: [320, 240], 32: [640, 480], 64: [1280, 720], 128: [1920, 1080], 256: [2560, 1440], 512: [3840, 2160], 1024: [3840, 2160] };
 
 export const BEHAVIORS = {
-  platformer: { label: 'Jogador (plataforma)', props: { speed: 70, jump: 175, jumps: 1, health: 3, shoot: '', cooldown: 0.35 }, anims: ['idle', 'run', 'jump', 'fall', 'hurt'], sounds: ['jump', 'hurt', 'die', 'shoot'] },
-  topdown: { label: 'Jogador (visão de cima)', props: { speed: 60, health: 3, shoot: '', cooldown: 0.35 }, anims: ['idle', 'run', 'hurt'], sounds: ['hurt', 'die', 'shoot'] },
+  platformer: { label: 'Jogador (plataforma)', props: { speed: 70, jump: 175, jumps: 1, health: 3, shoot: '', cooldown: 0.35, walljump: false, dash: false, climb: true }, anims: ['idle', 'run', 'jump', 'fall', 'hurt', 'climb', 'wall', 'dash', 'swim'], sounds: ['jump', 'hurt', 'die', 'shoot', 'land', 'dash'] },
+  topdown: { label: 'Jogador (visão de cima)', props: { speed: 60, health: 3, shoot: '', cooldown: 0.35, dash: false }, anims: ['idle', 'run', 'hurt', 'dash'], sounds: ['hurt', 'die', 'shoot', 'dash'] },
   patrol: { label: 'Inimigo que patrulha', props: { speed: 25, health: 1, damage: 1, gravity: true, edges: true, stompable: true, range: 0 }, anims: ['idle', 'run'], sounds: ['die'] },
   chase: { label: 'Inimigo que persegue', props: { speed: 35, health: 2, damage: 1, gravity: false, range: 72, stompable: true }, anims: ['idle', 'run'], sounds: ['die'] },
   flyer: { label: 'Inimigo voador', props: { speed: 30, health: 1, damage: 1, range: 32, wave: 6, stompable: true }, anims: ['idle', 'run'], sounds: ['die'] },
@@ -32,7 +32,74 @@ export const BEHAVIORS = {
   block: { label: 'Bloco sólido', props: { breakable: false, health: 1 }, anims: ['idle'], sounds: ['die'] },
   decor: { label: 'Decoração', props: {}, anims: ['idle'], sounds: [] },
   custom: { label: 'Objeto livre (só eventos)', props: { gravity: false, collide: true, friction: 0, health: 1 }, anims: ['idle', 'run', 'jump', 'fall'], sounds: ['die'] },
+  mover: { label: 'Plataforma móvel', props: { speed: 30, range: 48, vertical: false, oneway: true, wait: 0.4 }, anims: ['idle'], sounds: [] },
+  spring: { label: 'Mola (trampolim)', props: { power: 300 }, anims: ['idle', 'active'], sounds: ['activate'] },
+  checkpoint: { label: 'Ponto de controle', props: { heal: false }, anims: ['idle', 'active'], sounds: ['activate'] },
+  npc: { label: 'Personagem que fala (NPC)', props: { speaker: '', say: 'Olá!', auto: false }, anims: ['idle', 'run'], sounds: ['talk'] },
+  pathfinder: { label: 'Inimigo que acha o caminho (A*)', props: { speed: 40, health: 2, damage: 1, range: 160, stompable: true }, anims: ['idle', 'run'], sounds: ['die'] },
+  turret: { label: 'Torre que atira', props: { shoot: '', cooldown: 1.2, range: 120, aim: true, sight: true, health: 3, damage: 1, stompable: false }, anims: ['idle', 'active'], sounds: ['die'] },
+  zone: { label: 'Área de gatilho', props: { signal: '', once: true, hidden: true }, anims: ['idle', 'active'], sounds: ['activate'] },
+  emitter: { label: 'Emissor de partículas', props: { effect: 'fire', every: 0.2, amount: 3, range: 0 }, anims: ['idle'], sounds: [] },
+  spawner: { label: 'Gerador de atores', props: { spawns: '', every: 3, max: 3, range: 0 }, anims: ['idle', 'active'], sounds: ['spawn'] },
 };
+
+export const MAX_ALARMS = 12;
+export const EASES = [
+  ['linear', 'Linear'],
+  ['in_quad', 'Acelera (quadrática)'],
+  ['out_quad', 'Desacelera (quadrática)'],
+  ['in_out_quad', 'Acelera e desacelera'],
+  ['out_cubic', 'Desacelera (cúbica)'],
+  ['in_out_sine', 'Suave (seno)'],
+  ['out_back', 'Passa e volta'],
+  ['out_elastic', 'Elástico'],
+  ['out_bounce', 'Quica'],
+];
+export const TWEEN_PROPS = [
+  ['x', 'X'],
+  ['y', 'Y'],
+  ['alpha', 'Opacidade (0 a 1)'],
+  ['xscale', 'Escala X'],
+  ['yscale', 'Escala Y'],
+  ['scale', 'Escala'],
+  ['angle', 'Rotação (graus)'],
+  ['light', 'Raio da luz'],
+];
+export const PARTICLE_PRESETS = [
+  ['explosion', 'Explosão'],
+  ['dust', 'Poeira'],
+  ['sparkle', 'Brilho'],
+  ['smoke', 'Fumaça'],
+  ['fire', 'Fogo'],
+  ['splash', 'Respingo'],
+  ['confetti', 'Confete'],
+  ['magic', 'Magia'],
+];
+export const WEATHER = [
+  ['', 'Nenhum'],
+  ['rain', 'Chuva'],
+  ['snow', 'Neve'],
+  ['leaves', 'Folhas'],
+  ['embers', 'Brasas'],
+];
+export const CAMERA_MODES = [
+  ['smooth', 'Suave (segue com atraso)'],
+  ['deadzone', 'Zona morta (só mexe perto da borda)'],
+  ['snap', 'Presa ao jogador'],
+  ['fixed', 'Fixa'],
+];
+export const SCREEN_FILTERS = [
+  ['', 'Nenhum'],
+  ['scanlines', 'Linhas de varredura'],
+  ['crt', 'Tubo CRT (linhas e vinheta)'],
+  ['lcd', 'LCD de portátil'],
+  ['vignette', 'Vinheta'],
+];
+export const TRANSITIONS = [
+  ['', 'Corte seco'],
+  ['fade', 'Esmaecer'],
+  ['iris', 'Íris (círculo)'],
+];
 
 export const EVENTS = {
   create: { label: 'Criar (quando surge)', fields: [] },
@@ -46,6 +113,13 @@ export const EVENTS = {
   outside: { label: 'Saiu da cena', fields: [] },
   animationEnd: { label: 'Fim da animação', fields: [] },
   sceneStart: { label: 'Início da cena', fields: [] },
+  landed: { label: 'Tocou o chão', fields: [] },
+  hurt: { label: 'Levou dano', fields: [] },
+  signal: { label: 'Recebeu um sinal', fields: ['signal'] },
+  mousePress: { label: 'Clique do mouse no ator', fields: [] },
+  draw: { label: 'Desenhar (no mundo)', fields: [] },
+  drawGui: { label: 'Desenhar na tela (HUD)', fields: [] },
+  dialogEnd: { label: 'Fim do diálogo', fields: [] },
 };
 
 export const CONDITIONS = {
@@ -56,6 +130,10 @@ export const CONDITIONS = {
   chance: { label: 'Se a sorte deixar (%)', fields: ['value'] },
   ground: { label: 'Se está no chão', fields: [] },
   air: { label: 'Se está no ar', fields: [] },
+  key: { label: 'Se o botão está segurado', fields: ['key'] },
+  near: { label: 'Se o jogador está perto (px)', fields: ['value'] },
+  sees: { label: 'Se vê o jogador (sem parede no meio)', fields: [] },
+  expr: { label: 'Se a expressão em código for verdadeira', fields: ['lang', 'code'] },
 };
 
 export const PROP_LABELS = {
@@ -78,16 +156,43 @@ export const PROP_LABELS = {
   friction: ['Atrito', '', 0, 60, 0.5],
   shoot: ['Atira (projétil)'],
   scene: ['Vai para a cena'],
+  walljump: ['Pulo na parede (desliza e pula)'],
+  dash: ['Investida (Shift ou L)'],
+  climb: ['Sobe escadas'],
+  vertical: ['Anda na vertical'],
+  oneway: ['Só segura por cima'],
+  wait: ['Pausa nas pontas', 's', 0, 30, 0.1],
+  power: ['Força do impulso', 'px/s', 0, 40000, 1],
+  speaker: ['Nome de quem fala'],
+  say: ['Fala (separe as páginas com |)'],
+  auto: ['Fala sozinho ao encostar'],
+  aim: ['Mira no jogador'],
+  sight: ['Só atira se vir o jogador'],
+  signal: ['Envia o sinal'],
+  once: ['Só dispara uma vez'],
+  hidden: ['Invisível no jogo'],
+  effect: ['Efeito'],
+  every: ['Intervalo', 's', 0.02, 10, 0.01],
+  amount: ['Partículas por vez', '', 1, 40, 1],
+  spawns: ['Gera o ator'],
+  max: ['Máximo vivos ao mesmo tempo', '', 1, 50, 1],
 };
 
-export const ANIM_LABELS = { idle: 'Parado', run: 'Andando', jump: 'Pulando', fall: 'Caindo', hurt: 'Machucado' };
-export const SOUND_SLOTS = { jump: 'Ao pular', hurt: 'Ao levar dano', die: 'Ao morrer', shoot: 'Ao atirar', collect: 'Ao ser pego', spawn: 'Ao surgir' };
+export const STRING_LIMITS = { say: 600, speaker: 40 };
+
+export const ANIM_LABELS = { idle: 'Parado', run: 'Andando', jump: 'Pulando', fall: 'Caindo', hurt: 'Machucado', climb: 'Subindo escada', wall: 'Na parede', dash: 'Investida', swim: 'Nadando', active: 'Ativo' };
+export const SOUND_SLOTS = { jump: 'Ao pular', hurt: 'Ao levar dano', die: 'Ao morrer', shoot: 'Ao atirar', collect: 'Ao ser pego', spawn: 'Ao surgir', land: 'Ao tocar o chão', dash: 'Na investida', activate: 'Ao ativar', talk: 'Ao falar' };
 export const TILE_FLAGS = [
   ['', 'Vazio (passa por ele)'],
   ['solid', 'Sólido'],
   ['platform', 'Plataforma (sobe por baixo)'],
   ['hazard', 'Perigo (dá dano)'],
+  ['ladder', 'Escada (sobe e desce)'],
+  ['water', 'Água (nada devagar)'],
+  ['ice', 'Gelo (escorrega)'],
+  ['bounce', 'Mola (quica alto)'],
 ];
+export const TILE_FLAG_NAMES = TILE_FLAGS.map(([k]) => k).filter(Boolean);
 
 export const TRIGGERS = {
   start: { label: 'Ao começar a cena', fields: [] },
@@ -101,6 +206,9 @@ export const TRIGGERS = {
   died: { label: 'Quando o jogador morrer', fields: [] },
   jump: { label: 'Quando o jogador pular', fields: [] },
   goal: { label: 'Quando o jogador chegar à saída', fields: ['actor'] },
+  signal: { label: 'Quando um sinal for enviado', fields: ['signal'] },
+  checkpoint: { label: 'Quando o jogador marcar um ponto de controle', fields: [] },
+  land: { label: 'Quando o jogador tocar o chão', fields: [] },
 };
 
 export const ACTIONS = {
@@ -138,9 +246,26 @@ export const ACTIONS = {
   prev: { label: 'Voltar para a cena anterior', fields: [] },
   particles: { label: 'Soltar partículas', fields: ['target', 'count', 'color', 'speed'] },
   code: { label: 'Executar código', fields: ['lang', 'code'] },
+  tween: { label: 'Animar propriedade (tween)', fields: ['target', 'prop', 'value', 'seconds', 'ease'] },
+  signal: { label: 'Enviar sinal', fields: ['signal'] },
+  dialog: { label: 'Mostrar diálogo', fields: ['speaker', 'text', 'signal'] },
+  float: { label: 'Texto flutuante', fields: ['target', 'text', 'color'] },
+  effect: { label: 'Efeito de partículas', fields: ['target', 'preset', 'count', 'color'] },
+  flash: { label: 'Piscar a tela', fields: ['color', 'seconds'] },
+  cameraZoom: { label: 'Zoom da câmera', fields: ['zoom', 'seconds'] },
+  cameraFollow: { label: 'Câmera segue', fields: ['target'] },
+  slowmo: { label: 'Câmera lenta', fields: ['factor', 'seconds'] },
+  hitstop: { label: 'Congelar o jogo (impacto)', fields: ['seconds'] },
+  light: { label: 'Mudar a luz do ator', fields: ['target', 'radius', 'color'] },
+  ambient: { label: 'Mudar a escuridão da cena (%)', fields: ['value'] },
+  scale: { label: 'Mudar o tamanho do ator', fields: ['target', 'value'] },
+  checkpoint: { label: 'Marcar ponto de controle aqui', fields: ['target'] },
+  save: { label: 'Salvar o jogo', fields: ['slot'] },
+  load: { label: 'Carregar o jogo salvo', fields: ['slot'] },
+  wait: { label: 'Esperar e continuar depois', fields: ['seconds'] },
 };
 
-export const KEY_LABELS = { jump: 'Pular (Z ou Espaço)', action: 'Ação (X)', up: 'Cima', down: 'Baixo', left: 'Esquerda', right: 'Direita' };
+export const KEY_LABELS = { jump: 'Pular (Z ou Espaço)', action: 'Ação (X)', dash: 'Investida (Shift ou L)', up: 'Cima', down: 'Baixo', left: 'Esquerda', right: 'Direita' };
 export const TARGET_LABELS = { self: 'este ator (self)', other: 'o outro (na colisão)', a: 'o ator A (quem tocou)', b: 'o ator B (quem foi tocado)', player: 'o jogador' };
 export const OPERATORS = ['>=', '<=', '==', '!=', '>', '<'];
 
@@ -169,6 +294,8 @@ const number = (v, fallback, min = -Infinity, max = Infinity) => {
 };
 const color = (v, fallback) => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : fallback);
 const ident = (v, prefix) => (typeof v === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(v) ? v : newId(prefix));
+const signalName = (v) => (typeof v === 'string' ? v.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9_ -]/g, '').slice(0, 32) : '');
+const choice = (v, list, fallback) => (list.some(([k]) => k === v) ? v : fallback);
 const varName = (v) => (typeof v === 'string' ? v.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9_]/g, '').slice(0, 24) : '');
 
 export function newGame(name = 'Meu jogo') {
@@ -201,12 +328,17 @@ export function newGame(name = 'Meu jogo') {
     rules: [],
     scripts: [],
     gridSize: 8,
+    filter: '',
+    transition: 'fade',
+    textSpeed: 40,
+    hpBars: false,
+    damageNumbers: false,
     start: scene.id,
   };
 }
 
 export function newScene(name, cols = 40, rows = 15) {
-  return { id: newId('cena'), name, cols, rows, tileset: '', background: '', backdrop: '', music: '', tiles: new Array(cols * rows).fill(0), entities: [] };
+  return { id: newId('cena'), name, cols, rows, tileset: '', background: '', backdrop: '', parallax: 50, music: '', ambient: 0, ambientColor: '#0b0812', weather: '', camera: 'smooth', zoom: 1, tiles: new Array(cols * rows).fill(0), entities: [] };
 }
 
 export function newActor(name, sprite = '', behavior = 'decor') {
@@ -225,7 +357,9 @@ function normalizeProps(raw, behavior) {
   for (const [k, v] of Object.entries(def.props)) {
     const value = raw && k in raw ? raw[k] : v;
     if (typeof v === 'boolean') out[k] = Boolean(value);
-    else if (typeof v === 'string') out[k] = text(value, '', 40);
+    else if (k === 'signal') out[k] = signalName(value);
+    else if (k === 'effect') out[k] = PARTICLE_PRESETS.some(([id]) => id === value) ? value : v;
+    else if (typeof v === 'string') out[k] = text(value, '', STRING_LIMITS[k] || 40);
     else {
       const [, , min, max] = PROP_LABELS[k] || [];
       out[k] = number(value, v, min ?? -1e6, max ?? 1e6);
@@ -238,12 +372,20 @@ function normalizeAction(a) {
   if (!a || !ACTIONS[a.type]) return null;
   const out = { type: a.type };
   for (const f of ACTIONS[a.type].fields) {
-    if (['value', 'dx', 'dy', 'vx', 'vy', 'seconds', 'x', 'y', 'direction', 'speed', 'count'].includes(f)) out[f] = number(a[f], f === 'count' ? 12 : 0, -1e6, 1e6);
+    if (['value', 'dx', 'dy', 'vx', 'vy', 'seconds', 'x', 'y', 'direction', 'speed', 'count', 'radius'].includes(f)) out[f] = number(a[f], f === 'count' ? 12 : 0, -1e6, 1e6);
+    else if (f === 'zoom') out[f] = number(a[f], 1, 0.25, 8);
+    else if (f === 'factor') out[f] = number(a[f], 0.5, 0.05, 4);
+    else if (f === 'slot') out[f] = Math.round(number(a[f], 0, 0, 9));
+    else if (f === 'prop') out[f] = TWEEN_PROPS.some(([k]) => k === a[f]) ? a[f] : 'y';
+    else if (f === 'ease') out[f] = EASES.some(([k]) => k === a[f]) ? a[f] : 'out_quad';
+    else if (f === 'preset') out[f] = PARTICLE_PRESETS.some(([k]) => k === a[f]) ? a[f] : 'explosion';
+    else if (f === 'signal') out[f] = signalName(a[f]);
+    else if (f === 'speaker') out[f] = text(a[f], '', 40);
     else if (f === 'code') out[f] = typeof a[f] === 'string' ? a[f].slice(0, MAX_CODE) : '';
     else if (f === 'lang') out[f] = CODE_LANGS.some(([k]) => k === a[f]) ? a[f] : 'crivo';
     else if (f === 'color') out[f] = color(a[f], '#f6e4a6');
-    else if (f === 'alarm') out[f] = Math.round(number(a[f], 0, 0, 3));
-    else if (f === 'text') out[f] = text(a[f], '', a.type === 'music' ? 400 : 120);
+    else if (f === 'alarm') out[f] = Math.round(number(a[f], 0, 0, MAX_ALARMS - 1));
+    else if (f === 'text') out[f] = text(a[f], '', a.type === 'music' || a.type === 'dialog' ? 600 : 120);
     else if (f === 'name' || f === 'local') out[f] = varName(a[f]);
     else if (f === 'toggle') out[f] = a[f] === 'off' ? 'off' : 'on';
     else if (f === 'target') out[f] = TARGET_LABELS[a[f]] ? a[f] : 'self';
@@ -256,7 +398,8 @@ function normalizeAction(a) {
 function normalizeEvent(ev) {
   if (!ev || !EVENTS[ev.type]) return null;
   const out = { id: ident(ev.id, 'evento'), type: ev.type };
-  if (ev.type === 'alarm') out.alarm = Math.round(number(ev.alarm, 0, 0, 3));
+  if (ev.type === 'alarm') out.alarm = Math.round(number(ev.alarm, 0, 0, MAX_ALARMS - 1));
+  if (ev.type === 'signal') out.signal = signalName(ev.signal);
   if (ev.type === 'collision') out.other = text(ev.other, '', 40);
   if (ev.type.startsWith('key')) out.key = KEY_LABELS[ev.key] ? ev.key : 'action';
   const c = ev.if;
@@ -264,6 +407,9 @@ function normalizeEvent(ev) {
     const cond = { kind: c.kind };
     for (const f of CONDITIONS[c.kind].fields) {
       if (f === 'value') cond[f] = number(c[f], 0, -1e9, 1e9);
+      else if (f === 'code') cond[f] = typeof c[f] === 'string' ? c[f].slice(0, MAX_CODE) : '';
+      else if (f === 'lang') cond[f] = CODE_LANGS.some(([k]) => k === c[f]) ? c[f] : 'crivo';
+      else if (f === 'key') cond[f] = KEY_LABELS[c[f]] ? c[f] : 'action';
       else if (f === 'op') cond[f] = OPERATORS.includes(c[f]) ? c[f] : '>=';
       else if (f === 'name' || f === 'local') cond[f] = varName(c[f]);
       else cond[f] = text(c[f], '', 40);
@@ -282,6 +428,7 @@ function normalizeRule(r) {
     else if (f === 'name') when[f] = varName(r.when[f]);
     else if (f === 'op') when[f] = OPERATORS.includes(r.when[f]) ? r.when[f] : '>=';
     else if (f === 'key') when[f] = KEY_LABELS[r.when[f]] ? r.when[f] : 'action';
+    else if (f === 'signal') when[f] = signalName(r.when[f]);
     else when[f] = text(r.when[f], '', 40);
   }
   const then = (Array.isArray(r.then) ? r.then : []).slice(0, 32).map(normalizeAction).filter(Boolean);
@@ -298,9 +445,10 @@ export function normalizeGame(data) {
   const tilesets = (Array.isArray(data.tilesets) ? data.tilesets : []).slice(0, 64).map((t) => {
     const flags = {};
     if (t?.flags && typeof t.flags === 'object') {
-      for (const [k, v] of Object.entries(t.flags)) if (/^\d{1,5}$/.test(k) && ['solid', 'platform', 'hazard'].includes(v)) flags[k] = v;
+      for (const [k, v] of Object.entries(t.flags)) if (/^\d{1,5}$/.test(k) && TILE_FLAG_NAMES.includes(v)) flags[k] = v;
     }
-    return { id: ident(t?.id, 'tiles'), name: text(t?.name, 'Tiles'), sprite: spriteIds.has(t?.sprite) ? t.sprite : '', tileWidth: Math.round(number(t?.tileWidth, 8, 2, 1024)), tileHeight: Math.round(number(t?.tileHeight, 8, 2, 1024)), flags };
+    const anims = (Array.isArray(t?.anims) ? t.anims : []).slice(0, 64).map((a) => ({ tile: Math.round(number(a?.tile, 0, 0, 65535)), frames: (Array.isArray(a?.frames) ? a.frames : []).slice(0, 32).map((f) => Math.round(number(f, 0, 1, 65535))).filter((f) => f > 0), fps: number(a?.fps, 4, 0.5, 60) })).filter((a) => a.tile > 0 && a.frames.length > 1);
+    return { id: ident(t?.id, 'tiles'), name: text(t?.name, 'Tiles'), sprite: spriteIds.has(t?.sprite) ? t.sprite : '', tileWidth: Math.round(number(t?.tileWidth, 8, 2, 1024)), tileHeight: Math.round(number(t?.tileHeight, 8, 2, 1024)), flags, ...(anims.length ? { anims } : {}) };
   });
   const actors = (Array.isArray(data.actors) ? data.actors : []).slice(0, 256).map((a) => {
     const behavior = BEHAVIORS[a?.behavior] ? a.behavior : 'decor';
@@ -311,7 +459,9 @@ export function normalizeGame(data) {
     const hb = a?.hitbox;
     const hitbox = hb && typeof hb === 'object' ? { x: number(hb.x, 0, 0, 1024), y: number(hb.y, 0, 0, 1024), w: number(hb.w, 8, 1, 1024), h: number(hb.h, 8, 1, 1024) } : null;
     const events = (Array.isArray(a?.events) ? a.events : []).slice(0, 64).map(normalizeEvent).filter(Boolean);
-    return { id: ident(a?.id, 'ator'), name: text(a?.name, 'Ator'), sprite: spriteIds.has(a?.sprite) ? a.sprite : '', behavior, props: normalizeProps(a?.props, behavior), anims, sounds, hitbox, parent: text(a?.parent, '', 40), depth: Math.round(number(a?.depth, 0, -1000, 1000)), events };
+    const lt = a?.light;
+    const light = lt && typeof lt === 'object' && Number(lt.radius) > 0 ? { radius: Math.round(number(lt.radius, 0, 0, 2048)), color: color(lt.color, '#ffd98a'), flicker: Boolean(lt.flicker) } : null;
+    return { id: ident(a?.id, 'ator'), name: text(a?.name, 'Ator'), sprite: spriteIds.has(a?.sprite) ? a.sprite : '', behavior, props: normalizeProps(a?.props, behavior), anims, sounds, hitbox, parent: text(a?.parent, '', 40), depth: Math.round(number(a?.depth, 0, -1000, 1000)), ...(light ? { light } : {}), events };
   });
   const actorIds = new Set(actors.map((a) => a.id));
   for (const a of actors) if (!actorIds.has(a.parent) || a.parent === a.id) a.parent = '';
@@ -334,7 +484,26 @@ export function normalizeGame(data) {
       back = new Array(cols * rows).fill(0);
       for (let i = 0; i < back.length && i < s.back.length; i++) back[i] = Math.round(number(s.back[i], 0, 0, 65535));
     }
-    return { id: ident(s?.id, 'cena'), name: text(s?.name, 'Cena'), cols, rows, ...(back ? { back } : {}), tileset: text(s?.tileset, '', 40), background: color(s?.background, ''), backdrop: spriteIds.has(s?.backdrop) ? s.backdrop : '', music: text(s?.music, '', 400), tiles, entities };
+    return {
+      id: ident(s?.id, 'cena'),
+      name: text(s?.name, 'Cena'),
+      cols,
+      rows,
+      ...(back ? { back } : {}),
+      tileset: text(s?.tileset, '', 40),
+      background: color(s?.background, ''),
+      backdrop: spriteIds.has(s?.backdrop) ? s.backdrop : '',
+      parallax: Math.round(number(s?.parallax, 50, 0, 100)),
+      music: text(s?.music, '', 400),
+      ambient: Math.round(number(s?.ambient, 0, 0, 100)),
+      ambientColor: color(s?.ambientColor, '#0b0812'),
+      weather: choice(s?.weather, WEATHER, ''),
+      camera: choice(s?.camera, CAMERA_MODES, 'smooth'),
+      zoom: number(s?.zoom, 1, 0.25, 8),
+      persistent: Boolean(s?.persistent),
+      tiles,
+      entities,
+    };
   });
   if (!scenes.length) scenes.push(newScene('Fase 1'));
   const sounds = (Array.isArray(data.sounds) ? data.sounds : []).slice(0, 128).map((s) => ({
@@ -380,6 +549,11 @@ export function normalizeGame(data) {
     rules,
     scripts,
     gridSize: SIZE_PRESETS.includes(Number(data.gridSize)) ? Number(data.gridSize) : 8,
+    filter: choice(data.filter, SCREEN_FILTERS, ''),
+    transition: choice(data.transition, TRANSITIONS, 'fade'),
+    textSpeed: Math.round(number(data.textSpeed, 40, 5, 400)),
+    hpBars: Boolean(data.hpBars),
+    damageNumbers: Boolean(data.damageNumbers),
     start: sceneIds.has(data.start) ? data.start : scenes[0].id,
   };
 }

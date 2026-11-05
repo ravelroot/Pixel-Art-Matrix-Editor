@@ -1,13 +1,5 @@
 //go:build windows
 
-// Crivo for desktop: opens the editor (the same one as Crivo.html) in its own Windows window, already
-// maximized (F11 toggles fullscreen), with no server, no backend and no browser. The window uses Microsoft Edge WebView2,
-// which ships with Windows 10 and 11. Projects, palettes and the draft are kept in %LOCALAPPDATA%\Crivo.
-//
-// On first run, it creates a Start Menu shortcut (shortcut_windows.go) so Crivo shows up in Windows search.
-// Saving and exporting open the Windows "Save as" window, so the person chooses the folder (save_windows.go).
-//
-// To build Crivo.exe from the repository root: npm run desktop (needs Go and Node).
 package main
 
 import (
@@ -25,16 +17,12 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// The whole editor, built by scripts/build-portable.js and copied here by scripts/build-desktop.js.
-//
 //go:embed Crivo.html
 var page []byte
 
-// Set at build time from the VERSION file (-ldflags "-X main.version=...").
 var version = "dev"
 
 const (
-	// Resource written by goversioninfo: the manifest is 1 and the icon group is 2.
 	iconID = 2
 
 	webView2DownloadURL = "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
@@ -62,7 +50,6 @@ const (
 )
 
 var (
-	// GWL_STYLE (-16) and GWLP_WNDPROC (-4) in two's complement.
 	gwlStyle    = ^uintptr(15)
 	gwlpWndProc = ^uintptr(3)
 
@@ -104,7 +91,6 @@ type windowPlacement struct {
 	NormalPosition rect
 }
 
-// app holds the window state. Everything here runs on the UI thread (the message loop thread).
 type app struct {
 	w       webview2.WebView
 	hwnd    uintptr
@@ -117,14 +103,12 @@ type app struct {
 	closeRequested bool
 	canClose       bool
 
-	// Files chosen in the "Save as" window during this run: the only ones the page can write.
 	chosen map[string]bool
 }
 
 var current *app
 
 func init() {
-	// The window and WebView2 must always stay on the same OS thread.
 	runtime.LockOSThread()
 }
 
@@ -170,8 +154,6 @@ func main() {
 		}
 		w.SetTitle(title)
 	}))
-	// "Save as" (save_windows.go): the window opens after the call returns, and the answer comes back
-	// through window.__crivoSaveDone.
 	must(w.Bind("__crivoSaveDialog", func(id int, options saveOptions) {
 		w.Dispatch(func() { a.showSaveDialog(id, options) })
 	}))
@@ -213,15 +195,13 @@ document.addEventListener('DOMContentLoaded', () => {
 });`, version))
 
 	a.centerNormalWindow()
-	procShowWindow.Call(a.hwnd, swMaximize) // opens maximized; F11 goes to fullscreen and back
+	procShowWindow.Call(a.hwnd, swMaximize)
 	w.Navigate(fileURL(filepath.Join(dir, "Crivo.html")))
 	w.Run()
 }
 
-// prepareDataDir creates %LOCALAPPDATA%\Crivo and writes the editor page into it, if the page changed.
-// The page is opened as a file (file://) so projects are kept from one run to the next.
 func prepareDataDir() (string, error) {
-	base, err := os.UserCacheDir() // on Windows, %LOCALAPPDATA%
+	base, err := os.UserCacheDir()
 	if err != nil {
 		return "", err
 	}
@@ -244,11 +224,9 @@ func fileURL(path string) string {
 	return (&url.URL{Scheme: "file", Path: "/" + filepath.ToSlash(path)}).String()
 }
 
-// loadIcons loads the big icon (taskbar, Alt+Tab) and the small one (title bar) at the right size
-// for the monitor DPI. Without this, Windows shrinks the big icon and the pointer looks out of proportion.
 func (a *app) loadIcons() {
 	var module windows.Handle
-	if windows.GetModuleHandleEx(0, nil, &module) != nil { // no name = Crivo.exe itself
+	if windows.GetModuleHandleEx(0, nil, &module) != nil {
 		return
 	}
 	metric := func(index uintptr) uintptr {
@@ -272,8 +250,6 @@ func (a *app) loadIcons() {
 	}
 }
 
-// centerNormalWindow sizes the window to 85% of the monitor work area. That is the size it
-// has when the user takes the window out of the maximized state.
 func (a *app) centerNormalWindow() {
 	m, ok := a.monitor()
 	if !ok {
@@ -294,7 +270,6 @@ func (a *app) monitor() (monitorInfo, bool) {
 	return m, ok != 0
 }
 
-// enterFullscreen removes the border and the title bar and covers the whole monitor, like a browser's F11.
 func (a *app) enterFullscreen() {
 	if a.fullscreen {
 		return
@@ -312,7 +287,6 @@ func (a *app) enterFullscreen() {
 	a.fullscreen = true
 }
 
-// exitFullscreen brings back the border, the title bar and the size the window had before.
 func (a *app) exitFullscreen() {
 	if !a.fullscreen {
 		return
@@ -331,7 +305,6 @@ func (a *app) toggleFullscreen() {
 	}
 }
 
-// interceptClose makes Alt+F4 (and the window's X) wait for the editor to save the draft before closing.
 func (a *app) interceptClose() {
 	a.oldProc, _, _ = procSetWindowLongPtrW.Call(a.hwnd, gwlpWndProc, windows.NewCallback(windowProc))
 }
@@ -347,13 +320,11 @@ func windowProc(hwnd, msg, wp, lp uintptr) uintptr {
 
 func (a *app) requestClose() {
 	if a.closeRequested {
-		// Second Alt+F4 in a row: close right away.
 		a.closeNow()
 		return
 	}
 	a.closeRequested = true
 	a.w.Eval(`Promise.resolve(window.__crivoBeforeClose && window.__crivoBeforeClose()).catch(() => {}).finally(() => window.__crivoQuit())`)
-	// If the page does not answer (frozen or still loading), close anyway.
 	time.AfterFunc(3*time.Second, func() { a.w.Dispatch(a.closeNow) })
 }
 
@@ -365,7 +336,6 @@ func (a *app) closeNow() {
 	procPostMessageW.Call(a.hwnd, wmClose, 0, 0)
 }
 
-// missingWebView2 offers to open the WebView2 Runtime download page.
 func missingWebView2() {
 	text := "O Crivo precisa do Microsoft Edge WebView2 Runtime, que já vem no Windows 10 e 11 atualizados.\n\n" +
 		"Quer abrir a página de download da Microsoft agora? Depois de instalar, abra o Crivo de novo."

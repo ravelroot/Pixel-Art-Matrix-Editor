@@ -3,9 +3,6 @@ import math
 import struct
 from array import array
 
-# Pixels are packed RGBA integers (R in the low byte, A in the high byte), the same layout as the JavaScript editor.
-# RLE format: each run is a varint length (7 bits per byte, low bits first) followed by the 4-byte little-endian color.
-# The error messages below reach the user through the API, so they stay in Portuguese.
 
 
 class RLEError(ValueError):

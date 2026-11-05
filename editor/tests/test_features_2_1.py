@@ -115,21 +115,18 @@ def read_png(data):
     return width, height, pixels
 
 
-# Composited pixels of examples/blend-modes.crivo: (frame index, x, y, '#rrggbbaa'). The same values are checked by the
-# Java tool (tools/java Tests.java); they follow the contract formulas (see editor/blend.py).
 EXAMPLE_PIXELS = [
-    (0, 15, 0, "#1d2b53ff"),  # only the sky: the reference layer "Esboço" (red diagonals) is left out
-    (0, 0, 0, "#113056ff"),  # "Tinta": color 40% over the sky
-    (0, 8, 8, "#ffe8b4ff"),  # sun inside the "Luz" group: group screen 90%
-    (0, 8, 4, "#ac5653ff"),  # halo: addition 50% inside the group, then group screen 90%
-    (0, 4, 13, "#00522fff"),  # "Sombra": multiply 60% over the grass
-    (0, 13, 10, "#00af6aff"),  # "Névoa": semi-transparent overlay 75% over the grass
-    (0, 8, 10, "#eff289ff"),  # frame 1: sun + mist
-    (1, 8, 10, "#7cc16aff"),  # frame 2: the sun moved up, the halo is here now
+    (0, 15, 0, "#1d2b53ff"),
+    (0, 0, 0, "#113056ff"),
+    (0, 8, 8, "#ffe8b4ff"),
+    (0, 8, 4, "#ac5653ff"),
+    (0, 4, 13, "#00522fff"),
+    (0, 13, 10, "#00af6aff"),
+    (0, 8, 10, "#eff289ff"),
+    (1, 8, 10, "#7cc16aff"),
     (1, 8, 5, "#f2db6bff"),
 ]
 
-# blend_pixel for every mode: (backdrop, source, opacity) -> '#rrggbbaa' per mode, in BLEND_MODES order.
 BLEND_TABLE = [
     (
         "#2878c8b4",
@@ -192,13 +189,11 @@ class DocumentFieldsTest(Api21TestCase):
         r = self.put(pid, changed, 1)
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(self.get_data(pid), changed)
-        # Back to a plain 2.0 document: every 2.1 row and key goes away.
         r = self.put(pid, document("Simples"), 2)
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(self.get_data(pid), document("Simples"))
         project = Project.objects.get(pk=pid)
         self.assertEqual((project.tags.count(), project.slices.count(), project.tilesets.count(), project.color_mode), (0, 0, 0, "rgba"))
-        # Revisions hold the full document, and restoring brings every field back.
         stored = services.read_revision_document(Revision.objects.get(project=project, number=1))
         self.assertEqual(stored, full_document())
         r = self.c.post(f"/api/v2/projects/{pid}/revisions/1/restore", "{}", content_type="application/json")
@@ -206,7 +201,6 @@ class DocumentFieldsTest(Api21TestCase):
         self.assertEqual(self.get_data(pid), full_document())
 
     def test_link_to_an_empty_cel_is_accepted(self):
-        # The editor does not write empty cels, so a cel linked to an empty one has no source cel in the file.
         data = full_document()
         data["cells"].append({"frame": "f2", "layer": "l2", "rle": rle([0] * 16), "link": "f3"})
         data["frames"].append({"id": "f3", "duration": None})
@@ -387,7 +381,7 @@ class RenderingTest(Api21TestCase):
         self.assertEqual(self.pixel(doc, 8, 8), "#ff77a8ff")
 
     def test_normal_mode_is_bit_identical_to_2_0(self):
-        rng = random.Random(21)  # noqa: S311 - test data, not security
+        rng = random.Random(21)
         total = 64
         layers, cells, old = [], {}, []
         for i in range(6):
@@ -416,7 +410,7 @@ class BlendParityTest(Api21TestCase):
         for n, item in enumerate(self.documents):
             data = item["data"]
             with self.subTest(document=n + 1):
-                services.validate_document(data)  # the server accepts what the editor writes
+                services.validate_document(data)
                 total = data["width"] * data["height"]
                 frame = data["frames"][0]["id"]
                 cells = {c["layer"]: decode(base64.b64decode(c["rle"]), total) for c in data["cells"] if c["frame"] == frame}
@@ -429,7 +423,6 @@ class BlendParityTest(Api21TestCase):
             self.assertEqual([hex_rgba(c) for c in pixels], item["expected"])
 
     def test_normal_rounding_matches_math_round(self):
-        # 150 / 255 * 0.35 * 255 is 52.5: Math.round gives 53 where Python's round would give 52.
         self.assertEqual(blend_pixel(0, rgba("#8f3eac96"), 0.35, "normal") >> 24, 53)
 
 
@@ -496,7 +489,6 @@ class FeatureMigrationTest(TransactionTestCase):
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(c.get(f"/api/v2/projects/{self.project_id}").json()["data"], document("Antes"))
 
-        # And back: unapplying 0004 keeps the 2.0 rows.
         old = self.migrate(self.BEFORE)
         layer = old.get_model("editor", "Layer").objects.get(project_id=self.project_id)
         self.assertEqual((layer.key, layer.name, layer.opacity), ("l1", "Base", 100), "the restored 2.0 revision")

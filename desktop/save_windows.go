@@ -2,15 +2,6 @@
 
 package main
 
-// "Save as": when the person saves the drawing (Ctrl+S) or exports an image, the editor asks the app to open
-// the Windows "Save as" window, the same one every Windows program uses, so they choose the folder and the
-// name. Then the editor sends the file content and the app writes it in the chosen place.
-//
-//   window.crivoDesktop.saveDialog({ name, title, description, extension }) -> chosen path, or null if canceled
-//   window.crivoDesktop.writeFile(path, base64)                              -> writes the file
-//
-// The app only writes files that the person chose in that window during this run.
-
 import (
 	"encoding/base64"
 	"encoding/json"
@@ -32,17 +23,15 @@ var (
 )
 
 const (
-	ofnOverwritePrompt = 0x00000002 // asks before replacing a file that already exists
+	ofnOverwritePrompt = 0x00000002
 	ofnHideReadOnly    = 0x00000004
 	ofnNoChangeDir     = 0x00000008
 	ofnPathMustExist   = 0x00000800
 	ofnExplorer        = 0x00080000
 
-	// Room for long paths, in UTF-16 characters.
 	pathBuffer = 32768
 )
 
-// OPENFILENAMEW (commdlg.h). With no hook and no template, Windows shows the modern Explorer window.
 type openFileName struct {
 	StructSize     uint32
 	Owner          uintptr
@@ -69,20 +58,17 @@ type openFileName struct {
 	FlagsEx        uint32
 }
 
-// saveOptions is what the editor sends to window.crivoDesktop.saveDialog.
 type saveOptions struct {
-	Name        string `json:"name"`        // suggested file name, with the extension
-	Title       string `json:"title"`       // title of the window
-	Description string `json:"description"` // type shown in the "Type" list, e.g. "Imagem PNG"
-	Extension   string `json:"extension"`   // without the dot, e.g. "png"
+	Name        string `json:"name"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Extension   string `json:"extension"`
 }
 
-// utf16z converts text to UTF-16 ending in zero, dropping any zero inside it.
 func utf16z(text string) []uint16 {
 	return append(utf16.Encode([]rune(strings.ReplaceAll(text, "\x00", ""))), 0)
 }
 
-// multiString builds the filter list of the window: "name\0pattern\0...\0\0".
 func multiString(parts ...string) []uint16 {
 	var out []uint16
 	for _, p := range parts {
@@ -104,7 +90,6 @@ func cleanExtension(ext string) string {
 	return ext
 }
 
-// cleanFileName removes what Windows does not accept in a file name.
 func cleanFileName(name string) string {
 	name = strings.Map(func(r rune) rune {
 		if r < 32 || strings.ContainsRune(`<>:"/\|?*`, r) {
@@ -122,8 +107,6 @@ func cleanFileName(name string) string {
 	return name
 }
 
-// saveDialog opens the "Save as" window over the Crivo window. It returns the chosen path, or "" if the person
-// canceled. It must run on the window thread, outside a WebView2 event (see showSaveDialog).
 func (a *app) saveDialog(o saveOptions) (string, error) {
 	ext := cleanExtension(o.Extension)
 	file := make([]uint16, pathBuffer)
@@ -157,7 +140,6 @@ func (a *app) saveDialog(o saveOptions) (string, error) {
 	}
 	ofn.StructSize = uint32(unsafe.Sizeof(*ofn))
 	if ext != "" {
-		// Adds the extension when the person types a name without one.
 		defExt := utf16z(ext)
 		ofn.DefExt = &defExt[0]
 	}
@@ -167,13 +149,11 @@ func (a *app) saveDialog(o saveOptions) (string, error) {
 		if code, _, _ := procCommDlgExtendedError.Call(); code != 0 {
 			return "", fmt.Errorf("a janela Salvar como não abriu (código 0x%X)", code)
 		}
-		return "", nil // canceled
+		return "", nil
 	}
 	return windows.UTF16ToString(file), nil
 }
 
-// showSaveDialog opens the window and sends the answer back to the page (window.__crivoSaveDone).
-// It runs through Dispatch, after the binding returns: a modal window inside a WebView2 event would block it.
 func (a *app) showSaveDialog(id int, o saveOptions) {
 	path, err := a.saveDialog(o)
 	answer := struct {
@@ -188,12 +168,9 @@ func (a *app) showSaveDialog(id int, o saveOptions) {
 	}
 	payload, _ := json.Marshal(answer)
 	a.w.Eval(fmt.Sprintf("window.__crivoSaveDone && window.__crivoSaveDone(%d, %s)", id, payload))
-	// While open, the window ran its own message loop, which drops the thread messages posted by Dispatch.
-	// One more Dispatch runs anything that was queued in the meantime.
 	a.w.Dispatch(func() {})
 }
 
-// writeChosenFile writes a file chosen in the "Save as" window. data comes in base64.
 func (a *app) writeChosenFile(path, data string) error {
 	path = filepath.Clean(path)
 	if !a.chosen[path] {
@@ -206,9 +183,6 @@ func (a *app) writeChosenFile(path, data string) error {
 	return writeFileSafely(path, content)
 }
 
-// writeFileSafely writes to a temporary file in the same folder and then puts it in place, so a failure in the
-// middle does not leave the old file half overwritten. If that is not possible (folder without permission to
-// create files, or the file open in another program), it writes straight to the file.
 func writeFileSafely(path string, content []byte) error {
 	if err := replaceFile(path, content); err == nil {
 		return nil
@@ -238,7 +212,6 @@ func replaceFile(path string, content []byte) error {
 	return err
 }
 
-// plainError keeps only the Windows message (for example "Acesso negado."), without the Go prefixes.
 func plainError(err error) error {
 	for {
 		inner := errors.Unwrap(err)

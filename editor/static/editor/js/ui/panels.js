@@ -74,7 +74,6 @@ export class ColorPanel {
     this.updateRecent();
   }
 
-  // HSV picker (ui/color-picker.js) with live preview; Cancel puts the previous color back.
   async openPicker(which) {
     this.target = which;
     const key = which === 'secondary' ? 'secondaryColor' : 'primaryColor';
@@ -93,7 +92,6 @@ export class ColorPanel {
     this.editor.rememberColor(this.editor.state[key]);
   }
 
-  // The browser's native color input (kept for code that still wants it).
   openNativePicker(which) {
     this.target = which;
     const c = which === 'secondary' ? this.editor.state.secondaryColor : this.editor.state.primaryColor;
@@ -448,7 +446,6 @@ export class LayersPanel {
     this.action(layer.kind === 'group' ? 'Excluir grupo' : 'Excluir camada', (doc) => doc.removeLayer(layer.id));
   }
 
-  // True when some group above the layer is collapsed (the row is not shown).
   folded(c) {
     const doc = this.editor.doc;
     let p = c.parent ? doc.layer(c.parent) : null;
@@ -480,7 +477,6 @@ export class LayersPanel {
               'aria-expanded': String(!c.collapsed),
               onclick: (e) => {
                 e.stopPropagation();
-                // Collapsing is a view change: it is saved with the project but does not enter the history.
                 doc.layer(c.id).collapsed = !c.collapsed;
                 this.editor.markModified();
                 this.draw();
@@ -553,7 +549,6 @@ export class LayersPanel {
     this.drawTiles();
   }
 
-  // Tileset of the current tilemap layer: tile mode toggle and the tiles to pick from.
   drawTiles() {
     const { doc, state } = this.editor;
     const layer = this.editor.currentLayer;
@@ -723,7 +718,6 @@ export class Timeline {
       ...doc.frames.map((q, i) => {
         const c = createCanvas(48, 48);
         c.className = 'mini';
-        // Tags appear as a colored strip above their frames (the innermost tag wins), named on the first frame.
         const tag = doc.tagAt(i);
         let strip = null;
         if (tag) {

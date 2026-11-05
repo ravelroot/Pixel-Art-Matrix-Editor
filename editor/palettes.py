@@ -2,7 +2,6 @@ def _colors(text):
     return ["#" + h.lower() for h in text.split()]
 
 
-# Names and descriptions are shown in the editor, so they stay in Portuguese.
 PRESET_PALETTES = [
     {
         "slug": "crivo",

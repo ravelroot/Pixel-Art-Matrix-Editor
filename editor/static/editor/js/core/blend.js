@@ -1,6 +1,3 @@
-// Layer blend modes. `normal` keeps the exact 2.0.0 integer path (overlay() in colors.js); the other modes follow
-// the W3C Compositing and Blending Level 1 formulas on doubles in [0, 1]. The same math lives in editor/blend.py
-// and in the Java CLI (Blend.java): keep the evaluation order identical in the three languages.
 import { overlay } from './colors.js';
 
 export const BLEND_MODES = [
@@ -105,7 +102,6 @@ function sat(c) {
 }
 
 function setSat(c, s) {
-  // Indices of the max, mid and min channels (ties resolved by channel order, like the reference implementations).
   const order = [0, 1, 2].sort((i, j) => c[j] - c[i]);
   const [max, mid, min] = order;
   const out = [0, 0, 0];
@@ -124,7 +120,6 @@ const NON_SEPARABLE = {
   luminosity: (b, s) => setLum(b, lum(s)),
 };
 
-// B(Cb, Cs) for the three channels at once; arrays of doubles in [0, 1].
 export function blendChannels(mode, b, s) {
   const f = SEPARABLE[mode];
   if (f) return [f(b[0], s[0]), f(b[1], s[1]), f(b[2], s[2])];
@@ -133,7 +128,6 @@ export function blendChannels(mode, b, s) {
   return [s[0], s[1], s[2]];
 }
 
-// Composites `front` over `back` (packed 0xAABBGGRR) with the layer opacity in [0, 1] and the blend mode.
 export function blendPixel(mode, back, front, opacity = 1) {
   if (mode === 'normal' || !mode) return overlay(back, front, opacity);
   const as = (((front >>> 24) & 255) / 255) * opacity;
@@ -154,7 +148,6 @@ export function blendPixel(mode, back, front, opacity = 1) {
   return ((a << 24) | (out[2] << 16) | (out[1] << 8) | out[0]) >>> 0;
 }
 
-// Blends a whole layer buffer into dest (same size). Fully transparent source pixels are skipped.
 export function blendInto(dest, source, mode, opacity) {
   if (opacity <= 0) return dest;
   const normal = mode === 'normal' || !mode;

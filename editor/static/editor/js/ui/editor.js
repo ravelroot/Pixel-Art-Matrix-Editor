@@ -13,7 +13,6 @@ const PREFERENCES = [
   'onionPrev', 'onionNext', 'onionMode', 'showSlices',
 ];
 
-// Accepted values for each preference read from localStorage (which may have been edited by hand).
 const ALLOWED = {
   shape: ['square', 'circle'],
   symmetry: ['none', 'horizontal', 'vertical', 'both'],
@@ -82,7 +81,6 @@ export class Editor extends EventTarget {
       sprayDensity: 30,
       majorGrid: 8,
       tile: false,
-      // Layers worker (2.1.0): onion skin range and tint, slice outlines, tile mode on tilemap layers.
       onionPrev: 1,
       onionNext: 0,
       onionMode: 'normal',
@@ -102,7 +100,6 @@ export class Editor extends EventTarget {
     this.state.size = Math.max(1, Math.min(32, Math.round(this.state.size) || 1));
     this.selection = null;
     this.floating = null;
-    // Selection kept by Deselect for Reselect, and the custom brush made from a selection (never persisted).
     this.lastSelection = null;
     this.brush = null;
     this.clipboard = null;
@@ -135,8 +132,6 @@ export class Editor extends EventTarget {
     this.emit('history');
   }
 
-  // Multiple open documents (ui/tabs.js): everything that belongs to one document, to park it while another
-  // tab is active, and to bring it back later exactly as it was (history, selection, saved state).
   captureSession() {
     if (this.state.playing) this.stop();
     return {
@@ -274,25 +269,21 @@ export class Editor extends EventTarget {
   setSelection(r, { keepFloating = false } = {}) {
     if (this.selection && !r) this.lastSelection = this.selection;
     this.selection = r ? { x: r.x, y: r.y, width: r.width, height: r.height } : null;
-    // Non-rectangular selections carry a mask (see core/selection.js); rectangles keep the 2.0.0 shape.
     if (r?.mask) this.selection.mask = r.mask;
     if (!keepFloating) this.floating = null;
     this.emit('selection', this.selection);
   }
 
-  // The selection may leave the matrix while the content floats; commands always use the part that fits in it.
   get clippedSelection() {
     return this.selection ? clipToDocument(this.selection, this.doc.width, this.doc.height) : null;
   }
 
-  // Content lifted by Move pixels or by Paste, valid only if nothing changed in the document since then.
   floatingValid() {
     const f = this.floating;
     if (!f || f.version !== this.history.version || f.key !== this.activeKey) return null;
     return f;
   }
 
-  // Applies a list of [index, color] pairs to the active cell as a single history step.
   applyChanges(label, changes, { silent = false } = {}) {
     const stroke = this.newStroke();
     if (!stroke) return false;
@@ -353,8 +344,6 @@ export class Editor extends EventTarget {
     this.emit('layer');
   }
 
-  // Pixel mode on a tilemap layer: the painted pixels go into the tiles under them (all instances update),
-  // recorded as one structural step because the tileset and other cels change too.
   finishTileStroke(stroke, label) {
     const changes = [];
     for (const [i, before] of stroke.originals) if (stroke.pixels[i] !== before) changes.push([i, stroke.pixels[i]]);
@@ -367,7 +356,6 @@ export class Editor extends EventTarget {
     return true;
   }
 
-  // Plays inside the tag that contains the current frame (direction and repeat), or every frame in a loop.
   play() {
     if (this.state.playing || this.doc.frames.length < 2) return;
     const playback = new Playback(this.doc, this.state.frame);

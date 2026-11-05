@@ -118,9 +118,6 @@ def _generate_c(data, name):
     )
 
 
-# A Java initializer goes past 64 KB of bytecode with a few thousand numbers, and the class does not compile.
-# Above this limit the matrix and the palette are packed into strings and decoded when the class loads
-# (the same output as the JavaScript editor).
 JAVA_LITERAL_LIMIT = 4096
 JAVA_CHUNK = 20000
 

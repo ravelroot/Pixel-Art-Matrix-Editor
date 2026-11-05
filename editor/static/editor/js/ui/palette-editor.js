@@ -1,5 +1,3 @@
-// Palette editor dialog: edit, add, remove, reorder (drag or arrows), sort, reverse, dedupe, ramp and resize.
-// Resolves with { name, colors, origins } (origins[j] = index of the original entry, -1 for new ones) or null.
 import { colorToHex } from '../core/colors.js';
 import { sortOrder, dedupeOrder, insertRamp, resizePalette, moveItem } from '../core/palette-tools.js';
 import { el, notify } from './util.js';
@@ -110,7 +108,6 @@ export function paletteEditorDialog({ palette, newColor = 0xff000000, gray = fal
     const from = Math.min(selected, mark);
     const to = Math.max(selected, mark);
     const middle = colors.slice(from, colors.length - (entries.length - to - 1));
-    // The two ends keep their identity (and their pixels in indexed mode); the colors between them are new.
     const head = entries[from];
     const tail = entries[to];
     const generated = middle.map((color, k) => (k === 0 ? head : k === middle.length - 1 ? tail : { color, origin: -1 }));
@@ -167,7 +164,6 @@ export function paletteEditorDialog({ palette, newColor = 0xff000000, gray = fal
       ),
     ),
   );
-  // Enter in the small fields must not save the whole palette: it only confirms that field.
   body.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' || e.target === name || !(e.target instanceof HTMLInputElement)) return;
     e.preventDefault();

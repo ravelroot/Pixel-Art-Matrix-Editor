@@ -1,7 +1,3 @@
-// Small binary helpers shared by the PNG/APNG, ZIP and .aseprite encoders: CRC-32 and zlib streams.
-// zlib uses the browser's CompressionStream / DecompressionStream ('deflate' = RFC 1950, with header
-// and Adler-32), also present in WebView2 and Node 18+, so these functions are async. Without
-// CompressionStream, deflate() writes "stored" (uncompressed) deflate blocks, which every reader accepts.
 
 const CRC_TABLE = (() => {
   const t = new Uint32Array(256);
@@ -41,7 +37,6 @@ async function pipe(bytes, stream) {
   return new Uint8Array(await out.arrayBuffer());
 }
 
-// zlib stream with stored blocks (no compression): valid input for any inflater.
 export function deflateStored(bytes) {
   const blocks = Math.max(1, Math.ceil(bytes.length / 65535));
   const out = new Uint8Array(2 + bytes.length + blocks * 5 + 4);
@@ -81,7 +76,6 @@ export async function inflate(bytes) {
   }
 }
 
-// Little helpers to write binary files piece by piece.
 export class ByteWriter {
   constructor(size = 1024) {
     this.buffer = new Uint8Array(size);
@@ -136,7 +130,6 @@ export class ByteWriter {
     this.length += n;
   }
 
-  // Patches a little-endian value written earlier (sizes known only at the end).
   setU32(at, v) {
     for (let k = 0; k < 4; k++) this.buffer[at + k] = (v >>> (8 * k)) & 255;
   }

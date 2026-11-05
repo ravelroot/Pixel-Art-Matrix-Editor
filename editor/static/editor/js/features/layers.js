@@ -1,5 +1,3 @@
-// Feature module: layers and animation (groups, blend modes, reference layers, linked cels, tags, onion skin
-// settings, tilemaps and slices). See main.js (app) for the extension points.
 import { tilesetOf, placeTile, tileIndexAt } from '../core/tilemap.js';
 import {
   layerPropertiesDialog,
@@ -160,7 +158,6 @@ function commands(app) {
   };
 }
 
-// Slices as outlines (9-slice center dashed, pivot as a cross) and the tile grid of the current tilemap layer.
 function drawOverlays(app) {
   const { editor } = app;
   return (ctx, X, Y, z, dpr) => {
@@ -216,8 +213,6 @@ function drawOverlays(app) {
   };
 }
 
-// Tile mode on a tilemap layer: pencil places the selected tile, eraser (or the right button) places tile 0
-// and the eyedropper picks the tile under the pointer. The gesture is one history step.
 function installTileMode(app) {
   const { editor, viewport } = app;
   const canvas = viewport.canvas;

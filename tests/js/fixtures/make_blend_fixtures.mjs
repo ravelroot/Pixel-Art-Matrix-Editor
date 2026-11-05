@@ -1,7 +1,3 @@
-// Writes tests/fixtures/blend-parity.json: small random documents (nested groups, pass-through and isolated groups,
-// every blend mode, opacities, hidden and reference layers) with the editor's composite of frame 1 as the expected
-// pixels. The editor (core/document.js + core/blend.js) is the reference renderer; the server (editor/blend.py) and
-// the Java tool (Blend.java) must match every pixel. Run: node tests/js/fixtures/make_blend_fixtures.mjs
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { PixelDocument } from '../../../editor/static/editor/js/core/document.js';
@@ -27,11 +23,11 @@ function randomPixel() {
   const kind = rnd();
   if (kind < 0.15) {
     const g = v();
-    return pack(g, g, g, a); // gray: every channel ties
+    return pack(g, g, g, a);
   }
   if (kind < 0.35) {
     const [x, y] = [v(), v()];
-    return pick([pack(x, x, y, a), pack(x, y, x, a), pack(y, x, x, a)]); // two channels tie
+    return pick([pack(x, x, y, a), pack(x, y, x, a), pack(y, x, x, a)]);
   }
   if (kind < 0.45) return pack(pick([0, 255]), pick([0, 255, 128]), pick([0, 255]), a);
   return pack(v(), v(), v(), a);
@@ -41,7 +37,7 @@ function configure(layer, group) {
   layer.opacity = pick([100, 100, 100, 75, 60, 50, 35, 1]);
   layer.blendMode = BLEND_MODES[nextMode++ % BLEND_MODES.length];
   if (group && rnd() < 0.4) {
-    layer.blendMode = 'normal'; // pass-through group
+    layer.blendMode = 'normal';
     layer.opacity = 100;
   }
   layer.visible = rnd() < 0.9;

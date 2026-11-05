@@ -18,6 +18,8 @@ const COLORS = {
   W: '#faf6ef',
   h: '#8fa3a8',
   H: '#7b9088',
+  b: '#2f4a5c',
+  B: '#456a80',
 };
 
 function sprite(name, width, height, frames, { tags = [], duration = null, fps = 8 } = {}) {
@@ -89,11 +91,39 @@ const TILES = [
   ['kkkkkkkk', 'kWWsssck', 'kWssssck', 'kssssssk', 'kssssssk', 'kssssssk', 'kcccccck', 'kkkkkkkk'],
   ['........', '........', '...R....', '..RyR...', '...R....', '...g.G..', '..Gg.g..', '...g....'],
   ['........', '........', '........', '........', '.G...G..', '.gG.Gg.G', 'G.g.g.Gg', '........'],
+  ['c......c', 'cooooooc', 'c......c', 'c......c', 'cooooooc', 'c......c', 'c......c', 'cooooooc'],
+  ['BhBBBhBB', 'bBbbbBbb', 'bbbbbbbb', 'bbBbbbbb', 'bbbbbbBb', 'bbbbbbbb', 'bBbbbbbb', 'bbbbbbbb'],
+  ['WWWWWWWW', 'WsssWsss', 'ssssssss', 'sWssssWs', 'ssssssss', 'ssWsssss', 'ssssssWs', 'hhhhhhhh'],
+  ['kckkkckk', 'cwckkkwc', 'kkkcwkkk', 'kwkkkkck', 'kkckkwkk', 'ckkwkkkc', 'kkkkckkk', 'kwkckkkw'],
+  ['BBhBBBBh', 'bbBbbbbB', 'bbbbbbbb', 'bbbbBbbb', 'bbbbbbbb', 'bBbbbbbb', 'bbbbbBbb', 'bbbbbbbb'],
+  ['hBBBhBBB', 'Bbbbbbbb', 'bbbbbbbb', 'bbbbbbBb', 'bBbbbbbb', 'bbbbbbbb', 'bbbBbbbb', 'bbbbbbbb'],
+  ['kckkkckk', 'cwckkkwc', 'kkkcskkk', 'kwkksWck', 'kkcksskk', 'ckkwkkkc', 'kkkkckkk', 'kwkckkkw'],
+  ['kckkkckk', 'cwckkkwc', 'kkkcWkkk', 'kwkksWck', 'kkckWskk', 'ckkwkkkc', 'kkkkckkk', 'kwkckkkw'],
+];
+
+const TORCH = [
+  ['...y....', '..yRy...', '..RyR...', '...R....', '..kck...', '...c....', '...c....', '..kcck..'],
+  ['....y...', '...yRy..', '..RyyR..', '...RR...', '..kck...', '...c....', '...c....', '..kcck..'],
+  ['...yy...', '..yWRy..', '..RyR...', '...R....', '..kck...', '...c....', '...c....', '..kcck..'],
+];
+const PLATFORM = [['kkkkkkkkkkkkkkkk', 'cocccoccccocccoc', 'cccccccccccccccc', 'k.k..........k.k']];
+const SPRING = [
+  ['........', '........', '........', '........', '.RRRRRR.', '..k..k..', '.kkkkkk.', 'kssssssk'],
+  ['.RRRRRR.', '..k..k..', '...kk...', '..k..k..', '...kk...', '..k..k..', '.kkkkkk.', 'kssssssk'],
+];
+const LAMP = [
+  ['..kkkk..', '..kssk..', '..kssk..', '..kkkk..', '...kk...', '...cc...', '...cc...', '..kcck..'],
+  ['..kkkk..', '..kyWk..', '..kyyk..', '..kkkk..', '...kk...', '...cc...', '...cc...', '..kcck..'],
+  ['..kkkk..', '..kWyk..', '..kyyk..', '..kkkk..', '...kk...', '...cc...', '...cc...', '..kcck..'],
+];
+const MINER = [
+  ['..yyyy..', '.kyyyyk.', '.krrrrk.', '.krkrkk.', '.krrrrk.', '..kcckk.', '.kcccck.', '..k..k..'],
+  ['........', '..yyyy..', '.kyyyyk.', '.krrrrk.', '.krkrkk.', '.krrrrk.', '.kcccck.', '..k..k..'],
 ];
 
 function tileSheet() {
   const rows = [];
-  for (let r = 0; r < 2; r++) for (let y = 0; y < 8; y++) rows.push(TILES.slice(r * 4, r * 4 + 4).map((t) => t[y]).join(''));
+  for (let r = 0; r < 4; r++) for (let y = 0; y < 8; y++) rows.push(TILES.slice(r * 4, r * 4 + 4).map((t) => t[y]).join(''));
   return [rows];
 }
 
@@ -131,10 +161,15 @@ export function sampleGame() {
     { id: 'sprite_bandeira', name: 'Bandeira', data: sprite('Bandeira', 8, 8, FLAG, { duration: 300 }) },
     { id: 'sprite_coracao', name: 'Coração', data: sprite('Coração', 8, 8, HEART) },
     { id: 'sprite_faisca', name: 'Faísca', data: sprite('Faísca', 4, 4, SPARK, { duration: 80 }) },
-    { id: 'sprite_tiles', name: 'Tiles do campo', data: sprite('Tiles do campo', 32, 16, tileSheet()) },
+    { id: 'sprite_tiles', name: 'Tiles do campo', data: sprite('Tiles do campo', 32, 32, tileSheet()) },
+    { id: 'sprite_tocha', name: 'Tocha', data: sprite('Tocha', 8, 8, TORCH, { duration: 110 }) },
+    { id: 'sprite_plataforma', name: 'Plataforma', data: sprite('Plataforma', 16, 4, PLATFORM) },
+    { id: 'sprite_mola', name: 'Mola', data: sprite('Mola', 8, 8, SPRING, { tags: [['parada', 0, 0], ['ativa', 1, 1]] }) },
+    { id: 'sprite_lampiao', name: 'Lampião', data: sprite('Lampião', 8, 8, LAMP, { tags: [['apagado', 0, 0], ['aceso', 1, 2]], duration: 180 }) },
+    { id: 'sprite_mineiro', name: 'Mineiro', data: sprite('Mineiro', 8, 8, MINER, { duration: 420 }) },
     { id: 'sprite_morros', name: 'Morros', data: sprite('Morros', 96, 48, hills()) },
   ];
-  game.tilesets = [{ id: 'tiles_campo', name: 'Campo', sprite: 'sprite_tiles', tileWidth: 8, tileHeight: 8, flags: { 1: 'solid', 2: 'solid', 3: 'solid', 4: 'platform', 5: 'hazard', 6: 'solid' } }];
+  game.tilesets = [{ id: 'tiles_campo', name: 'Campo', sprite: 'sprite_tiles', tileWidth: 8, tileHeight: 8, flags: { 1: 'solid', 2: 'solid', 3: 'solid', 4: 'platform', 5: 'hazard', 6: 'solid', 9: 'ladder', 10: 'water', 11: 'ice', 12: 'solid', 15: 'solid' }, anims: [{ tile: 10, frames: [10, 13, 14, 13], fps: 3 }, { tile: 15, frames: [15, 16], fps: 1.5 }] }];
   const sounds = {};
   for (const key of ['jump', 'coin', 'hurt', 'explosion', 'shoot', 'powerup']) {
     const s = newSound(key);
@@ -152,18 +187,30 @@ export function sampleGame() {
     Object.assign(a.anims, extra.anims || {});
     Object.assign(a.sounds, extra.sounds || {});
     if (extra.hitbox) a.hitbox = extra.hitbox;
+    if (extra.light) a.light = extra.light;
     return a;
   };
   game.actors = [
-    make('ator_heroi', 'Gotinha', 'sprite_heroi', 'platformer', { props: { shoot: 'ator_faisca' }, anims: { idle: 'parado', run: 'andando', jump: 'pulando', fall: 'pulando' }, sounds: { jump: 'som_jump', hurt: 'som_hurt', die: 'som_explosion', shoot: 'som_shoot' }, hitbox: { x: 1, y: 1, w: 6, h: 7 } }),
-    make('ator_moeda', 'Moeda', 'sprite_moeda', 'item', { sounds: { collect: 'som_coin' }, hitbox: { x: 1, y: 0, w: 6, h: 8 } }),
+    make('ator_heroi', 'Gotinha', 'sprite_heroi', 'platformer', { props: { shoot: 'ator_faisca', dash: true }, light: { radius: 34, color: '#ffe7b0', flicker: false }, anims: { idle: 'parado', run: 'andando', jump: 'pulando', fall: 'pulando' }, sounds: { jump: 'som_jump', hurt: 'som_hurt', die: 'som_explosion', shoot: 'som_shoot' }, hitbox: { x: 1, y: 1, w: 6, h: 7 } }),
+    make('ator_moeda', 'Moeda', 'sprite_moeda', 'item', { sounds: { collect: 'som_coin' }, hitbox: { x: 1, y: 0, w: 6, h: 8 }, light: { radius: 9, color: '#f6e4a6', flicker: false } }),
     make('ator_gosma', 'Gosma', 'sprite_gosma', 'patrol', { sounds: { die: 'som_explosion' }, hitbox: { x: 0, y: 3, w: 8, h: 5 } }),
     make('ator_morcego', 'Morcego', 'sprite_morcego', 'flyer', { props: { range: 40, speed: 28 }, sounds: { die: 'som_explosion' }, hitbox: { x: 1, y: 1, w: 6, h: 5 } }),
     make('ator_bandeira', 'Bandeira', 'sprite_bandeira', 'goal', { sounds: { collect: 'som_powerup' } }),
     make('ator_coracao', 'Coração', 'sprite_coracao', 'item', { props: { points: 0, heal: 1 }, sounds: { collect: 'som_powerup' } }),
     make('ator_faisca', 'Faísca', 'sprite_faisca', 'projectile', { props: { speed: 170, life: 0.6 } }),
     make('ator_guardiao', 'Morcego guardião', 'sprite_morcego', 'custom', { props: { collide: false, friction: 1.5 }, sounds: { die: 'som_explosion' }, hitbox: { x: 1, y: 1, w: 6, h: 5 } }),
+    make('ator_tocha', 'Tocha', 'sprite_tocha', 'decor', { light: { radius: 30, color: '#ffb35c', flicker: true } }),
+    make('ator_plataforma', 'Plataforma', 'sprite_plataforma', 'mover', { props: { speed: 24, range: 40, wait: 0.5, oneway: true } }),
+    make('ator_mola', 'Mola', 'sprite_mola', 'spring', { props: { power: 290 }, anims: { idle: 'parada', active: 'ativa' }, sounds: { activate: 'som_jump' }, hitbox: { x: 0, y: 4, w: 8, h: 4 } }),
+    make('ator_lampiao', 'Lampião', 'sprite_lampiao', 'checkpoint', { props: { heal: true }, anims: { idle: 'apagado', active: 'aceso' }, sounds: { activate: 'som_powerup' } }),
+    make('ator_mineiro', 'Mineiro', 'sprite_mineiro', 'npc', { props: { speaker: 'Mineiro', say: 'Que escuro! Sua luz mostra o caminho.|Atravesse a água nadando: Z dá uma braçada.|Suba a escada, acenda o lampião e pule na mola.|Shift dá uma investida. Boa sorte, Gotinha!' }, sounds: { talk: 'som_coin' } }),
+    make('ator_cacador', 'Morcego caçador', 'sprite_morcego', 'pathfinder', { props: { speed: 30, range: 88, health: 1 }, sounds: { die: 'som_explosion' }, hitbox: { x: 1, y: 1, w: 6, h: 5 } }),
+    make('ator_aviso', 'Aviso da saída', 'sprite_tocha', 'zone', { props: { signal: 'saida' }, hitbox: { x: 0, y: 0, w: 8, h: 96 } }),
   ];
+  game.actors.find((a) => a.id === 'ator_tocha').light = { radius: 30, color: '#ffb35c', flicker: true };
+  const lamp = game.actors.find((a) => a.id === 'ator_lampiao');
+  lamp.light = { radius: 26, color: '#f6e4a6', flicker: false };
+  lamp.events = [{ id: 'ev_lampiao', type: 'signal', signal: 'lampiao', if: { kind: 'expr', lang: 'crivo', code: 'active' }, then: [{ type: 'code', code: 'acender(self)' }] }];
   const guard = game.actors.find((a) => a.id === 'ator_guardiao');
   guard.depth = -1;
   guard.events = [
@@ -186,6 +233,11 @@ export function sampleGame() {
       name: 'magia_lua',
       lang: 'lua',
       code: 'function chuva_de_moedas(n)\n  for i = 1, n do\n    instance_create("Moeda", x + i * 10, y - 24)\n  end\n  return bonus_por_vida(n)\nend\n',
+    },
+    {
+      id: 'script_mina',
+      name: 'mina',
+      code: 'global.mochila = { moedas: 0, lampioes: 0 }\n\nfunction acender(lampiao) {\n  global.mochila.lampioes += 1\n  effect("sparkle", lampiao.x + 4, lampiao.y + 2)\n  tween(lampiao, "light", 34, 0.6, "out_elastic", true)\n  floating_text(lampiao.x + 4, lampiao.y - 4, "salvo!", "#f6e4a6")\n}\n\nfunction resumo() {\n  return "lampiões acesos: " + string(global.mochila.lampioes)\n}\n',
     },
     {
       id: 'script_efeitos',
@@ -249,13 +301,63 @@ export function sampleGame() {
     { id: 'g1', actor: 'ator_gosma', x: 152, y: 96, flip: false },
     { id: 'b1', actor: 'ator_bandeira', x: 304, y: 96, flip: false },
   ];
-  game.scenes = [one, two];
+  const three = newScene('Fase 3: a mina escura', 56, 15);
+  three.id = 'cena_3';
+  three.tileset = 'tiles_campo';
+  three.background = '#1d1613';
+  three.ambient = 78;
+  three.ambientColor = '#07050c';
+  three.weather = 'embers';
+  three.camera = 'smooth';
+  three.music = '110: triangular: E4 G4 B4 G4 E4 - D4 - C4 E4 G4 E4 B3*2 - - A3 C4 E4 C4 B3 - G3 - E3*2 - - - -';
+  paintRow(three, 0, 0, 55, 12);
+  for (const row of [12, 13, 14]) {
+    paintRow(three, row, 0, 11, 12);
+    paintRow(three, row, 18, 30, 12);
+    paintRow(three, row, 39, 55, 12);
+  }
+  paintRow(three, 12, 12, 17, 10);
+  paintRow(three, 13, 12, 17, 10);
+  paintRow(three, 14, 12, 17, 12);
+  for (let r = 5; r <= 11; r++) paintRow(three, r, 22, 22, 9);
+  paintRow(three, 5, 23, 30, 4);
+  paintRow(three, 5, 39, 43, 4);
+  paintRow(three, 3, 45, 50, 4);
+  paintRow(three, 11, 27, 28, 11);
+  three.back = new Array(three.cols * three.rows).fill(0);
+  for (const [c, r] of [[3, 3], [9, 6], [15, 2], [33, 8], [36, 4], [47, 8], [52, 5], [27, 9]]) three.back[r * three.cols + c] = 15;
+  for (const c of [5, 20, 41, 50]) three.tiles[12 * three.cols + c] = 15;
+  const coins3 = [[104, 80], [112, 80], [120, 80], [128, 80], [232, 32], [240, 32], [368, 16], [376, 16], [384, 16], [392, 16], [416, 64]];
+  three.entities = [
+    { id: 'o1', actor: 'ator_heroi', x: 8, y: 88, flip: false },
+    { id: 'n1', actor: 'ator_mineiro', x: 40, y: 88, flip: true },
+    { id: 't1', actor: 'ator_tocha', x: 24, y: 88, flip: false },
+    { id: 't2', actor: 'ator_tocha', x: 88, y: 88, flip: false },
+    { id: 't3', actor: 'ator_tocha', x: 160, y: 88, flip: false },
+    { id: 't4', actor: 'ator_tocha', x: 216, y: 32, flip: false },
+    { id: 't5', actor: 'ator_tocha', x: 328, y: 32, flip: false },
+    { id: 't6', actor: 'ator_tocha', x: 408, y: 88, flip: false },
+    { id: 'l1', actor: 'ator_lampiao', x: 200, y: 32, flip: false },
+    { id: 'p1', actor: 'ator_plataforma', x: 248, y: 40, flip: false },
+    { id: 's1', actor: 'ator_mola', x: 360, y: 88, flip: false },
+    { id: 'z1', actor: 'ator_cacador', x: 440, y: 48, flip: true },
+    ...coins3.map(([x, y], i) => ({ id: `m${i}`, actor: 'ator_moeda', x, y, flip: false })),
+    { id: 'b1', actor: 'ator_bandeira', x: 424, y: 88, flip: false },
+    { id: 'g1', actor: 'ator_aviso', x: 400, y: 0, flip: false },
+  ];
+  one.weather = 'leaves';
+  two.ambient = 40;
+  two.weather = '';
+  game.scenes = [one, two, three];
   game.start = one.id;
   game.rules = [
     { id: 'regra_1', scene: 'cena_1', when: { type: 'start' }, then: [{ type: 'message', text: 'Pegue as moedas e chegue à bandeira! X solta faíscas.', seconds: 3 }], note: '' },
     { id: 'regra_2', scene: 'cena_2', when: { type: 'start' }, then: [{ type: 'message', text: 'Fase 2: cuidado com os morcegos!', seconds: 2.5 }], note: '' },
     { id: 'regra_3', scene: '', when: { type: 'var', name: 'pontos', op: '>=', value: 20 }, then: [{ type: 'add', name: 'vidas', value: 1 }, { type: 'sound', sound: 'som_powerup' }, { type: 'message', text: '20 moedas: +1 vida!', seconds: 2 }], note: '' },
     { id: 'regra_4', scene: '', when: { type: 'destroyed', actor: 'ator_gosma' }, then: [{ type: 'add', name: 'pontos', value: 2 }, { type: 'code', code: 'explodir(self)' }], note: '' },
+    { id: 'regra_5', scene: 'cena_3', when: { type: 'start' }, then: [{ type: 'message', text: 'Fase 3: a mina escura. Fale com o mineiro (X).', seconds: 3 }], note: '' },
+    { id: 'regra_6', scene: '', when: { type: 'checkpoint' }, then: [{ type: 'signal', signal: 'lampiao' }, { type: 'flash', color: '#f6e4a6', seconds: 0.25 }], note: '' },
+    { id: 'regra_7', scene: 'cena_3', when: { type: 'signal', signal: 'saida' }, then: [{ type: 'message', text: 'A saída! Cuidado com o morcego caçador.', seconds: 2.5 }, { type: 'cameraZoom', zoom: 1.25, seconds: 0.6 }, { type: 'wait', seconds: 2 }, { type: 'cameraZoom', zoom: 1, seconds: 0.6 }], note: '' },
   ];
   return game;
 }

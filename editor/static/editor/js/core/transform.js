@@ -1,12 +1,8 @@
-// Pixel-art transforms of regions { width, height, pixels, mask? } (mask absent = whole rectangle):
-// exact quarter turns and flips, and a RotSprite-style rotation/scale for any angle (Scale2x upscaling, then
-// nearest-neighbor sampling), which never invents colors.
 
 function maskAt(region, i) {
   return !region.mask || region.mask[i] !== 0;
 }
 
-// Exact clockwise rotation by turns × 90°.
 export function rotateQuarter(region, turns) {
   const t = ((turns % 4) + 4) % 4;
   const { width: w, height: h } = region;
@@ -54,7 +50,6 @@ function finish(width, height, pixels, mask) {
   return out;
 }
 
-// Scale2x (EPX): doubles a matrix, rounding diagonal steps instead of making blocks. No new colors.
 export function scale2x(pixels, w, h) {
   const W = w * 2;
   const out = new Uint32Array(W * h * 2);
@@ -76,8 +71,6 @@ export function scale2x(pixels, w, h) {
   return out;
 }
 
-// RotSprite-style rotation (degrees, clockwise on screen) and scale of a region. Multiples of 90° without
-// scaling are exact. The result grows to hold the whole rotated shape and carries the covered pixels as mask.
 export function rotSprite(region, angle = 0, scaleX = 1, scaleY = scaleX) {
   const a = ((angle % 360) + 360) % 360;
   if (a % 90 === 0 && scaleX === 1 && scaleY === 1) return rotateQuarter(region, a / 90);
@@ -119,7 +112,6 @@ export function rotSprite(region, angle = 0, scaleX = 1, scaleY = scaleX) {
   return finish(width, height, pixels, mask);
 }
 
-// Flip, then rotate and scale (scale in percent).
 export function transformRegion(region, { angle = 0, scale = 100, flipH = false, flipV = false } = {}) {
   let r = region;
   if (flipH) r = flipRegion(r, 'horizontal');

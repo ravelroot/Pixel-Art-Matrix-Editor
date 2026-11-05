@@ -36,7 +36,6 @@ public final class Tests {
         failures++;
     }
 
-    /** Runs the command line and returns what it printed. Only for calls that succeed (errors call System.exit). */
     private static String run(String... args) {
         PrintStream original = System.out;
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -91,18 +90,15 @@ public final class Tests {
         }
     }
 
-    /** An ARGB pixel as '#rrggbbaa'. */
     private static String rgbaHex(int argb) {
         return String.format("#%02x%02x%02x%02x", (argb >>> 16) & 0xff, (argb >>> 8) & 0xff, argb & 0xff, argb >>> 24);
     }
 
-    /** '#rrggbbaa' as an ARGB pixel. */
     private static int argbOf(String text) {
         int v = (int) Long.parseLong(text.substring(1), 16);
         return (v >>> 8) | (v << 24);
     }
 
-    /** The 2.0 rendering (normal layers only), to check that the 2.1 rendering keeps it bit for bit. */
     private static int[] compose20(Project p, int frame, Map<String, int[]> cells) {
         int[] target = new int[p.width * p.height];
         for (Project.Layer l : p.layers) {
@@ -133,7 +129,6 @@ public final class Tests {
         return cells;
     }
 
-    // Same expected values as editor/tests/test_features_2_1.py (cross-language parity of the blend modes).
     private static final String[][] EXAMPLE_PIXELS = {
         {"0", "15", "0", "#1d2b53ff"}, {"0", "0", "0", "#113056ff"}, {"0", "8", "8", "#ffe8b4ff"}, {"0", "8", "4", "#ac5653ff"},
         {"0", "4", "13", "#00522fff"}, {"0", "13", "10", "#00af6aff"}, {"0", "8", "10", "#eff289ff"}, {"1", "8", "10", "#7cc16aff"},
@@ -219,7 +214,6 @@ public final class Tests {
             }
         });
 
-        // Format v2 and files from Crivo 1.x (format v1, Portuguese keys).
         check("Every example is in format v2 and opens", () -> {
             for (String name : List.of("heart.crivo", "game-boy-slime.crivo", "potion.crivo")) {
                 try {
@@ -296,7 +290,6 @@ public final class Tests {
             return "Este arquivo não é um projeto do Crivo.".equals(errorMessage(() -> open(other)));
         });
 
-        // Command line: English commands and options, and the Portuguese ones from 1.x as aliases.
         String potion = examples.resolve("potion.crivo").toString();
         String heartFile = examples.resolve("heart.crivo").toString();
         check("English sheet options", () -> {
@@ -343,7 +336,6 @@ public final class Tests {
         });
         check("The command line opens a v1 file", () -> run("info", v1File.toString()).startsWith("Nome:     Teste v1"));
 
-        // Crivo 2.1: blend modes, groups, reference layers, linked cels, tags, slices and tilesets.
         check("Every blend mode matches the server table", () -> {
             for (String[] row : BLEND_TABLE) {
                 String[] expected = row[3].split(" ");
@@ -446,8 +438,6 @@ public final class Tests {
                     && "A tag 'Andar' aponta para um quadro que não existe.".equals(errorMessage(() -> open(badTag)));
         });
 
-        // tests/fixtures/blend-parity.json: documents written by the editor with its composite (the reference) as the
-        // expected pixels; the server checks the same file (editor/tests/test_features_2_1.py).
         Path parityFile = examples.resolve("../tests/fixtures/blend-parity.json");
         check("Every pixel of the blend parity fixture matches the editor", () -> {
             try {

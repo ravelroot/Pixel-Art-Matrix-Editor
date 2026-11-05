@@ -1,5 +1,3 @@
-// Feature module: color. Color modes (RGBA, indexed, grayscale), palette editor, color picker and adjustments,
-// all under the "Cor" menu. See main.js (app) for the extension points.
 import { colorModeOf, convertDocument, snapColor, paletteRemap, remapDocument, preparePalette, nearestColor, grayOf } from '../core/colormode.js';
 import { paletteEditorDialog } from '../ui/palette-editor.js';
 import { adjustmentDialog } from '../ui/adjustments.js';
@@ -14,7 +12,6 @@ export function install(app) {
   const paletteColors = () => app.palette?.current?.colors ?? [];
   const mode = () => colorModeOf(editor.doc);
 
-  // Drawing colors follow the mode: nearest palette color (indexed) or gray (grayscale).
   let snapping = false;
   const snapColors = (which = 'both') => {
     const m = mode();
@@ -33,8 +30,6 @@ export function install(app) {
   editor.on('color', ({ which }) => snapColors(which));
   editor.on('document', () => snapColors());
 
-  // Every finished stroke (tools, paste, moves, filters) stays inside the mode: the pixels it changed are snapped
-  // to the palette (indexed) or to gray (grayscale) before the history step is recorded.
   const finishStroke = editor.finishStroke.bind(editor);
   editor.finishStroke = (stroke, label) => {
     const m = mode();
@@ -102,8 +97,6 @@ export function install(app) {
     const r = await paletteEditorDialog({ palette: current, newColor: editor.state.primaryColor, gray: mode() === 'grayscale' });
     if (!r) return;
     await panel.save(current.preset ? { name: r.name, colors: r.colors, preset: true } : { ...current, name: r.name, colors: r.colors });
-    // In indexed mode the pixels follow their palette entries: edited entries change color everywhere,
-    // removed ones go to the nearest color left. One undo step for the whole document.
     if (mode() === 'indexed') {
       const map = paletteRemap(current.colors, r.colors, r.origins);
       if (map.size) editor.editStructure('Editar paleta', (d) => remapDocument(d, map) > 0);
@@ -136,7 +129,6 @@ export function install(app) {
     adjustDespeckle: { label: 'Remover ruído…', shortcut: '', fn: adjust('despeckle') },
     adjustConvolution: { label: 'Matriz de convolução…', shortcut: '', fn: adjust('convolve') },
   });
-  // Right after "Imagem": the color commands sit next to the image ones.
   const image = app.menus.findIndex(([t]) => t === 'Imagem');
   const afterImage = (image >= 0 && app.menus[image + 1]?.[0]) || 'Ajuda';
   app.addMenu('Cor', [
@@ -148,7 +140,6 @@ export function install(app) {
   app.addShortcut({ key: 'u', ctrl: true, run: () => app.execute('adjustHue') });
   app.addShortcut({ key: 'm', ctrl: true, run: () => app.execute('adjustCurves') });
 
-  // "Editar" button in the palette panel, next to "+ Cor".
   const actions = app.palette?.actions;
   if (actions) {
     const edit = el('button', { type: 'button', class: 'button small', title: 'Editar as cores da paleta (Cor → Editar paleta…)', 'aria-label': 'Editar paleta', onclick: () => app.execute('editPalette') }, 'Editar');

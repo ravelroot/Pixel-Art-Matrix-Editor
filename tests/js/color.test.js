@@ -37,7 +37,6 @@ const GREEN = pack(0, 255, 0);
 const BLUE = pack(0, 0, 255);
 const px = (...colors) => Uint32Array.from(colors);
 
-// ---------------------------------------------------------------------------------------------- HSV
 test('colors: HSV round trip and known values', () => {
   assert.deepEqual(rgbToHsv(255, 0, 0), [0, 1, 1]);
   assert.deepEqual(rgbToHsv(0, 0, 0), [0, 0, 0]);
@@ -48,7 +47,6 @@ test('colors: HSV round trip and known values', () => {
   }
 });
 
-// ---------------------------------------------------------------------------------------- color modes
 test('colormode: missing or unknown mode is rgba', () => {
   assert.equal(colorModeOf({}), 'rgba');
   assert.equal(colorModeOf(null), 'rgba');
@@ -103,7 +101,6 @@ test('colormode: constrainPixels snaps only the pixels that changed', () => {
 
 test('colormode: palette edit remaps edited and removed entries', () => {
   const old = [BLACK, RED, BLUE];
-  // RED edited to GREEN, BLUE removed, a new white entry added.
   const map = paletteRemap(old, [BLACK, GREEN, WHITE], [0, 1, -1]);
   assert.equal(map.get(RED & 0xffffff), GREEN & 0xffffff);
   assert.equal(map.has(BLACK & 0xffffff), false);
@@ -111,7 +108,6 @@ test('colormode: palette edit remaps edited and removed entries', () => {
   const { pixels, changed } = remapPixels(px(RED, pack(255, 0, 0, 100), BLACK, 0), map);
   assert.deepEqual([...pixels], [GREEN, pack(0, 255, 0, 100), BLACK, 0]);
   assert.equal(changed, 2);
-  // Swapping the colors of two entries swaps the pixels at once; only reordering entries changes nothing.
   const swap = paletteRemap([RED, BLUE], [BLUE, RED], [0, 1]);
   assert.deepEqual([...remapPixels(px(RED, BLUE), swap).pixels], [BLUE, RED]);
   assert.equal(paletteRemap([RED, BLUE], [BLUE, RED], [1, 0]).size, 0);
@@ -122,7 +118,7 @@ test('colormode: whole document conversion and remap, linked cels once', () => {
   d.addFrame();
   const a = d.cell(d.frames[0].id, d.layers[0].id);
   a.set([pack(250, 5, 5), pack(5, 5, 250)]);
-  d.cells.set(d.key(d.frames[1].id, d.layers[0].id), a); // a linked cel shares the array
+  d.cells.set(d.key(d.frames[1].id, d.layers[0].id), a);
   d.tilesets = [{ id: 't', tiles: [new Uint32Array(4), Uint32Array.from([pack(240, 0, 0), 0, 0, 0])] }];
   const changed = convertDocument(d, 'indexed', [RED, BLUE], { dither: true });
   assert.deepEqual([...a], [RED, BLUE]);
@@ -132,7 +128,6 @@ test('colormode: whole document conversion and remap, linked cels once', () => {
   assert.deepEqual([...a], [GREEN, BLUE]);
 });
 
-// --------------------------------------------------------------------------------------- palette tools
 test('palette tools: sort by hue, lightness and saturation', () => {
   const gray = pack(128, 128, 128);
   const colors = [BLUE, WHITE, RED, gray, GREEN, BLACK];
@@ -172,7 +167,6 @@ test('palette tools: OKLab ramp between two colors', () => {
   assert.equal(reversed[4], WHITE);
 });
 
-// ---------------------------------------------------------------------------------------- adjustments
 const ctx = (width, height, indices = null) => ({ width, height, indices });
 
 test('adjust: brightness and contrast', () => {

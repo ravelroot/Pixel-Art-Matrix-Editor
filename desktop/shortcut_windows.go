@@ -2,11 +2,6 @@
 
 package main
 
-// Start Menu shortcut. Crivo.exe is standalone (it has no installer), and Windows search only finds
-// programs that have a Start Menu shortcut. The first time it runs, the app creates that shortcut for the
-// current user only, without asking for administrator rights. If the user deletes the shortcut, it does not
-// come back, unless Crivo.exe is opened from another folder (then the shortcut points to the new location).
-
 import (
 	"errors"
 	"os"
@@ -28,7 +23,6 @@ const (
 	clsctxInprocServer = 0x1
 	coinitApartment    = 0x2
 
-	// Method positions in the virtual tables of the COM interfaces.
 	methodRelease        = 2
 	methodQueryInterface = 0
 	shellLinkSetDesc     = 7
@@ -37,14 +31,10 @@ const (
 	shellLinkSetPath     = 20
 	persistFileSave      = 6
 
-	// File in the data folder that records which Crivo.exe the shortcut points to.
 	shortcutRecord = "shortcut.txt"
-	// Name of that file up to Crivo 1.x, still read when shortcut.txt does not exist.
 	legacyShortcutRecord = "atalho.txt"
 )
 
-// registerInStartMenu creates or updates %APPDATA%\Microsoft\Windows\Start Menu\Programs\Crivo.lnk.
-// Any error is ignored: the shortcut is a convenience and never stops Crivo from opening.
 func registerInStartMenu(dataDir string) {
 	exe, err := os.Executable()
 	if err != nil {
@@ -66,10 +56,10 @@ func registerInStartMenu(dataDir string) {
 	sameLocation := strings.EqualFold(strings.TrimSpace(string(previous)), exe)
 	if _, err := os.Stat(shortcut); err == nil {
 		if sameLocation {
-			return // already points to this Crivo.exe
+			return
 		}
 	} else if sameLocation {
-		return // the user deleted the shortcut: respect that choice
+		return
 	}
 	if createShortcut(shortcut, exe) {
 		_ = os.WriteFile(record, []byte(exe), 0o644)
@@ -77,7 +67,7 @@ func registerInStartMenu(dataDir string) {
 }
 
 func createShortcut(target, exe string) bool {
-	_ = windows.CoInitializeEx(0, coinitApartment) // WebView2 already initializes COM; doing it again is harmless
+	_ = windows.CoInitializeEx(0, coinitApartment)
 	clsidShellLink, _ := windows.GUIDFromString("{00021401-0000-0000-C000-000000000046}")
 	iidShellLink, _ := windows.GUIDFromString("{000214F9-0000-0000-C000-000000000046}")
 	iidPersistFile, _ := windows.GUIDFromString("{0000010B-0000-0000-C000-000000000046}")
@@ -90,8 +80,6 @@ func createShortcut(target, exe string) bool {
 	}
 	defer call(link, methodRelease)
 
-	// The strings stay in variables until the end of the function (KeepAlive) so the garbage collector
-	// does not free them while Windows is still reading them.
 	path, _ := windows.UTF16PtrFromString(exe)
 	workDir, _ := windows.UTF16PtrFromString(filepath.Dir(exe))
 	description, _ := windows.UTF16PtrFromString("Crivo, editor de pixel art")
@@ -111,7 +99,6 @@ func createShortcut(target, exe string) bool {
 	return call(file, persistFileSave, uintptr(unsafe.Pointer(lnkFile)), 1) == 0
 }
 
-// call invokes method number index of the COM interface obj (the first argument is always obj itself).
 func call(obj unsafe.Pointer, index uintptr, args ...uintptr) uintptr {
 	vtable := *(*unsafe.Pointer)(obj)
 	method := *(*uintptr)(unsafe.Add(vtable, index*unsafe.Sizeof(uintptr(0))))

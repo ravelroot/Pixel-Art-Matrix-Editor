@@ -1,6 +1,3 @@
-// Tilesets and tilemap layers. A tilemap cel stores tile indices (columns × rows) in doc.tileCells; its pixels
-// (doc.cell) are always kept rendered from the tiles, so every other code path just reads pixels.
-// This module does not import document.js (document.js imports it).
 
 export const MAX_TILES = 4096;
 
@@ -17,7 +14,6 @@ export function hasTileGrid(doc, frameId, layerId) {
   return doc.tileCells.has(doc.key(frameId, layerId));
 }
 
-// Tile indices of a tilemap cel (created empty on demand; linked cels share the same array).
 export function tileGrid(doc, frameId, layerId) {
   const layer = doc.layer(layerId);
   const tileset = tilesetOf(doc, layer);
@@ -51,7 +47,6 @@ function drawTile(doc, pixels, tileset, column, row, index) {
   }
 }
 
-// Re-renders the pixels of one tilemap cel from its tiles.
 export function renderTilemapCel(doc, frameId, layerId) {
   const tileset = tilesetOf(doc, doc.layer(layerId));
   if (!tileset || !hasTileGrid(doc, frameId, layerId)) return;
@@ -61,7 +56,6 @@ export function renderTilemapCel(doc, frameId, layerId) {
   for (let r = 0; r < rows; r++) for (let c = 0; c < columns; c++) drawTile(doc, pixels, tileset, c, r, grid[r * columns + c]);
 }
 
-// Re-renders every cel of every tilemap layer that uses the tileset (or all tilesets when id is null).
 export function renderTilesets(doc, tilesetId = null) {
   for (const layer of doc.layers) {
     if (layer.kind !== 'tilemap' || (tilesetId && layer.tileset !== tilesetId)) continue;
@@ -99,7 +93,6 @@ export function tileIndexAt(doc, frameId, layerId, x, y) {
   return grid[Math.floor(y / tileset.tileHeight) * columns + Math.floor(x / tileset.tileWidth)];
 }
 
-// Places a tile at the cell under the pixel (x, y). Returns true when something changed.
 export function placeTile(doc, frameId, layerId, x, y, index) {
   const tileset = tilesetOf(doc, doc.layer(layerId));
   if (!tileset || x < 0 || y < 0 || x >= doc.width || y >= doc.height) return false;
@@ -114,8 +107,6 @@ export function placeTile(doc, frameId, layerId, x, y, index) {
   return true;
 }
 
-// Pixel mode on a tilemap layer: writes the painted pixels into the tiles under them (every instance updates).
-// Painting over the empty tile (0) creates a new tile for that cell. `changes` is a list of [index, color].
 export function applyPixelsToTiles(doc, frameId, layerId, changes) {
   const tileset = tilesetOf(doc, doc.layer(layerId));
   if (!tileset) return false;
@@ -142,8 +133,6 @@ export function applyPixelsToTiles(doc, frameId, layerId, changes) {
   return changed;
 }
 
-// After the matrix changes size, the grids get the new number of columns and rows (keeping the top-left
-// tiles) and the pixels are rendered again.
 export function fitTileGrids(doc, oldWidth = doc.width) {
   for (const [k, grid] of doc.tileCells) {
     const layerId = k.slice(k.indexOf(':') + 1);

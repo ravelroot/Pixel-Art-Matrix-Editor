@@ -53,7 +53,7 @@ def indexed():
     pal = struct.pack("<III8x", len(palette), 0, len(palette) - 1)
     for r, g, b, a in palette:
         pal += struct.pack("<HBBBB", 0, r, g, b, a)
-    pixels = bytes([1, 2, 0, 3, 0, 1])  # a 3x2 cel at (1, 1)
+    pixels = bytes([1, 2, 0, 3, 0, 1])
     tags = struct.pack("<H8x", 1) + struct.pack("<HHBH6xBBBx", 0, 1, 3, 2, 10, 20, 30) + string("idle")
     tag_color = chunk(0x2020, struct.pack("<IBBBB", 2, 255, 128, 0, 255))
     sl = struct.pack("<III", 1, 3, 0) + string("hitbox") + struct.pack("<IiiII", 0, 1, 0, 2, 3)
@@ -76,7 +76,7 @@ def indexed():
 def grayscale():
     """16-bit grayscale 2x2: a group with one child (child level 1), multiply blend, raw cel with cel opacity, old palette chunk."""
     old_palette = struct.pack("<HBB", 1, 0, 2) + bytes([10, 20, 30, 40, 50, 60])
-    pixels = bytes([200, 255, 100, 255, 0, 0, 50, 128])  # (value, alpha) pairs
+    pixels = bytes([200, 255, 100, 255, 0, 0, 50, 128])
     f1 = frame(
         [
             chunk(0x0004, old_palette),

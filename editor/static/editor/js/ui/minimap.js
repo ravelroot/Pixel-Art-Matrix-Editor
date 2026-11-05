@@ -1,6 +1,3 @@
-// Preview window (Exibir → Pré-visualização, F7): the whole current frame, fitted or at 1:1, with the part
-// the main viewport shows outlined. Clicking or dragging on it moves the main view there, and it can play
-// the animation on its own while you keep drawing on the current frame.
 import { el, readPreference, writePreference } from './util.js';
 import { icon } from './icons.js';
 
@@ -83,7 +80,6 @@ export class Minimap {
     this.frameLoop();
   }
 
-  // Redraws on the next animation frame, and keeps watching the main view (zoom and scroll) while visible.
   frameLoop() {
     if (this.pending || !this.visible) return;
     this.pending = true;

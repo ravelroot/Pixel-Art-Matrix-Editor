@@ -25,11 +25,6 @@ def set_format_version_1(apps, schema_editor):
     apps.get_model("editor", "Project").objects.update(format_version=1)
 
 
-# PostgreSQL keeps the names it (or Django) generated in 0001 from the 1.x table and column names: primary keys,
-# the "column >= 0" checks of positive integer fields, foreign key indexes, the slug unique key and its LIKE index,
-# and identity sequences. Nothing refers to them by name, but they are renamed too so the whole schema reads in
-# English. SQLite needs nothing: it rebuilds the tables during this migration, which regenerates those names.
-# new table: (1.x table, {1.x column: new column})
 GENERATED_NAMES = {
     "project": (
         "projeto",
@@ -67,7 +62,6 @@ GENERATED_NAMES = {
     "palette_color": ("cor_paleta", {"paleta_id": "palette_id", "posicao": "position"}),
 }
 
-# Only these shapes are generated names; explicit ones (*_unique, *_valid, *_idx, *_fk_*) are handled by the operations.
 GENERATED_SUFFIX = re.compile(r"^(pkey|id_seq|[a-z0-9_]+_check|[a-z0-9_]+_key|[a-z0-9_]+_[0-9a-f]{8}(_like)?)$")
 
 
@@ -89,7 +83,6 @@ def _rename_generated_names(schema_editor, forwards):
     if connection.vendor != "postgresql":
         return
     quote = schema_editor.quote_name
-    # This operation is the last one, so in both directions the tables have their English names when it runs.
     for table, (old_table, columns) in GENERATED_NAMES.items():
         if forwards:
             old_prefix, new_prefix, column_map = old_table, table, columns
@@ -101,7 +94,6 @@ def _rename_generated_names(schema_editor, forwards):
                 new_name = _translated_name(name, old_prefix, new_prefix, column_map)
                 if new_name:
                     schema_editor.execute(f"ALTER TABLE {quote(table)} RENAME CONSTRAINT {quote(name)} TO {quote(new_name)}")
-            # Indexes behind a primary key or unique constraint were renamed together with the constraint above.
             cursor.execute("SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = %s", [table])
             for (name,) in cursor.fetchall():
                 new_name = _translated_name(name, old_prefix, new_prefix, column_map)
@@ -128,7 +120,6 @@ class Migration(migrations.Migration):
     dependencies = [("editor", "0002_paletas_predefinidas")]
 
     operations = [
-        # 1. Drop the Portuguese-named index and constraints while they still match the old field names.
         migrations.RemoveIndex(model_name="projeto", name="projeto_atualizado_idx"),
         migrations.RemoveConstraint(model_name="projeto", name="projeto_largura_valida"),
         migrations.RemoveConstraint(model_name="projeto", name="projeto_altura_valida"),
@@ -142,7 +133,6 @@ class Migration(migrations.Migration):
         migrations.RemoveConstraint(model_name="revisao", name="revisao_numero_unico"),
         migrations.RemoveConstraint(model_name="corpaleta", name="cor_posicao_unica"),
         migrations.RemoveConstraint(model_name="corpaleta", name="cor_hex_valido"),
-        # 2. Models and tables.
         migrations.RenameModel(old_name="Projeto", new_name="Project"),
         migrations.RenameModel(old_name="Camada", new_name="Layer"),
         migrations.RenameModel(old_name="Quadro", new_name="Frame"),
@@ -157,7 +147,6 @@ class Migration(migrations.Migration):
         migrations.AlterModelTable(name="revision", table="revision"),
         migrations.AlterModelTable(name="palette", table="palette"),
         migrations.AlterModelTable(name="palettecolor", table="palette_color"),
-        # 3. Columns.
         migrations.RenameField(model_name="project", old_name="nome", new_name="name"),
         migrations.RenameField(model_name="project", old_name="largura", new_name="width"),
         migrations.RenameField(model_name="project", old_name="altura", new_name="height"),
@@ -195,7 +184,6 @@ class Migration(migrations.Migration):
         migrations.RenameField(model_name="palette", old_name="atualizado_em", new_name="updated_at"),
         migrations.RenameField(model_name="palettecolor", old_name="paleta", new_name="palette"),
         migrations.RenameField(model_name="palettecolor", old_name="posicao", new_name="position"),
-        # 4. Related names and the new default format version (no schema change: both are Python-side only).
         migrations.AlterField(
             model_name="project",
             name="format_version",
@@ -231,14 +219,12 @@ class Migration(migrations.Migration):
             name="palette",
             field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="colors", to="editor.palette"),
         ),
-        # 5. Default ordering.
         migrations.AlterModelOptions(name="project", options={"ordering": ["-updated_at"]}),
         migrations.AlterModelOptions(name="layer", options={"ordering": ["project", "position"]}),
         migrations.AlterModelOptions(name="frame", options={"ordering": ["project", "position"]}),
         migrations.AlterModelOptions(name="revision", options={"ordering": ["project", "-number"]}),
         migrations.AlterModelOptions(name="palette", options={"ordering": ["-preset", "name"]}),
         migrations.AlterModelOptions(name="palettecolor", options={"ordering": ["palette", "position"]}),
-        # 6. Index and constraints again, with English names.
         migrations.AddIndex(
             model_name="project",
             index=models.Index(fields=["-updated_at"], name="project_updated_idx"),
@@ -291,8 +277,6 @@ class Migration(migrations.Migration):
             model_name="palettecolor",
             constraint=models.CheckConstraint(condition=models.Q(("hex__regex", "^#[0-9a-f]{6}([0-9a-f]{2})?$")), name="palette_color_hex_valid"),
         ),
-        # 7. Data: existing projects are served as format version 2 from now on.
         migrations.RunPython(set_format_version_2, set_format_version_1),
-        # 8. PostgreSQL only: names generated from the 1.x tables and columns (keep this operation last).
         migrations.RunPython(rename_generated_names, restore_generated_names),
     ]

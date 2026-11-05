@@ -1,8 +1,3 @@
-// Feature module: files and workspace. See main.js (app) for the extension points.
-// - .ase import and export (core/ase-file.js);
-// - APNG and PNG-sequence (.zip) export, Aseprite sprite-sheet JSON (ui/dialogs.js export dialogs);
-// - several documents in tabs (ui/tabs.js), drag and drop of files onto the canvas;
-// - preview window with the viewport rectangle (ui/minimap.js).
 import { readAseprite, writeAseprite, isAsepriteName } from '../core/ase-file.js';
 import { deserialize, fileNameFor } from '../core/format.js';
 import { Tabs } from '../ui/tabs.js';
@@ -14,7 +9,6 @@ import { $, notify, pickFile, downloadBlob } from '../ui/util.js';
 const OPEN_TYPES = '.crivo,.json,.aseprite,.ase,application/json';
 const IMAGE_RE = /\.(png|gif|jpe?g|webp|bmp)$/i;
 const isAsepriteBytes = (b) => b.length >= 128 && b[4] === 0xe0 && b[5] === 0xa5;
-// PNG, GIF, JPEG, BMP and WebP signatures.
 const isImageBytes = (b) =>
   (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) ||
   (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) ||
@@ -30,11 +24,9 @@ export function install(app) {
   app.tabs = tabs;
   app.openSavedProject = (id) => openProject(id);
 
-  // Reads a file chosen in the dialog or dropped on the canvas and opens it in a new tab.
   async function openFileObject(file) {
     const name = file.name.replace(/\.[^.]+$/, '') || 'Sem título';
     try {
-      // The content decides (a file may come without its extension); the name is only a fallback.
       const bytes = new Uint8Array(await file.arrayBuffer());
       if (isAsepriteBytes(bytes) || (isAsepriteName(file.name) && bytes.length >= 128)) {
         const doc = await readAseprite(bytes, { name });
@@ -61,7 +53,6 @@ export function install(app) {
     if (file) await openFileObject(file);
   }
 
-  // Saved projects: a project already open in a tab is reloaded there; any other opens in a new tab.
   async function openProject(id) {
     const storage = app.storage;
     try {
@@ -110,7 +101,6 @@ export function install(app) {
   app.addShortcut({ key: 'tab', ctrl: true, shift: true, run: () => tabs.next(-1) });
   app.addShortcut({ key: 'f7', run: () => minimap.toggle() });
 
-  // Drag and drop: .crivo, .aseprite and .ase open in a new tab; images go through the import dialog.
   const area = document.querySelector('.area');
   if (area) {
     const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files');

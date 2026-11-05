@@ -1,5 +1,3 @@
-// Adjustment dialogs (Cor → Ajustes) with live preview on the canvas: Cancel restores the cel, OK records one
-// undo step. They act on the current cel or on every frame of the current layer, only inside the selection.
 import { applyAdjustment, changesBetween, CONVOLUTION_PRESETS, curveTable } from '../core/adjust.js';
 import { colorModeOf, constrainPixels } from '../core/colormode.js';
 import { indicesOf, contains } from '../core/selection.js';
@@ -26,8 +24,6 @@ export const ADJUSTMENT_DIALOGS = {
   },
 };
 
-// Indices of the selected pixels (null = no selection, the whole cel). The selection is clipped to the matrix
-// (clipToDocument keeps and crops its mask) and indicesOf / contains honor the mask of non-rectangular selections.
 export function selectionIndices(editor) {
   if (!editor.selection) return null;
   const d = editor.doc;
@@ -39,7 +35,6 @@ export function selectionIndices(editor) {
 const CHANNELS = [['rgb', 'RGB'], ['r', 'Vermelho'], ['g', 'Verde'], ['b', 'Azul']];
 const identityCurve = () => [[0, 0], [255, 255]];
 
-// Point curve editor: click adds a point, drag moves it, double click removes it.
 function curveField(onChange) {
   const curves = { rgb: identityCurve(), r: identityCurve(), g: identityCurve(), b: identityCurve() };
   let channel = 'rgb';
@@ -51,7 +46,6 @@ function curveField(onChange) {
   const draw = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    // The RGB curve uses the text color of the theme (light or dark).
     color.rgb = canvas.isConnected ? getComputedStyle(canvas).color : '#2b1d17';
     ctx.clearRect(0, 0, size, size);
     ctx.strokeStyle = 'rgba(128,128,128,0.25)';
@@ -152,8 +146,6 @@ function buildFields(def, onChange) {
   return { nodes, read: () => Object.fromEntries(Object.entries(readers).map(([k, r]) => [k, r()])) };
 }
 
-// Opens the dialog of an adjustment (a key of ADJUSTMENT_DIALOGS). getPalette() returns the current palette colors
-// (indexed mode keeps the result inside the palette).
 export async function adjustmentDialog(editor, id, getPalette = () => []) {
   const def = ADJUSTMENT_DIALOGS[id];
   if (!def) throw new Error(`Unknown adjustment: ${id}`);

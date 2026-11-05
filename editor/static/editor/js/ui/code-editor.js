@@ -5,7 +5,7 @@ const KEYWORDS = {
   cpp: ['if', 'else', 'while', 'for', 'do', 'break', 'continue', 'return', 'switch', 'case', 'default', 'using', 'namespace', 'const', 'static', 'auto', 'int', 'float', 'double', 'bool', 'void', 'char', 'long', 'short', 'unsigned', 'string', 'vector', 'std', 'and', 'or', 'not', 'static_cast'],
   lua: ['and', 'break', 'do', 'else', 'elseif', 'end', 'for', 'function', 'if', 'in', 'local', 'not', 'or', 'repeat', 'return', 'then', 'until', 'while'],
 };
-const CONSTANTS = ['true', 'false', 'self', 'other', 'global', 'noone', 'nil', 'nullptr', 'NULL', 'pi', 'x', 'y', 'hspeed', 'vspeed', 'speed', 'direction', 'health'];
+const CONSTANTS = ['true', 'false', 'self', 'other', 'global', 'noone', 'nil', 'nullptr', 'NULL', 'pi', 'x', 'y', 'hspeed', 'vspeed', 'speed', 'direction', 'health', 'xscale', 'yscale', 'angle', 'mouse_x', 'mouse_y', 'delta_time'];
 export const LANG_NAMES = { crivo: 'Crivo Script', cpp: 'C++', lua: 'Lua' };
 
 function tokens(text, lang) {

@@ -1,12 +1,3 @@
-// Builds Crivo.exe: the Crivo desktop app for Windows, which opens maximized,
-// with no server and no backend. It embeds Crivo.html (the same editor as the single-file version).
-//
-//   npm run desktop              updates Crivo.html and builds Crivo.exe at the repository root
-//   npm run desktop -- --check   builds again in a temporary folder and checks that the repository's
-//                                Crivo.exe is identical, byte for byte (used in CI)
-//
-// Needs Node 20+ and Go (the exact version is in desktop/go.mod; Go downloads it by itself if missing).
-// The build is reproducible: the same code always produces the same .exe, on any system.
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -22,12 +13,6 @@ const EXE = join(ROOT, 'Crivo.exe');
 const GO_TOOLCHAIN = 'go1.24.7';
 const GOVERSIONINFO = 'github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.5.0';
 const lf = (text) => text.replace(/\r\n?/g, '\n');
-
-// --- Icon ----------------------------------------------------------------------------------------
-// The icon is the project logo (docs/images/logo.svg): the pixel-art pointer in the center of a white
-// 25×25 grid, the same drawing as the top of the README. Each Windows size is drawn with whole pixels,
-// without blurring, keeping the pointer near half the height of the square. Everything in uncompressed
-// formats, so the result is identical on any machine.
 
 const LOGO_GRID = 25;
 
@@ -49,7 +34,7 @@ function draw(pointer, side) {
   const scale = Math.max(1, Math.round(side / LOGO_GRID));
   const x0 = Math.floor((side - pointer.width * scale) / 2);
   const y0 = Math.floor((side - pointer.height * scale) / 2);
-  const rgba = Buffer.alloc(side * side * 4, 0xff); // opaque white background
+  const rgba = Buffer.alloc(side * side * 4, 0xff);
   for (const [px, py] of pointer.pixels) {
     for (let dy = 0; dy < scale; dy++) {
       for (let dx = 0; dx < scale; dx++) {
@@ -65,21 +50,21 @@ function iconBmp(rgba, side) {
   const header = Buffer.alloc(40);
   header.writeUInt32LE(40, 0);
   header.writeInt32LE(side, 4);
-  header.writeInt32LE(side * 2, 8); // the height counts the AND mask
+  header.writeInt32LE(side * 2, 8);
   header.writeUInt16LE(1, 12);
   header.writeUInt16LE(32, 14);
   const colors = Buffer.alloc(side * side * 4);
   for (let y = 0; y < side; y++) {
     for (let x = 0; x < side; x++) {
       const from = (y * side + x) * 4;
-      const to = ((side - 1 - y) * side + x) * 4; // BMP stores the rows bottom-up
+      const to = ((side - 1 - y) * side + x) * 4;
       colors[to] = rgba[from + 2];
       colors[to + 1] = rgba[from + 1];
       colors[to + 2] = rgba[from];
       colors[to + 3] = rgba[from + 3];
     }
   }
-  const mask = Buffer.alloc((Math.ceil(side / 32) * 4) * side); // fully opaque
+  const mask = Buffer.alloc((Math.ceil(side / 32) * 4) * side);
   return Buffer.concat([header, colors, mask]);
 }
 
@@ -104,7 +89,6 @@ function pngBlock(type, data) {
   return Buffer.concat([size, body, crc]);
 }
 
-// zlib with "stored" blocks (no compression), assembled by hand: the result does not depend on the zlib version.
 function zlibStored(data) {
   const parts = [Buffer.from([0x78, 0x01])];
   for (let i = 0; i < data.length || i === 0; i += 0xffff) {
@@ -131,8 +115,8 @@ function iconPng(rgba, side) {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(side, 0);
   ihdr.writeUInt32BE(side, 4);
-  ihdr[8] = 8; // bits per channel
-  ihdr[9] = 6; // RGBA
+  ihdr[8] = 8;
+  ihdr[9] = 6;
   const lines = Buffer.alloc((side * 4 + 1) * side);
   for (let y = 0; y < side; y++) rgba.copy(lines, y * (side * 4 + 1) + 1, y * side * 4, (y + 1) * side * 4);
   return Buffer.concat([
@@ -167,8 +151,6 @@ async function generateIcon() {
   });
   return Buffer.concat([header, ...entries, ...images]);
 }
-
-// --- Build ---------------------------------------------------------------------------------------
 
 function go(args, extraEnv = {}) {
   return execFileSync('go', args, {

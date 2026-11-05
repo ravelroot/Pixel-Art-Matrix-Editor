@@ -46,7 +46,6 @@ export class ServerStorage {
   }
 
   static async detect() {
-    // Opened straight from disk (Crivo.html): there is no server, everything stays in the browser.
     if (location.protocol === 'file:') return null;
     try {
       const info = await request('/health', { time: 2500 });
@@ -98,14 +97,11 @@ export class ServerStorage {
   }
 }
 
-// Crivo 1.x project reference ({ id, revisao, local }) as stored in its drafts.
 function upgradeProjectRef(p) {
   if (!p || typeof p !== 'object' || !('revisao' in p)) return p ?? null;
   return { id: p.id ?? null, revision: p.revisao ?? null, local: p.local ?? null };
 }
 
-// Crivo 1.x used database version 1 with the stores "projetos" and "rascunho" and Portuguese fields.
-// The upgrade to version 2 copies every record into "projects" and "draft", converted, and then drops the old stores.
 function migrateLegacyStores(db, tx) {
   if (db.objectStoreNames.contains('projetos')) {
     tx.objectStore('projetos').getAll().onsuccess = (e) => {
@@ -211,7 +207,6 @@ export class BrowserStorage {
     try {
       const stored = localStorage.getItem('crivo.palettes');
       if (stored !== null) return JSON.parse(stored);
-      // Crivo 1.x kept the palettes under "crivo.paletas" with Portuguese fields.
       const legacy = localStorage.getItem('crivo.paletas');
       if (legacy === null) return [];
       const list = JSON.parse(legacy).map((p) => ({ id: p.id, name: p.nome, colors: p.cores }));

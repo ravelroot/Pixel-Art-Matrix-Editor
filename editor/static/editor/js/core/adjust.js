@@ -1,6 +1,3 @@
-// Color adjustments on Uint32Array matrices (packed RGBA). Every function is pure: it returns a new matrix,
-// keeps the alpha of every pixel, never touches transparent pixels and, when `indices` is given (a selection),
-// changes only those pixels. Signature: fn(pixels, options, { width, height, indices }).
 import { unpack, pack, clamp, rgbToHsl, hslToRgb } from './colors.js';
 
 const byte = (v) => clamp(Math.round(v), 0, 255);
@@ -13,7 +10,6 @@ function forEachTarget(pixels, indices, fn) {
   }
 }
 
-// Per-color adjustments: each distinct color is computed once.
 function mapColors(pixels, indices, fn) {
   const out = pixels.slice();
   const cache = new Map();
@@ -30,7 +26,6 @@ function mapColors(pixels, indices, fn) {
   return out;
 }
 
-// brightness and contrast in -100..100 (0 = unchanged).
 export function brightnessContrast(pixels, { brightness = 0, contrast = 0 } = {}, { indices = null } = {}) {
   const shift = clamp(brightness, -100, 100) * 2.55;
   const c = clamp(contrast, -100, 100) * 2.55;
@@ -42,8 +37,6 @@ export function brightnessContrast(pixels, { brightness = 0, contrast = 0 } = {}
 
 const scaleUnit = (v, amount) => (amount >= 0 ? v + (1 - v) * amount : v * (1 + amount));
 
-// hue in -180..180 degrees; saturation and lightness in -100..100. With `colorize`, every pixel gets the hue
-// (0..360 when negative values wrap) and a saturation of 50% + saturation/2, keeping its own lightness.
 export function hueSaturation(pixels, { hue = 0, saturation = 0, lightness = 0, colorize = false } = {}, { indices = null } = {}) {
   const s = clamp(saturation, -100, 100) / 100;
   const l = clamp(lightness, -100, 100) / 100;
@@ -55,7 +48,6 @@ export function hueSaturation(pixels, { hue = 0, saturation = 0, lightness = 0, 
   });
 }
 
-// Lookup table 0..255 from curve points [[in, out], ...] (linear between the points, flat outside them).
 export function curveTable(points = [[0, 0], [255, 255]]) {
   const list = [...points]
     .map(([x, y]) => [clamp(Math.round(x), 0, 255), clamp(Math.round(y), 0, 255)])
@@ -80,8 +72,6 @@ export function curveTable(points = [[0, 0], [255, 255]]) {
   return table;
 }
 
-// Curves: { rgb, r, g, b } point lists (any may be missing); or the shorthand { points, channel: 'rgb'|'r'|'g'|'b' }.
-// The per-channel curve is applied first, then the RGB curve.
 export function colorCurve(pixels, options = {}, { indices = null } = {}) {
   const curves = options.points ? { [options.channel || 'rgb']: options.points } : options.curves || options;
   const identity = curveTable();
@@ -91,7 +81,6 @@ export function colorCurve(pixels, options = {}, { indices = null } = {}) {
   return mapColors(pixels, indices, (r, g, b) => [all[tr[r]], all[tg[g]], all[tb[b]]]);
 }
 
-// levels in 2..256 per channel.
 export function posterize(pixels, { levels = 4 } = {}, { indices = null } = {}) {
   const n = clamp(Math.round(levels), 2, 256);
   const table = new Uint8Array(256);
@@ -99,7 +88,6 @@ export function posterize(pixels, { levels = 4 } = {}, { indices = null } = {}) 
   return mapColors(pixels, indices, (r, g, b) => [table[r], table[g], table[b]]);
 }
 
-// Despeckle: per-channel median of the opaque pixels of the 3×3 neighborhood (the window is clipped at the edges).
 export function despeckle(pixels, options = {}, { width, height, indices = null } = {}) {
   const out = pixels.slice();
   const rs = [];
@@ -135,8 +123,6 @@ export const CONVOLUTION_PRESETS = {
   gaussian: { label: 'Desfoque gaussiano 3×3', kernel: [1, 2, 1, 2, 4, 2, 1, 2, 1], divisor: 16 },
 };
 
-// Convolution with a square kernel (3×3, 5×5...). Edges repeat the border pixel. With `skipTransparent`
-// (default), transparent neighbors count as the center pixel, so sprite borders do not bleed into black.
 export function convolve(pixels, { preset = null, kernel = null, divisor = null, bias = 0, skipTransparent = true } = {}, { width, height, indices = null } = {}) {
   const p = CONVOLUTION_PRESETS[preset];
   const k = kernel ?? p?.kernel ?? CONVOLUTION_PRESETS.smooth.kernel;
@@ -187,7 +173,6 @@ export function applyAdjustment(id, pixels, options, context) {
   return fn(pixels, options, context);
 }
 
-// [index, color] pairs of the pixels that differ (the format editor.applyChanges records as one undo step).
 export function changesBetween(before, after) {
   const changes = [];
   for (let i = 0; i < before.length; i++) if (before[i] !== after[i]) changes.push([i, after[i]]);

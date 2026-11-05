@@ -14,7 +14,6 @@ import javax.imageio.ImageIO;
 
 public final class Crivo {
 
-    // Shown to the user, so it stays in Portuguese.
     private static final String USAGE = """
             Crivo · ferramenta de linha de comando em Java
 
@@ -31,14 +30,12 @@ public final class Crivo {
             --escala, --disposicao (horizontal|vertical|grade), --colunas, --espaco, --modo, --classe e todos.
             """;
 
-    /** Portuguese command names from Crivo 1.x, still accepted. */
     private static final Map<String, String> COMMAND_ALIASES = Map.of(
             "paleta", "palette",
             "folha", "sheet",
             "matriz", "matrix",
             "verificar", "check");
 
-    /** Portuguese option names from Crivo 1.x, still accepted. */
     private static final Map<String, String> OPTION_ALIASES = Map.of(
             "quadro", "frame",
             "escala", "scale",
@@ -87,7 +84,6 @@ public final class Crivo {
         return args[i];
     }
 
-    /** Command-line options ({@code --name value}), stored under their English names. */
     static final class Options {
 
         private final Map<String, String> values = new HashMap<>();
@@ -113,7 +109,6 @@ public final class Crivo {
             return options;
         }
 
-        /** Builds options from name/value pairs, as if typed as {@code --name value}. */
         static Options of(String... pairs) {
             String[] args = new String[pairs.length];
             for (int i = 0; i < pairs.length; i++) {
@@ -126,7 +121,6 @@ public final class Crivo {
             return values.getOrDefault(key, fallback);
         }
 
-        /** The option as the user typed it (English or Portuguese), for error messages. */
         String flag(String key) {
             return typed.getOrDefault(key, "--" + key);
         }
@@ -173,12 +167,10 @@ public final class Crivo {
     private static final Map<String, String> KIND_NAMES = Map.of("group", " (grupo)", "tilemap", " (tiles)", "image", "");
     private static final Map<String, String> DIRECTION_NAMES = Map.of("forward", "para frente", "reverse", "ao contrário", "pingpong", "pingue-pongue");
 
-    /** The 2.1 details of a layer for {@code info}: empty for a plain 2.0 layer. */
     private static String layerDetails(Project.Layer l) {
         return KIND_NAMES.get(l.kind()) + (l.reference() ? " (referência)" : "") + (l.blendMode().equals("normal") ? "" : " [" + l.blendMode() + "]");
     }
 
-    /** Lists the frame tags with their frame ranges (1-based), direction and repeat count. */
     static String tags(Project p) {
         if (p.tags.isEmpty()) {
             return "Este projeto não tem tags." + System.lineSeparator();
@@ -310,7 +302,6 @@ public final class Crivo {
         return javaClass(className, p.width, p.height, frameIndexes.size(), values, argb ? null : colors);
     }
 
-    /** Above this many values, a Java literal would exceed the 64 KB per-method limit and would not compile. */
     static final int LITERAL_LIMIT = 4096;
     private static final int CHUNK = 20000;
 

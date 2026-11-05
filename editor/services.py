@@ -28,13 +28,11 @@ from .models import (
 )
 from .rle import RLEError, decode, from_base64, run_length, split_runs, to_base64
 
-# Version of the .crivo document format written by this server. Version 1 (Portuguese keys) is still read.
 FORMAT_VERSION = 2
 
 HEX = re.compile(r"^#?([0-9a-fA-F]{6})([0-9a-fA-F]{2})?$")
 PNG = b"\x89PNG\r\n\x1a\n"
 
-# Validation messages are shown to the user by the editor, so they stay in Portuguese.
 
 
 class ValidationError(ValueError):
@@ -68,7 +66,6 @@ _V1_CELL_KEYS = {"quadro": "frame", "camada": "layer", "rle": "rle"}
 
 
 def _rename_keys(item, keys):
-    # Anything that is not an object is passed through untouched, so validation treats it exactly as in a v2 document.
     if not isinstance(item, dict):
         return item
     return {keys[k]: v for k, v in item.items() if k in keys}
@@ -195,8 +192,6 @@ def validate_document(data):
     return document
 
 
-# Crivo 2.1 document additions: optional keys (colorMode, tags, slices, tilesets; layer blendMode, kind, parent,
-# collapsed, tileset, reference; cell link, tiles). Writers omit the defaults, so 2.0 documents round-trip unchanged.
 
 MAX_TAGS = 256
 MAX_SLICES = 256
@@ -308,7 +303,6 @@ def _validate_cells_21(document, tilesets):
         if link is not None:
             if link not in frames:
                 raise ValidationError("Célula vinculada aponta para um quadro que não existe.")
-            # The editor does not write empty cels, so the source may be missing (an empty cel); it may not be linked.
             source = cells.get((link, cell["layer"]))
             if link == cell["frame"] or (source is not None and source["link"] is not None):
                 raise ValidationError("Célula vinculada precisa apontar para uma célula com pixels próprios da mesma camada.")
@@ -318,7 +312,6 @@ def _validate_cells_21(document, tilesets):
                 raise ValidationError("Só células de camadas de tiles guardam tiles.")
             tileset = tilesets[layer["tileset"]]
             tw, th = tileset["tileWidth"], tileset["tileHeight"]
-            # columns x rows: whole tiles covering the canvas (partial tiles at the edges counted or not).
             sizes = {-(-width // tw) * -(-height // th), (width // tw) * (height // th)}
             try:
                 count = run_length(cell["tiles"], max(sizes))

@@ -1,7 +1,4 @@
-// Playback order of the animation, honoring tags (direction and repeat count).
 
-// Frame indices of one tag: `loop` true means the list repeats forever (repeat = 0); otherwise it is the whole
-// finite sequence (repeat passes; in ping-pong each pass is one sweep and the ends are not doubled).
 export function tagSequence(from, to, direction = 'forward', repeat = 0) {
   const forward = [];
   for (let i = from; i <= to; i++) forward.push(i);
@@ -22,14 +19,12 @@ export function tagSequence(from, to, direction = 'forward', repeat = 0) {
   return { frames: forward, loop: true };
 }
 
-// Sequence played from `frameIndex`: inside the innermost tag that contains it, or all the frames in a loop.
 export function playbackSequence(doc, frameIndex) {
   const tag = doc.tagAt ? doc.tagAt(frameIndex) : null;
   if (!tag) return { ...tagSequence(0, doc.frames.length - 1), tag: null };
   return { ...tagSequence(doc.frameIndex(tag.from), doc.frameIndex(tag.to), tag.direction, tag.repeat), tag };
 }
 
-// Iterator used by the editor: next(frame) gives the next frame index, or -1 when a finite tag is over.
 export class Playback {
   constructor(doc, frameIndex) {
     const { frames, loop, tag } = playbackSequence(doc, frameIndex);

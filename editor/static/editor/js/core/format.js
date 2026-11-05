@@ -7,7 +7,6 @@ import { renderTilesets, MAX_TILES } from './tilemap.js';
 export const FORMAT = 'crivo';
 export const FORMAT_VERSION = 2;
 
-// Crivo 1.x saved files with Portuguese keys (format version 1). They are converted to version 2 on read.
 export function upgradeDocument(data) {
   if (!data || typeof data !== 'object' || !('formato' in data)) return data;
   return {
@@ -57,7 +56,6 @@ export function serialize(doc) {
         opacity: c.opacity,
         locked: c.locked,
       };
-      // 2.1.0 keys, written only when they differ from the default (2.0.0 files stay byte-identical).
       for (const [k, fallback] of Object.entries(LAYER_DEFAULTS)) if (c[k] !== undefined && c[k] !== fallback) layer[k] = c[k];
       return layer;
     }),
@@ -90,7 +88,6 @@ const hex = (v, fallback) => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)
 const rect = (r, doc) =>
   r && typeof r === 'object' ? { x: int(r.x, -doc.width, doc.width * 2), y: int(r.y, -doc.height, doc.height * 2), width: int(r.width, 1, doc.width * 2, 1), height: int(r.height, 1, doc.height * 2, 1) } : null;
 
-// Optional 2.1.0 data: tags, slices, tilesets, color mode. Invalid entries are dropped, never fatal.
 function readExtras(doc, data) {
   if (COLOR_MODES.includes(data.colorMode)) doc.colorMode = data.colorMode;
   const ids = new Set();
@@ -137,7 +134,6 @@ function readLayerExtras(layer, c) {
   return layer;
 }
 
-// Parents must be groups placed above their children; anything else is flattened to the top level.
 function fixLayerTree(doc) {
   doc.layers.forEach((c, i) => {
     if (!c.parent) return;

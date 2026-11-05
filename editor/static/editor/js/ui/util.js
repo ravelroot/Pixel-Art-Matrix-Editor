@@ -40,9 +40,6 @@ export function notify(text, type = 'info', duration = 3200) {
   }, duration);
 }
 
-// Saves a file: opens the "Save as" window when possible (desktop app, Chrome and Edge), so the person
-// chooses the folder; elsewhere it goes to the Downloads folder. Resolves to 'saved', 'downloaded' or
-// null (canceled in the window).
 export async function downloadBlob(blob, name, options = {}) {
   try {
     const result = await saveBlob(blob, name, options);
@@ -62,7 +59,6 @@ export function downloadText(text, name, type = 'text/plain', options = {}) {
   return downloadBlob(new Blob([text], { type: `${type};charset=utf-8` }), name, options);
 }
 
-// Label of the button that saves an export: "Salvar…" opens the Save as window; "Baixar" downloads.
 export const saveLabel = (label = 'Salvar…', fallback = 'Baixar') => (canChooseLocation() ? label : fallback);
 
 export function pickFile(accepts, multiples = false) {
@@ -109,7 +105,6 @@ export function delay(fn, ms) {
   return wrapped;
 }
 
-// Crivo 1.x stored the preferences under Portuguese keys and values. They move to the English keys on first read.
 const LEGACY_KEYS = {
   tool: 'ferramenta', size: 'tamanho', shape: 'forma', symmetry: 'simetria', grid: 'grade', filled: 'preenchido',
   connectivity: 'conectividade', tolerance: 'tolerancia', contiguous: 'contiguo', sample: 'amostra', eraserMode: 'modoBorracha',

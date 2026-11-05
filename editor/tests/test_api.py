@@ -259,7 +259,6 @@ class DocumentCompatibilityTest(TestCase):
     def test_old_v1_revision_is_restored(self):
         pid = self.post("/api/v2/projects", {"data": document("Atual", color=BLUE)}).json()["id"]
         project = Project.objects.get(pk=pid)
-        # A revision saved by Crivo 1.x: zlib-compressed JSON of a version 1 document.
         content = zlib.compress(json.dumps(document_v1("Antigo"), separators=(",", ":")).encode("utf-8"), 6)
         Revision.objects.create(project=project, number=0, name="Antigo", content=content, size_bytes=len(content))
         r = self.post(f"/api/v2/projects/{pid}/revisions/0/restore", {})

@@ -6,7 +6,7 @@
 
 <p align="center">
   Editor de pixel art que roda no navegador e trata a imagem como ela é: uma matriz de pixels RGBA. Desenhe com lápis, spray, balde, linhas, curvas, formas, pontilhado e degradês, selecione com retângulo, elipse, laço ou varinha mágica, organize em camadas e grupos com modos de mistura, anime quadro a quadro com tags e cels vinculados e exporte PNG, GIF e PNG animados, sprite sheets, arquivos <code>.ase</code> com camadas ou a própria matriz em JSON, CSV, JavaScript, Python, C e Java para usar direto no seu jogo.<br>
-  Ou monte o jogo no próprio Crivo: o <b>Estúdio de jogo</b> junta cenas com tiles, personagens, inimigos, itens, regras, sons de 8 bits e música, sem código, e exporta o jogo pronto numa página <code>.html</code>.<br>
+  Ou monte o jogo no próprio Crivo: o <b>Estúdio de jogo</b> junta cenas com tiles, personagens, inimigos, itens, regras, sons de 8 bits e música, sem código, e exporta o jogo pronto numa página <code>.html</code>. Na 2.5.0 ele virou um motor completo: luz e escuridão, câmera com zoom e zona morta, escadas, água, plataformas móveis, pontos de controle, áreas de gatilho, emissores de partículas, diálogos, inimigos com A*, tweens, sinais, salvar o progresso, eventos de desenho e mapas nas três linguagens.<br>
   Roda de três maneiras: app desktop para Windows (<code>Crivo.exe</code>), servidor local com backend ou arquivo único no navegador (<code>Crivo.html</code>).<br>
   Ou abra direto no navegador, sem baixar nada: <a href="https://ravelroot.github.io/Pixel-Art-Matrix-Editor/">ravelroot.github.io/Pixel-Art-Matrix-Editor</a>.<br>
   Pronto para baixar e usar.
@@ -18,15 +18,15 @@
 
 ---
 
-> **Manual completo:** [`Manual-Crivo.pdf`](Manual-Crivo.pdf) explica as três maneiras de rodar (app desktop, servidor local e arquivo único), cada uma das 23 ferramentas, seleção, camadas e grupos, modos de mistura, tags, tilemaps, slices, cor e paletas, ajustes, arquivos `.ase`, abas, o Caderno (2.3.0), o Estúdio de jogo (2.4.0: o passo a passo do primeiro jogo, cenas, atores, eventos, regras, código em Crivo Script, C++ e Lua, terminal, depuração e exportação do jogo), exportação, a matemática por trás dos algoritmos (Bresenham, flood fill, OKLCH, pontilhado de Bayer, LZW do GIF, RLE), a janela Salvar como, o tutorial rápido, a API, a ferramenta em Java, a configuração, a segurança, os testes e a solução de problemas, passo a passo (cópia em [`docs/`](docs/Manual-Crivo.pdf)).
+> **Manual completo:** [`Manual-Crivo.pdf`](Manual-Crivo.pdf) explica as três maneiras de rodar (app desktop, servidor local e arquivo único), cada uma das 23 ferramentas, seleção, camadas e grupos, modos de mistura, tags, tilemaps, slices, cor e paletas, ajustes, arquivos `.ase`, abas, o Caderno (2.3.0), o Estúdio de jogo (2.4.0: o passo a passo do primeiro jogo, cenas, atores, eventos, regras, código em Crivo Script, C++ e Lua, terminal, depuração e exportação do jogo), o motor profissional e os comandos novos de pixel art (2.5.0: física de escadas, água, gelo e molas, comportamentos novos, câmera, luz, clima, diálogos, sinais, tweens, A*, salvar o progresso, eventos de desenho, mapas, tiles animados, Scale2x, sel-out e redução de cores), exportação, a matemática por trás dos algoritmos (Bresenham, flood fill, OKLCH, pontilhado de Bayer, LZW do GIF, RLE), a janela Salvar como, o tutorial rápido, a API, a ferramenta em Java, a configuração, a segurança, os testes e a solução de problemas, passo a passo (cópia em [`docs/`](docs/Manual-Crivo.pdf)).
 
-> **Banco de dados:** [`Banco-de-Dados-Crivo.pdf`](Banco-de-Dados-Crivo.pdf) traz o diagrama de relacionamentos, todas as tabelas (inclusive `tag`, `slice` e `tileset`, da 2.1.0) com campos, tipos, chaves e restrições, o formato binário das células, o controle de versões, consultas prontas, como preparar o PostgreSQL e as regras de integridade e segurança dos dados; na 2.4.0, uma seção sobre o formato `.crivojogo` dos jogos, que fica fora do banco.
+> **Banco de dados:** [`Banco-de-Dados-Crivo.pdf`](Banco-de-Dados-Crivo.pdf) traz o diagrama de relacionamentos, todas as tabelas (inclusive `tag`, `slice` e `tileset`, da 2.1.0) com campos, tipos, chaves e restrições, o formato binário das células, o controle de versões, consultas prontas, como preparar o PostgreSQL e as regras de integridade e segurança dos dados; na 2.4.0, uma seção sobre o formato `.crivojogo` dos jogos, que fica fora do banco, e na 2.5.0 os campos da versão 2 desse formato.
 
-> **Ferramentas e desafios:** [`Ferramentas-Crivo.pdf`](Ferramentas-Crivo.pdf) ilustra as ferramentas em cartões, agora também as do Estúdio de jogo, o terminal (F4) e a depuração (F3), e [`Desafios-Crivo.pdf`](Desafios-Crivo.pdf) traz 12 desafios, dos quais seis novos de jogos: primeira fase, inimigo com eventos, placar e regras, função em Lua, função em C++ e terminal e depuração (cópias em [`docs/`](docs/)).
+> **Ferramentas e desafios:** [`Ferramentas-Crivo.pdf`](Ferramentas-Crivo.pdf) ilustra as ferramentas em cartões, agora também as do Estúdio de jogo, o terminal (F4), a depuração (F3), os tiles e comportamentos da 2.5.0 e os comandos novos do menu Imagem, e [`Desafios-Crivo.pdf`](Desafios-Crivo.pdf) traz 16 desafios, dos quais quatro novos da 2.5.0: a mina escura, o mineiro que fala, a ponte que se mexe e o caçador que acha o caminho (cópias em [`docs/`](docs/)).
 
-> **Versão 2.4.0 (Atual):** o **Estúdio de jogo**, com menu próprio na barra (entre Caderno e Ajuda) e atalho F9, monta jogos de pixel art a partir dos seus desenhos, sem código: cenas com tiles, atores com comportamentos prontos (jogador de plataforma ou com visão de cima, inimigos, itens, saídas, tiros), objetos com eventos e ações (criar, passo, alarmes, colisão, teclas, destruir), pai, profundidade, **código em Crivo Script, C++ e Lua com terminal**, tamanhos de 8 a 1024 px, regras "quando… então…", sons de 8 bits e música, teste na hora (F5) e exportação para um único `.html` que roda em qualquer navegador, inclusive no celular e com controle. Já vem com um jogo de exemplo de duas fases. Nada muda no formato `.crivo`, na API nem no banco. Detalhes em [Estúdio de jogo (2.4.0)](#estúdio-de-jogo-240).
+> **Versão 2.5.0 (Atual):** o **motor de jogo profissional** e nove comandos novos de **pixel art**. O Estúdio de jogo ganhou escadas, água, gelo e molas, pulo na parede e investida, plataformas móveis, pontos de controle, personagens que falam, inimigos que acham o caminho com **A\***, torres que atiram, áreas de gatilho, emissores de partículas, geradores de atores, **câmera** com zoom e quatro modos, **luz e escuridão** por cena, clima, efeitos de partículas, transições e filtros de tela, **tweens**, **sinais**, **diálogos**, **salvar o progresso**, eventos de **desenho** e de **mouse**, tiles animados, **mapas e tabelas** nas três linguagens, mais de 50 funções novas, **Testar daqui** (Shift+F5), **gravação do jogo em GIF** (F6) e uma depuração mais completa. O menu Imagem ganhou contorno interno, contorno seletivo (sel-out), sombra projetada, sombreamento automático, limpar pixels soltos, reduzir cores, mapa de degradê e ampliação **Scale2x/Scale3x/Scale4x**, e o menu Cor ganhou a rampa com desvio de matiz. O exemplo ganhou a Fase 3, a mina escura. Nada muda no formato `.crivo`, na API nem no banco. Detalhes em [Motor profissional e pixel art (2.5.0)](#motor-profissional-e-pixel-art-250).
 
-> **Versão 2.3.0 (Anterior):** o **Caderno**, com menu próprio na barra (entre Quadro e Ajuda) e atalho F8, mostra seus projetos como cadernos numa estante em 3D: escolha um, ele cresce, gira, abre em leque e as páginas viram com as setas, cada uma com uma pixel art em tamanho inteiro (as animadas tocam na própria página). Dá para folhear com ou sem as pixel arts, dar nome e foto de capa a cada caderno e voltar ao editor na página que quiser. Nada muda no formato `.crivo`, na API nem no banco. Detalhes em [Caderno (2.3.0)](#caderno-230).
+> **Versão 2.4.0 (Anterior):** o **Estúdio de jogo**, com menu próprio na barra (entre Caderno e Ajuda) e atalho F9, monta jogos de pixel art a partir dos seus desenhos, sem código: cenas com tiles, atores com comportamentos prontos (jogador de plataforma ou com visão de cima, inimigos, itens, saídas, tiros), objetos com eventos e ações (criar, passo, alarmes, colisão, teclas, destruir), pai, profundidade, **código em Crivo Script, C++ e Lua com terminal**, tamanhos de 8 a 1024 px, regras "quando… então…", sons de 8 bits e música, teste na hora (F5) e exportação para um único `.html` que roda em qualquer navegador, inclusive no celular e com controle. Já vem com um jogo de exemplo de duas fases. Nada muda no formato `.crivo`, na API nem no banco. Detalhes em [Estúdio de jogo (2.4.0)](#estúdio-de-jogo-240).
 
 <p align="center">
   <img src="docs/images/tela-editor.png" alt="Editor com a poção de exemplo aberta, os menus da 2.1.0, a barra de abas, três camadas e a linha do tempo com quatro quadros">
@@ -44,6 +44,8 @@
 - **Histórico ilimitado sem estourar a memória:** cada traço guarda só os pixels que mudaram; mudanças grandes viram RLE da célula inteira; ações estruturais guardam instantâneos comprimidos. A barra de status mostra quanto o histórico ocupa.
 - **Visualização:** vários projetos abertos em **abas**, janela de **pré-visualização** (F7), **Caderno** em 3D para folhear os projetos (F8), zoom no ponto do cursor (100% a 12800%), arrastar com espaço ou botão do meio, ajustar à tela, grade com linha forte a cada 4, 8, 16 ou 32 pixels, **modo ladrilho** (repete o desenho 3×3 para conferir texturas) e simetria horizontal, vertical ou nos dois eixos.
 - **Estúdio de jogo (2.4.0):** cenas montadas com tiles (sólido, plataforma e perigo), atores com 12 comportamentos prontos, objetos com eventos (criar, passo, alarmes, colisão, teclas, destruir), pai e profundidade, código em Crivo Script, C++ e Lua com terminal, tamanhos de 8 a 1024 px, depuração, partículas, regras "quando… então…" com variáveis e placar, sons de 8 bits, música por cena, teste na hora e exportação do jogo para um `.html` que roda sozinho, com tela de título, pausa, gamepad e botões de toque. Detalhes em [Estúdio de jogo (2.4.0)](#estúdio-de-jogo-240).
+- **Motor profissional (2.5.0):** escadas, água, gelo e molas; pulo na parede e investida; plataformas móveis, molas, pontos de controle, personagens que falam, inimigos com A*, torres, áreas de gatilho, emissores de partículas e geradores de atores (21 comportamentos); câmera com zoom e quatro modos; luz, escuridão e clima por cena; partículas prontas, câmera lenta, hitstop, transições e filtros de tela; tweens, sinais, diálogos, salvar o progresso, eventos de desenho e de mouse, tiles animados e mapas nas três linguagens. Detalhes em [Motor profissional e pixel art (2.5.0)](#motor-profissional-e-pixel-art-250).
+- **Comandos de pixel art (2.5.0):** contorno interno, contorno seletivo (sel-out), sombra projetada, sombreamento automático com desvio de matiz, limpar pixels soltos, reduzir cores (corte mediano e k-médias no OKLab), mapa de degradê com a paleta, ampliação Scale2x, Scale3x e Scale4x e rampas de cor com desvio de matiz para a paleta.
 - **Tamanho da matriz:** de 1×1 a 1024×1024, com âncora de nove posições para centralizar ou expandir para um lado, ou escalando o desenho por vizinho mais próximo. Também gira 90° e espelha camadas.
 - **Paletas e cor:** Crivo, Game Boy, NES, Pico-8, CGA, CGA modo 4, Commodore 64 e 1 bit já incluídas. Crie, renomeie, importe (`.hex`, `.gpl`, `.json`, `.txt` do Paint.NET) e exporte as suas, gere uma paleta a partir das cores do desenho ou edite tudo no **editor de paleta**. Modos de cor **RGBA**, **indexado** (com pontilhado opcional) e **tons de cinza**, seletor HSV com alfa e **ajustes** com prévia: brilho e contraste, matiz/saturação/luminosidade, curva de cores, posterizar, remover ruído e matriz de convolução.
 - **Gerador de tons:** a partir da cor escolhida, cria rampas de sombra e luz no espaço de cor OKLCH, com o desvio de matiz típico da pixel art (sombras puxam para o azul, luzes para o amarelo).
@@ -75,6 +77,118 @@ O botão com o ícone de paleta, no canto superior direito ao lado do botão de 
 | **Nexo** | paleta original do Nexo | papel `#E8E8E8`, pó `#D9D1CE`, pedra `#BAB7B5`, malva `#AB9D9D`, tinta `#000000` | fundo `#000000`, superfície `#121111`, malva `#AB9D9D` |
 
 A escolha fica salva neste navegador (ou no app desktop) junto com as outras preferências. As paletas são variáveis CSS em `:root[data-palette]` no [`editor/static/editor/css/crivo.css`](editor/static/editor/css/crivo.css), e a lista do menu fica em `PALETTES` no [`editor/static/editor/js/main.js`](editor/static/editor/js/main.js). Funciona nas três maneiras de rodar.
+
+## Motor profissional e pixel art (2.5.0)
+
+<p align="center">
+  <img src="docs/images/tela-jogo-mina.png" alt="Fase 3 do jogo de exemplo, a mina escura: escuridão de 78%, tochas que iluminam e tremulam, brasas caindo e o diálogo do Mineiro digitando letra por letra">
+</p>
+
+<p align="center">
+  <img src="docs/images/tela-jogo-depuracao.png" width="49%" alt="Teste com a Depuração (F3): caixas de colisão, tempo do passo em milissegundos, pares de colisão, partículas, zoom da câmera e as variáveis globais, com o terminal rodando tween, effect e checkpoint_set">
+  <img src="docs/images/tela-jogo-luz.png" width="49%" alt="Aba Cenas com a Fase 3 e a seção nova Luz, clima e câmera: escuridão, cor da escuridão, clima, zoom e modo da câmera">
+</p>
+
+A versão 2.5.0 transforma o Estúdio de jogo num motor completo, com os recursos que se espera de uma ferramenta profissional, e dá ao editor de pixel art nove comandos novos, oito no menu Imagem e um no menu Cor. Tudo continua rodando sem código quando você quer (comportamentos, eventos e regras) e com código quando precisa (Crivo Script, C++ e Lua). O jogo de exemplo ganhou a **Fase 3: a mina escura**, que usa quase tudo o que entrou, inclusive uma área de gatilho que avisa do morcego caçador perto da saída e aproxima a câmera.
+
+**Física e mundo**
+
+| Recurso | O que faz |
+|---|---|
+| Tiles novos | **Escada** (sobe e desce com Cima e Baixo, e o topo vira chão), **Água** (gravidade a 30%, queda lenta, cada pulo vira uma braçada e há respingos na entrada e na saída), **Gelo** (sólido e escorregadio) e **Mola** (sólido que quica alto) |
+| Jogador de plataforma | **Pulo na parede** (desliza segurando na direção da parede e pula para o outro lado), **investida** (Shift ou L, também no ar, uma por pulo), sobe escadas, nada e tem as animações novas Subindo escada, Na parede, Investida e Nadando |
+| Jogador visto de cima | Investida nas oito direções; anda mais devagar na água e escorrega no gelo |
+| Plataforma móvel | Vai e volta na horizontal ou na vertical, pausa nas pontas, leva quem estiver em cima e pode ser de mão única (o jogador pula por baixo e para em cima) |
+| Mola e ponto de controle | A mola joga o jogador para o alto e troca para a animação "Ativo"; o ponto de controle acende, pode recuperar a vida e vira o lugar onde o jogador volta depois de morrer |
+| Personagem que fala (NPC) | Fala com o jogador quando ele aperta X por perto (um "!" aparece em cima da cabeça), com várias páginas separadas por `|`, nome de quem fala e o evento **Fim do diálogo** |
+| Inimigo que acha o caminho | Persegue o jogador contornando as paredes com o algoritmo **A\*** sobre os tiles sólidos, recalculando o caminho a cada 0,35 s |
+| Torre que atira | Fica parada, mira no jogador e atira o projétil escolhido quando ele está no alcance e, se marcado, sem parede no meio (linha de visão) |
+| Área de gatilho | Uma área invisível no jogo (verde na depuração) que envia um sinal quando o jogador entra, uma vez ou sempre: serve para cenas de corte, avisos, armadilhas e portas que fecham atrás do jogador |
+| Gerador de atores | Cria o ator escolhido no intervalo definido, até um máximo vivos ao mesmo tempo, repondo os que morrem; com alcance, só quando o jogador está perto. Serve para ondas de inimigos, ninhos e itens que reaparecem |
+| Emissor de partículas | Solta um dos oito efeitos de partículas no intervalo escolhido (fogo de uma fogueira, fumaça de uma chaminé, brilho de um cristal) e, com alcance, só quando o jogador está perto |
+| Colisões em grade | Com mais de 32 atores, a busca de colisões usa uma grade espacial e só testa quem está perto: com 121 atores espalhados pela cena, são cerca de 270 pares por passo em vez de 7.260 |
+| Tiles animados | Na aba Tiles, cada tile pode trocar de desenho sozinho numa sequência e numa velocidade (água, lava, tochas), mantendo a colisão do tile pintado |
+| Cenas persistentes | Marque **Cena persistente** na aba Cenas e ela lembra, ao voltar, os itens pegos, os inimigos derrotados, as posições, a vida e as variáveis de cada ator colocado, sem rodar o evento Criar de novo; recomeçar a cena ou o jogo volta tudo ao início |
+
+**Câmera, luz e tela**
+
+| Recurso | O que faz |
+|---|---|
+| Câmera | Quatro modos por cena (**suave**, **zona morta**, **presa ao jogador** e **fixa**), **zoom** de 50% a 400% com transição, seguir qualquer ator e tremor com força |
+| Luz e escuridão | Cada cena tem **escuridão** de 0 a 100% e uma cor; cada ator pode ter **luz** com raio, cor e tremulação de fogo. Explosões, fogo, brilho e magia iluminam por um instante. A luz é desenhada em anéis, no estilo da pixel art |
+| Clima | Chuva, neve, folhas e brasas, que seguem a câmera e se ajustam ao tamanho da tela |
+| Partículas | Oito efeitos prontos: explosão, poeira, brilho, fumaça, fogo, respingo, confete e magia, com gravidade, arrasto, tamanho e brilho próprios |
+| Efeitos de tela | Piscar a tela, **câmera lenta**, **congelar no impacto** (hitstop), texto flutuante e transições entre cenas (corte, esmaecer e íris) |
+| Filtros | Linhas de varredura, tubo CRT, LCD de portátil e vinheta, feitos em CSS por cima do canvas, sem borrar os pixels |
+| Diálogos | Caixa com o nome de quem fala, texto digitado letra por letra (velocidade na aba Jogo), páginas, sinal no fim e o jogo pausado enquanto a caixa está aberta; ela sai de cima do jogador e esconde o placar |
+
+**Lógica, eventos e código**
+
+| Recurso | O que faz |
+|---|---|
+| Eventos novos | Tocou o chão, Levou dano, **Recebeu um sinal**, **Clique do mouse no ator**, **Desenhar** (no mundo), **Desenhar na tela (HUD)** e Fim do diálogo; alarmes de 0 a 11 (eram 0 a 3) |
+| Condições novas | Se o botão está segurado, se o jogador está perto (px), se vê o jogador (sem parede no meio) e **se uma expressão em código for verdadeira** (Crivo Script, C++ ou Lua) |
+| Ações novas | Animar propriedade (**tween** com nove curvas), enviar sinal, mostrar diálogo, texto flutuante, efeito de partículas, piscar a tela, zoom da câmera, câmera segue, câmera lenta, congelar o jogo, luz do ator, escuridão da cena, tamanho do ator, marcar ponto de controle, **salvar** e **carregar** o jogo e **esperar e continuar depois**, que pausa o resto da lista por alguns segundos sem parar o jogo, para montar cenas de corte em sequência |
+| Gatilhos novos nas regras | Quando um sinal for enviado, quando o jogador marcar um ponto de controle e quando ele tocar o chão |
+| Sinais | `signal_send("abrir")` avisa todos os atores com o evento Recebeu um sinal e as regras de sinal, para portas, interruptores e cenas de corte |
+| Mapas e tabelas | `{ vida: 3, nome: "Gota" }` no Crivo Script, `{ vida = 3, [1] = "a" }` e `pairs(t)` no Lua e `std::map` no C++, com `.campo`, `[chave]`, `for (var chave, valor in mapa)`, `#t`, `size()`, `count()` e `erase()` |
+| Funções novas | Mais de 50: `tween`, `effect`, `floating_text`, `flash`, `time_scale`, `hitstop`, `camera_follow`, `camera_zoom`, `camera_mode`, `gamepad_rumble`, `light_set`, `light_add`, `ambient_set`, `weather_set`, `path_find`, `move_path_towards`, `raycast`, `line_of_sight`, `collision_line`, `instance_list`, `dialog`, `signal_send`, `game_save`, `game_load`, `save_set`, `save_get`, `checkpoint_set`, `map_create`, `mouse_check`, `mouse_over`, `draw_self`, `draw_sprite`, `draw_rect`, `draw_circle`, `draw_line`, `draw_text`, `draw_bar` e outras, todas listadas por `ajuda` no terminal |
+| Vibração do controle | O controle (gamepad) vibra quando o jogador leva dano, mais forte quando ele morre, e `gamepad_rumble(força, segundos)` vibra quando o código quiser, no estúdio e no jogo exportado |
+| Barras de vida e números de dano | Na aba Jogo, **Barra de vida nos inimigos feridos** mostra uma barrinha em cima de cada inimigo machucado (verde, amarela e vermelha) e **Números de dano** faz o dano subir em texto sobre quem levou o golpe |
+| Propriedades novas | `xscale`, `yscale`, `scale`, `angle`, `image_index`, `image_speed` e `light` (mudam o desenho do ator), `climbing`, `in_water`, `dashing`, `on_wall` e `active` (só leitura), `mouse_x`, `mouse_y` e `delta_time` |
+| Salvar o progresso | Dez espaços de jogo salvo (cena, variáveis, ponto de controle e posição) e valores guardados para sempre, como o recorde, no próprio navegador de quem joga |
+| Mouse | Posição no mundo e na tela, três botões e o evento de clique no ator, para menus, jogos de apontar e clicar e botões na tela |
+
+**Testar e depurar**
+
+- **Testar daqui** (Shift+F5 ou o botão na barra da cena) começa o teste com o jogador no ponto da cena onde o mouse passou por último.
+- A **Depuração (F3)** mostra também o tempo de cada passo em milissegundos, os pares de colisão testados, as partículas, o zoom, o estado do jogador, as setas de velocidade, o caminho do A\*, a zona morta da câmera e as variáveis globais.
+- O **Terminal (F4)** agora abre e fecha de verdade (na 2.4.0 ele ficava sempre aberto) e o `ajuda` lista as funções novas por assunto.
+- **Quadro a quadro:** com o jogo pausado (Enter), a tecla `.` avança um passo do motor (1/60 s) e a pausa vira uma faixa discreta embaixo, para ver colisões, animações e a depuração passo a passo.
+- **Gravar GIF (F6)** grava o jogo rodando a 25 quadros por segundo (até 15 s) e, ao apertar de novo, salva um GIF animado ampliado por vizinho mais próximo, com o maior lado perto de 480 px, pronto para mostrar o jogo em redes sociais ou num devlog.
+- `game.place(x, y)` e `game.signal(nome)` também estão disponíveis para quem usa o motor por fora.
+
+```c
+function acender(lampiao) {
+  global.mochila.lampioes += 1
+  effect("sparkle", lampiao.x + 4, lampiao.y + 2)
+  tween(lampiao, "light", 34, 0.6, "out_elastic", true)
+  floating_text(lampiao.x + 4, lampiao.y - 4, "salvo!", "#f6e4a6")
+}
+```
+
+<p align="center">
+  <img src="docs/images/tela-jogo-npc.png" width="49%" alt="Aba Atores com o Mineiro, um personagem que fala, com o nome, a fala em várias páginas e a seção Luz">
+  <img src="docs/images/tela-jogo-tiles-animados.png" width="49%" alt="Aba Tiles com os tipos novos (escada, água, gelo e mola) e os tiles animados da água e dos cristais">
+</p>
+
+<p align="center">
+  <img src="docs/images/tela-jogo-codigo-mapas.png" width="49%" alt="Aba Código com o script mina e o terminal criando um mapa, buscando um caminho com path_find e medindo uma parede com raycast">
+  <img src="docs/images/tela-menu-imagem.png" width="49%" alt="Menu Imagem com os comandos novos: contorno interno, contorno seletivo, sombra projetada, sombrear automaticamente, limpar pixels soltos, reduzir cores, mapa de degradê e Scale2x, Scale3x e Scale4x">
+</p>
+
+**Pixel art: comandos novos no menu Imagem**
+
+| Comando | O que faz |
+|---|---|
+| Contorno interno | Pinta com a cor primária a borda de dentro do desenho (os pixels que encostam no transparente) |
+| Contorno seletivo (sel-out) | Contorna por fora com um tom mais escuro de cada vizinho, puxado para o azul no OKLCH, em vez de uma cor só |
+| Sombra projetada | Desenha a sombra do desenho 1 px para baixo e para a direita, com a cor secundária, só onde está vazio |
+| Sombrear automaticamente | Clareia (puxando para o amarelo) o lado do desenho virado para a luz, no alto à esquerda, e escurece (puxando para o azul) o lado oposto |
+| Limpar pixels soltos | Apaga pixels isolados e troca o pixel solitário cercado por uma cor só por essa cor |
+| Reduzir cores… | Escolhe a melhor paleta com N cores por corte mediano e k-médias no OKLab e troca cada pixel pela mais próxima |
+| Mapa de degradê | Repinta o desenho com a paleta atual, ordenada da cor mais escura para a mais clara, conforme a luz de cada pixel |
+| Ampliar 2×, 3× e 4× | **Scale2x**, **Scale3x** e Scale4x (EPX): ampliam todas as camadas e quadros suavizando as diagonais sem criar cores novas, ao contrário do vizinho mais próximo |
+
+No menu **Cor**, **Rampa com desvio de matiz…** cria, a partir da cor principal, uma rampa de 3 a 16 cores no OKLCH e acrescenta à paleta: a cor principal fica no meio, as sombras escurecem puxando para o azul e as luzes clareiam puxando para o amarelo e perdendo um pouco de saturação, como os artistas de pixel art fazem à mão. Numa paleta predefinida, o Crivo pede o nome de uma cópia.
+
+Todos respeitam a seleção (só mudam o que está dentro dela) e são um passo só no histórico. O núcleo fica em `js/core/pixelart.js`, sem DOM e testado no Node, e o menu em `js/features/pixelart.js`, ligado pelo `install(app)`.
+
+**Formato:** o `.crivojogo` passa para a versão 2, com os campos novos das cenas (`ambient`, `ambientColor`, `weather`, `camera`, `zoom`, `parallax`, `persistent`), dos atores (`light`), dos tilesets (`anims`) e do jogo (`filter`, `transition`, `textSpeed`, `hpBars`, `damageNumbers`). Jogos da 2.4.0 abrem normalmente e ganham os valores padrão; tudo o que chega continua validado. Nada muda no formato `.crivo`, na API nem no banco de dados.
+
+<p align="center">
+  <img src="docs/images/tela-pixelart-scale2x.png" alt="A poção de exemplo ampliada de 16×16 para 32×32 com o Scale2x: as diagonais do vidro ficam suaves e não aparece nenhuma cor nova">
+</p>
 
 ## Estúdio de jogo (2.4.0)
 
@@ -154,9 +268,11 @@ if distance_to(player()) < 64 then move_towards_point(player().x, player().y, 40
 
 | Controle do jogo | Teclado | Gamepad |
 |---|---|---|
-| Andar | Setas ou WASD (no jogo de plataforma, Cima também pula) | Direcional ou alavanca |
-| Pular | `Z`, `Espaço` ou `K` | A |
-| Ação (atirar) | `X`, `J` ou `C` | B ou X |
+| Andar | Setas ou WASD (no jogo de plataforma, Cima pula ou sobe a escada) | Direcional ou alavanca |
+| Pular (e nadar) | `Z`, `Espaço` ou `K` | A |
+| Ação (atirar, falar e avançar o diálogo) | `X`, `J` ou `C` | B ou X |
+| Investida (2.5.0) | `Shift` ou `L` | Y ou RB |
+| Clicar nos atores (2.5.0) | Mouse ou toque | — |
 | Começar e pausar | `Enter` | Start |
 | Recomeçar (na pausa) / ligar e desligar o som | `R` / `M` | — |
 
@@ -308,6 +424,9 @@ A versão 2.1.0 traz para o Crivo os recursos de um editor de pixel art completo
 | `F8` | Caderno: abrir a estante (2.3.0) |
 | `F9` / `Shift+F9` | Estúdio de jogo / testar o jogo (2.4.0) |
 | `F3` / `F4` (no teste do jogo) | Depuração / terminal do jogo (2.4.0) |
+| `Shift+F5` (no estúdio, com o mouse na cena) | Testar daqui: o jogador começa onde o mouse passou (2.5.0) |
+| `F6` (no teste do jogo) | Grava o jogo e, apertando de novo, salva um GIF animado (2.5.0) |
+| `.` (com o jogo pausado) | Avança um quadro (2.5.0) |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Próxima aba / aba anterior |
 | `Ctrl+U` / `Ctrl+M` | Matiz, saturação e luminosidade / curva de cores |
 | `Ctrl+B` | Usar a seleção como pincel |
@@ -323,8 +442,8 @@ A lista completa fica em **Ajuda → Atalhos do teclado** (`?`).
 |---|---|
 | Arquivo | Novo projeto, projetos salvos, **abrir arquivo** (`.crivo`, `.json` e `.ase`, numa aba nova), importar imagem ou sprite sheet, **fechar projeto (aba)**, salvar, **salvar como…**, baixar `.crivo`, **exportar como `.ase`**, exportar imagem, GIF animado, **PNG animado (APNG)**, **quadros em PNG (.zip)**, sprite sheet e dados |
 | Editar | Desfazer, refazer, copiar, recortar, colar, apagar, selecionar tudo, desmarcar e espelhar |
-| Imagem | Tamanho da matriz, recortar para a seleção, aparar, girar, deslocar meia matriz, contorno, converter para a paleta, substituir cor, inverter e tons de cinza |
-| **Cor** | Modo de cor RGBA, indexado (com pontilhado Bayer 4×4 opcional) ou tons de cinza, editar paleta, escolher cor principal e secundária (seletor HSV com alfa e hexadecimal), brilho e contraste, matiz/saturação/luminosidade, curva de cores, posterizar, remover ruído, matriz de convolução (suavizar, nitidez, realce de bordas, desfoque gaussiano), converter para a paleta, substituir cor, inverter e tons de cinza |
+| Imagem | Tamanho da matriz, recortar para a seleção, aparar, girar, deslocar meia matriz, contorno, **contorno interno**, **contorno seletivo (sel-out)**, **sombra projetada**, **sombrear automaticamente**, **limpar pixels soltos**, **reduzir cores…**, **mapa de degradê**, **ampliar 2×, 3× e 4× (Scale2x, Scale3x e Scale4x)** (2.5.0), converter para a paleta, substituir cor, inverter e tons de cinza |
+| **Cor** | Modo de cor RGBA, indexado (com pontilhado Bayer 4×4 opcional) ou tons de cinza, editar paleta, **rampa com desvio de matiz**, escolher cor principal e secundária (seletor HSV com alfa e hexadecimal), brilho e contraste, matiz/saturação/luminosidade, curva de cores, posterizar, remover ruído, matriz de convolução (suavizar, nitidez, realce de bordas, desfoque gaussiano), converter para a paleta, substituir cor, inverter e tons de cinza |
 | **Seleção** | Selecionar tudo, desmarcar, reselecionar, inverter, expandir e contrair (1 a 10 px), selecionar por cor, transformar seleção (rotação em qualquer ângulo com RotSprite, escala de 10% a 800%, espelho, com prévia e um passo no histórico), usar seleção como pincel e pincel padrão |
 | Exibir | Grade, papel cebola, **configurar papel cebola**, modo ladrilho, **slices**, **editar slices**, zoom, tema, **pré-visualização**, **próxima aba** e **aba anterior** |
 | Caderno (2.3.0) | **Abrir a estante…** (F8), **Projetos abertos**, **Projetos salvos**, **Caderno em branco** e **Personalizar caderno…** |
@@ -392,8 +511,8 @@ flowchart LR
 
 | Parte | Linguagem | Responsabilidade |
 |---|---|---|
-| `editor/static/editor/js/core` | JavaScript | Núcleo sem DOM: cores e OKLCH, geometria (Bresenham, elipse, curvas, polígonos, pincel, simetria, pixel perfect), flood fill, pontilhado de Bayer e degradês, seleção com máscara, filtros e ajustes, modos de mistura (`blend.js`), modos de cor (`colormode.js`), ferramentas de paleta, pincel personalizado (`brush.js`), transformação com RotSprite (`transform.js`), tilemaps (`tilemap.js`), tags e reprodução (`animation.js`), codificadores GIF, APNG (`apng.js`), ZIP (`zip.js`) e zlib (`zlib.js`), leitor e gravador `.ase` (`ase-file.js`), RLE, documento, histórico, formato `.crivo`, exportação e paletas; na 2.4.0, o motor de jogo em `game/` (física, comportamentos, regras, sons de 8 bits, formato `.crivojogo`, jogo de exemplo e a página `.html` exportada) |
-| `editor/static/editor/js/features` | JavaScript | Recursos da 2.1.0 que se ligam ao editor pelo ponto de extensão `install(app)` do `main.js`: `layers.js` (menus Camada e Quadro), `selection.js` (menu Seleção), `color.js` (menu Cor) e `files.js` (abrir, abas, exportações novas); na 2.3.0, `sketchbook.js` (menu Caderno); na 2.4.0, `game.js` (menu Jogo) |
+| `editor/static/editor/js/core` | JavaScript | Núcleo sem DOM: cores e OKLCH, geometria (Bresenham, elipse, curvas, polígonos, pincel, simetria, pixel perfect), flood fill, pontilhado de Bayer e degradês, seleção com máscara, filtros e ajustes, modos de mistura (`blend.js`), modos de cor (`colormode.js`), ferramentas de paleta, pincel personalizado (`brush.js`), transformação com RotSprite (`transform.js`), tilemaps (`tilemap.js`), tags e reprodução (`animation.js`), codificadores GIF, APNG (`apng.js`), ZIP (`zip.js`) e zlib (`zlib.js`), leitor e gravador `.ase` (`ase-file.js`), RLE, documento, histórico, formato `.crivo`, exportação e paletas; na 2.4.0, o motor de jogo em `game/` (física, comportamentos, regras, sons de 8 bits, formato `.crivojogo`, jogo de exemplo e a página `.html` exportada); na 2.5.0, o motor ganhou escadas, água, plataformas móveis, A*, raios, tweens, sinais, diálogos, luz, clima, câmera, salvar o progresso, desenho e grade espacial, e `pixelart.js` traz Scale2x/3x, sel-out, sombras, limpeza, redução de cores e rampas com desvio de matiz |
+| `editor/static/editor/js/features` | JavaScript | Recursos da 2.1.0 que se ligam ao editor pelo ponto de extensão `install(app)` do `main.js`: `layers.js` (menus Camada e Quadro), `selection.js` (menu Seleção), `color.js` (menu Cor) e `files.js` (abrir, abas, exportações novas); na 2.3.0, `sketchbook.js` (menu Caderno); na 2.4.0, `game.js` (menu Jogo); na 2.5.0, `pixelart.js` (comandos novos do menu Imagem) |
 | `editor/static/editor/js/ui` | JavaScript | Visor em canvas, ferramentas, painéis, diálogos, armazenamento e atalhos; na 2.1.0, também `layer-dialogs.js` (propriedades de camada e quadro, tags, slices, papel cebola), `palette-editor.js`, `color-picker.js`, `adjustments.js`, `tabs.js` e `minimap.js` (pré-visualização); na 2.2.0, `save-file.js` (janela Salvar como) e `tutorial.js` (tutorial rápido); na 2.4.0, `game-studio.js` (Estúdio de jogo) e `game-player.js` (a tela do jogo, a mesma do `.html` exportado) |
 | `Crivo.exe` e `desktop/` | Go | App desktop para Windows, gerado por `scripts/build-desktop.js`: janela própria com o WebView2, maximizada (F11 alterna a tela cheia), com o `Crivo.html` embutido, atalho no menu Iniciar e a janela Salvar como nativa do Windows (`save_windows.go`) |
 | `Crivo.html` | HTML + JavaScript | O editor inteiro num arquivo só, gerado por `scripts/build-portable.js`: abre direto do disco, sem servidor nem backend |
@@ -680,10 +799,10 @@ Alterar o código-fonte, criar versões modificadas ou reaproveitar partes do c�
 ## Desenvolvimento e testes
 
 ```bash
-npm test                                   # 135 testes do núcleo em JavaScript (Node 20+)
+npm test                                   # 170 testes do núcleo em JavaScript (Node 20+)
 python manage.py test editor               # 72 testes da API Django (funcionamento, segurança, migrações e recursos da 2.1.0)
 bash tools/java/test.sh                    # 36 testes da ferramenta em Java
-python -m unittest discover -s tests/e2e   # 58 testes ponta a ponta no Chromium (Playwright): 28 com o Django e 30 no Crivo.html
+python -m unittest discover -s tests/e2e   # 62 testes ponta a ponta no Chromium (Playwright): 30 com o Django e 32 no Crivo.html
 npm run portable                           # gera o Crivo.html de novo a partir do código do editor
 npm run desktop                            # gera o Crivo.exe (precisa do Go); -- --check só confere
 ruff check .                               # estilo, bugs prováveis e regras de segurança no Python
@@ -698,15 +817,15 @@ O `Crivo.exe` é gerado por `scripts/build-desktop.js`, que copia o `Crivo.html`
 
 ## Qualidade e segurança
 
-Resultado da rodada de testes da versão 2.4.0: **265 testes do núcleo, da API e da interface, todos passando**, e nenhum problema apontado pelas ferramentas de análise (a ferramenta em Java não mudou nesta versão e mantém os seus 36 testes). Na versão 1.1.0, uma revisão de código independente apontou 10 problemas (entre eles, desfazer durante um arraste embaralhava o histórico, a colagem furava o fundo ao ser movida e a classe Java de sprites médios não compilava); todos foram corrigidos e ganharam testes.
+Resultado da rodada de testes da versão 2.5.0: **304 testes do núcleo, da API e da interface**, e nenhum problema apontado pelas ferramentas de análise; a ferramenta em Java passa nos seus 36 testes. Um teste ponta a ponta antigo, a migração das preferências da 1.x no `Crivo.html` aberto do disco, falha às vezes também na 2.4.0: o Chromium perde o `localStorage` de páginas `file://` recarregadas logo depois de gravar, e nada mudou nesse código. Na versão 1.1.0, uma revisão de código independente apontou 10 problemas (entre eles, desfazer durante um arraste embaralhava o histórico, a colagem furava o fundo ao ser movida e a classe Java de sprites médios não compilava); todos foram corrigidos e ganharam testes.
 
 | Verificação | O que cobre | Resultado |
 |---|---|---|
-| Núcleo JavaScript (135) | Cores, geometria, flood fill, RLE, histórico, formato, exportação (inclusive Java compacta e C com muitas cores), pontilhado, degradês, pixel perfect, seleção, aparar, ladrilho, contorno, filtros e GIF (LZW de ida e volta); na 2.1.0, grupos, modos de mistura, tags, cels vinculados, tilemaps, slices, seleções com máscara, ferramentas novas, modos de tinta, pincel, transformação, modos de cor, ajustes, paleta, `.ase` de ida e volta, APNG, ZIP e o JSON hash e array da sprite sheet; na 2.3.0, paginação, leque das folhas, legenda das páginas, durações dos quadros, detecção de página em branco e leitura do nome e da foto de capa do Caderno; na 2.4.0, o motor de jogo: leitura do RLE igual à do editor, sprites, tags e tilesets, validação do `.crivojogo`, física de plataforma e de visão de cima, plataformas de mão única, itens, perigos, buracos e vidas, pisão nos inimigos, saídas e vitória, regras, objetos com eventos (criar, alarmes, passo com condições, teclas, colisão com herança do pai, destruir, saiu da cena e fim da animação), tiros, animações, as linguagens (Crivo Script, C++ adaptado e Lua: laços, funções, listas, tipos do C++, tabelas do Lua, chamadas entre as três, erros com a linha, limite de passos, terminal) e o código nos eventos, nas instâncias e nos scripts, sintetizador de 8 bits, melodias e a CSP com hash da página exportada | 135 de 135 |
+| Núcleo JavaScript (170) | Cores, geometria, flood fill, RLE, histórico, formato, exportação (inclusive Java compacta e C com muitas cores), pontilhado, degradês, pixel perfect, seleção, aparar, ladrilho, contorno, filtros e GIF (LZW de ida e volta); na 2.1.0, grupos, modos de mistura, tags, cels vinculados, tilemaps, slices, seleções com máscara, ferramentas novas, modos de tinta, pincel, transformação, modos de cor, ajustes, paleta, `.ase` de ida e volta, APNG, ZIP e o JSON hash e array da sprite sheet; na 2.3.0, paginação, leque das folhas, legenda das páginas, durações dos quadros, detecção de página em branco e leitura do nome e da foto de capa do Caderno; na 2.4.0, o motor de jogo: leitura do RLE igual à do editor, sprites, tags e tilesets, validação do `.crivojogo`, física de plataforma e de visão de cima, plataformas de mão única, itens, perigos, buracos e vidas, pisão nos inimigos, saídas e vitória, regras, objetos com eventos (criar, alarmes, passo com condições, teclas, colisão com herança do pai, destruir, saiu da cena e fim da animação), tiros, animações, as linguagens (Crivo Script, C++ adaptado e Lua: laços, funções, listas, tipos do C++, tabelas do Lua, chamadas entre as três, erros com a linha, limite de passos, terminal) e o código nos eventos, nas instâncias e nos scripts, sintetizador de 8 bits, melodias e a CSP com hash da página exportada; na 2.5.0, escadas, água, gelo e molas, pulo na parede e investida, plataformas móveis, molas e pontos de controle com volta ao morrer, diálogos com páginas e sinais, tweens e curvas, A* e raios, torres com linha de visão, áreas de gatilho, emissores de partículas, geradores de atores, a ação esperar, cenas persistentes, vibração do controle, barras de vida, números de dano, salvar e carregar, mapas e tabelas nas três linguagens, eventos de desenho, câmera, câmera lenta, hitstop, efeitos, luz, clima, grade espacial, mouse, tiles animados, a Fase 3 do exemplo e os comandos de pixel art (Scale2x, Scale3x, Scale4x, contornos, sombra, sombreamento, limpeza, redução de cores, mapa de degradê e rampa com desvio de matiz) | 170 de 170 |
 | API Django (72) | Ciclo de projetos e paletas, revisões, conflitos, exportação, PNG, formatos C e Java (a classe grande é compilada e executada com o JDK quando ele existe), o conjunto de segurança abaixo, as migrações e os campos da 2.1.0 (validação, ida e volta, documentos da 2.0 inalterados) | 72 de 72 |
 | Ferramenta Java (36) | Leitura do `.crivo`, RLE, PNG, sprite sheet e matriz, inclusive uma classe grande compilada em memória com o compilador do JDK; na 2.1.0, chaves opcionais, modos de mistura, grupos, `info` e `tags` | 36 de 36 |
 | Paridade de composição | 30 documentos aleatórios com os 19 modos de mistura, grupos (inclusive "pass-through" normais a 100%) e camadas ocultas ou de referência, compostos no editor (JS), no servidor (Python) e na ferramenta Java (`tests/fixtures/blend-parity.json`) | Mesmos pixels nos três |
-| Interface (58) | Editor aberto no Chromium de dois jeitos, contra o Django e como `Crivo.html` direto do disco, inclusive a integração com o app desktop (F11, sair e rascunho): cada ferramenta nova, seleção, colagem flutuante, gestos protegidos (Ctrl+Z no meio do arraste, setas no menu), comandos de imagem, desfazer, preferências inválidas, salvar no servidor e no navegador, baixar e reabrir o `.crivo`, baixar o PNG e o GIF, na 2.1.0 laço, varinha mágica, polígono, curva e modos de tinta, e na 2.2.0 a janela Salvar como (no navegador e no app desktop, com cancelar e Salvar como…) e o tutorial rápido (aparece uma vez, pode ser recusado e cobre as 23 ferramentas), e na 2.3.0 o Caderno (menu próprio, F8, estante, abrir, virar, fim, ocultar as pixel arts, Esc, editar a página e nome e foto de capa), e na 2.4.0 o Estúdio de jogo (F9, pintar tiles, colocar atores, eventos do ator, desfazer e refazer, rascunho no navegador, testar com F5 e Esc, usar o desenho como sprite, exportar a página `.html` e jogar nela, salvar o `.crivojogo`, aba Código, terminal em Lua e C++ no sandbox e no jogo rodando, editor de código), sem nenhum erro no console nem violação de CSP | 58 de 58 |
+| Interface (62) | Editor aberto no Chromium de dois jeitos, contra o Django e como `Crivo.html` direto do disco, inclusive a integração com o app desktop (F11, sair e rascunho): cada ferramenta nova, seleção, colagem flutuante, gestos protegidos (Ctrl+Z no meio do arraste, setas no menu), comandos de imagem, desfazer, preferências inválidas, salvar no servidor e no navegador, baixar e reabrir o `.crivo`, baixar o PNG e o GIF, na 2.1.0 laço, varinha mágica, polígono, curva e modos de tinta, e na 2.2.0 a janela Salvar como (no navegador e no app desktop, com cancelar e Salvar como…) e o tutorial rápido (aparece uma vez, pode ser recusado e cobre as 23 ferramentas), e na 2.3.0 o Caderno (menu próprio, F8, estante, abrir, virar, fim, ocultar as pixel arts, Esc, editar a página e nome e foto de capa), e na 2.4.0 o Estúdio de jogo (F9, pintar tiles, colocar atores, eventos do ator, desfazer e refazer, rascunho no navegador, testar com F5 e Esc, usar o desenho como sprite, exportar a página `.html` e jogar nela, salvar o `.crivojogo`, aba Código, terminal em Lua e C++ no sandbox e no jogo rodando, editor de código), e na 2.5.0 o menu Imagem (Scale2x com desfazer, sombreamento, redução de cores e sel-out), a rampa com desvio de matiz do menu Cor e a Fase 3 no estúdio (campos de luz e clima, fala do NPC, área de gatilho, tiles animados, diálogo no teste, escada e gravação em GIF), sem nenhum erro no console nem violação de CSP | 61 de 62 (a falha intermitente explicada acima) |
 | Ruff e Bandit | Estilo, bugs prováveis e padrões inseguros no Python | 0 problemas |
 | App desktop | Build reproduzível do `Crivo.exe` (gerado de novo e comparado byte a byte) e `go vet` no código Go | Idêntico; 0 problemas |
 | `check --deploy` | Configuração de produção do Django | Só avisos opcionais (HSTS em subdomínios, preload e redirecionamento HTTPS, que ficam a cargo do proxy) |
@@ -731,7 +850,7 @@ editor/                     aplicação Django (modelos, API, validação, expor
   static/editor/            o editor: index.html, css/, img/ e js/
     js/core/                núcleo em JavaScript, sem DOM, testado no Node
       game/                 motor de jogo: física, regras, sons, formato .crivojogo, exportação e jogo de exemplo
-    js/features/            recursos ligados pelo install(app): camadas, seleção, cor, arquivos, Caderno e Jogo
+    js/features/            recursos ligados pelo install(app): camadas, seleção, cor, arquivos, Caderno, Jogo e pixel art
     js/ui/                  interface: visor, ferramentas, painéis, diálogos, abas, pré-visualização, armazenamento, salvar como, tutorial, Caderno e Estúdio de jogo
   migrations/               esquema do banco, paletas predefinidas, nomes em inglês (0003) e recursos avançados (0004)
   tests/                    testes da API e de segurança

@@ -17,8 +17,6 @@ import { applyInk, seededRandom, sprayPoints, sprayCount, blurPixel, jumbleTarge
 import { lightnessStep, paletteStep, paletteRamp } from '../core/filters.js';
 import { notify } from './util.js';
 
-// The toolbar shows two tools per row, so related tools sit side by side (like Aseprite's tool groups).
-// Shortcuts with "Shift+" are registered by features/selection.js (the plain letters are handled by main.js).
 export const TOOLS = [
   { id: 'pencil', name: 'Lápis', shortcut: 'B', icon: 'pencil', options: ['size', 'shape', 'pixelPerfect', 'inkMode', 'brush'] },
   { id: 'spray', name: 'Spray', shortcut: 'Shift+B', icon: 'spray', options: ['sprayRadius', 'sprayDensity', 'inkMode', 'brush'] },
@@ -47,10 +45,8 @@ export const TOOLS = [
 
 const BRUSHES = ['pencil', 'eraser', 'dither', 'shade', 'blur', 'jumble'];
 const LABELS = { pencil: 'Lápis', eraser: 'Borracha', dither: 'Pontilhado', shade: 'Clarear e escurecer', blur: 'Desfocar', jumble: 'Embaralhar' };
-// Tools that honor the ink mode (Simples, Composição alfa, Travar alfa, Atrás).
 export const INK_TOOLS = ['pencil', 'line', 'rectangle', 'ellipse', 'spray', 'curve', 'contour', 'polygon'];
 export const SELECTION_TOOLS = ['selection', 'ellipseSelection', 'lasso', 'polygonLasso', 'magicWand'];
-// Tools that stamp the custom brush (Ctrl+B) instead of the size/shape brush.
 export const CUSTOM_BRUSH_TOOLS = ['pencil', 'eraser', 'spray'];
 const SHAPE_NAMES = { line: 'Linha', rectangle: 'Retângulo', ellipse: 'Elipse', curve: 'Curva', contour: 'Contorno livre', polygon: 'Polígono' };
 
@@ -59,7 +55,6 @@ export class Controller {
     this.editor = editor;
     this.viewport = viewport;
     this.active = null;
-    // Multi-click gesture in progress (polygonal lasso, polygon, curve): it lives between pointer events.
     this.pending = null;
     this.spaceHeld = false;
     this.lastPoint = null;
@@ -103,14 +98,11 @@ export class Controller {
         c.classList.remove('dragging');
       }
     });
-    // Enter closes/applies and Esc cancels a multi-click gesture. Registered before main.js's shortcuts, which
-    // ignore events that were already handled here.
     window.addEventListener('keydown', (e) => {
       if (!this.pending || this.active || this.fieldHasFocus(e) || document.querySelector('dialog[open]')) return;
       if (e.key === 'Enter') this.finishPending();
       else if (e.key === 'Escape') this.cancelPending();
       else if (e.key === 'Backspace' && this.pending.points?.length > 1) {
-        // Backspace removes the last corner of a polygon or polygonal lasso.
         this.pending.points.pop();
         this.previewPending(this.viewport.cursor);
       } else return;
@@ -209,8 +201,6 @@ export class Controller {
     this.updateShape(e);
   }
 
-  // Brush footprint as [dx, dy] offsets, or [dx, dy, color] for a custom brush painted with its own colors
-  // (left button with the pencil or the spray; the right button and the eraser use only its shape).
   brushPoints(tool, button = 0) {
     const custom = this.editor.brush;
     if (custom && CUSTOM_BRUSH_TOOLS.includes(tool)) {
@@ -225,8 +215,6 @@ export class Controller {
     return INK_TOOLS.includes(this.state.tool) ? this.state.inkMode : 'simple';
   }
 
-  // Paints with the ink mode. The destination is the pixel as it was before the stroke, so going over the
-  // same pixel twice in one stroke does not blend twice.
   paintInk(stroke, i, color, ink = this.inkMode()) {
     if (ink === 'simple') return stroke.paint(i, color);
     const dst = stroke.originals.has(i) ? stroke.originals.get(i) : stroke.pixels[i];
@@ -234,7 +222,6 @@ export class Controller {
     return out === null ? false : stroke.paint(i, out);
   }
 
-  // Fixed color (pencil, eraser) or a function (x, y, index) => color | null (dither, lighten and darken).
   brushColor(tool, button, stroke) {
     if (tool === 'eraser') return this.eraserColor(button);
     if (tool === 'pencil') return this.color(button);
@@ -420,7 +407,6 @@ export class Controller {
       } else if (a.type === 'gradient') {
         if (a.pending) cancelAnimationFrame(a.pending);
         if (a.end.x === a.start.x && a.end.y === a.start.y) {
-          // Click without dragging: there is no direction for the gradient, so nothing is painted.
           a.stroke.revertVisual();
           this.editor.emit('pixels');
           notify('Arraste de onde o degradê começa até onde ele termina.', 'info', 1600);
@@ -441,7 +427,6 @@ export class Controller {
       if (!a.dragged && a.mode === 'replace') this.editor.setSelection(null);
     } else if (a.type === 'shape') {
       if (this.state.tool === 'curve' && !cancelled) {
-        // Curve: the dragged line becomes a pending curve; the next drags bend it.
         if (a.end.x === a.start.x && a.end.y === a.start.y) {
           this.viewport.setPreview(null);
           return;
@@ -465,8 +450,6 @@ export class Controller {
     if (this.active) this.pointerUp(null, true);
     else this.cancelPending();
   }
-
-  // --- multi-click gestures -------------------------------------------------------------------------------
 
   pendingDown(p) {
     const g = this.pending;
@@ -513,7 +496,6 @@ export class Controller {
     );
   }
 
-  // Closes the polygon/polygonal lasso or applies the curve.
   finishPending() {
     const g = this.pending;
     if (!g) return;
@@ -547,7 +529,6 @@ export class Controller {
     this.viewport.setPreview(null);
   }
 
-  // Pixel indices of a shape drawn by draw(point), with symmetry, inside the matrix and the selection.
   shapeIndices(draw) {
     const d = this.editor.doc;
     const points = new Set();
@@ -564,8 +545,6 @@ export class Controller {
     a.indices = this.shapeIndices((pt) => polygon(a.points, true, pt));
     this.viewport.setPreview(a.indices, a.color);
   }
-
-  // --- spray ----------------------------------------------------------------------------------------------
 
   startSpray(stroke, p, button) {
     const a = {
@@ -591,9 +570,6 @@ export class Controller {
     this.editor.emit('pixels');
   }
 
-  // --- selection tools ------------------------------------------------------------------------------------
-
-  // Modifiers pick the selection mode (Shift adds, Alt subtracts, Shift+Alt intersects); otherwise the option bar's.
   selectionMode(e) {
     if (e?.shiftKey && e?.altKey) return 'intersect';
     if (e?.shiftKey) return 'add';
@@ -649,7 +625,6 @@ export class Controller {
     this.editor.setSelection(combineSelections(this.editor.selection, shape, mode, d.width, d.height));
   }
 
-  // Inside the matrix and, if there is a selection, inside it: painting tools only touch that area.
   inside(x, y) {
     const d = this.editor.doc;
     return x >= 0 && y >= 0 && x < d.width && y < d.height && contains(this.editor.selection, x, y);
@@ -669,7 +644,6 @@ export class Controller {
     }
   }
 
-  // Pixel perfect: undoes the middle pixel when the last three form an L corner.
   filterCorners(a, x, y) {
     a.points.push([x, y]);
     if (a.points.length < 3) return;
@@ -689,7 +663,6 @@ export class Controller {
     const a = this.active;
     const d = this.editor.doc;
     let [x1, y1] = [a.end.x, a.end.y];
-    // Shift held from the start means "add"; pressed during the drag it keeps the proportion 1:1.
     if (e?.shiftKey && !a.modifiers) [x1, y1] = constrain(a.start.x, a.start.y, x1, y1, 'square');
     let shape;
     if (this.state.tool === 'ellipseSelection') shape = selectionFromPoints((pt) => ellipse(a.start.x, a.start.y, x1, y1, true, pt), d.width, d.height);
@@ -698,10 +671,6 @@ export class Controller {
     if (shape) this.editor.emit('shape', { width: Math.abs(x1 - a.start.x) + 1, height: Math.abs(y1 - a.start.y) + 1 });
   }
 
-  // Move pixels works with "floating" content: the lifted (or pasted) region and the background left
-  // below it. As long as nothing else changes in the document, consecutive drags and arrow keys reuse
-  // both, so taking the content past the edge and bringing it back loses no pixels and the pasted content
-  // never drags or punches holes in the background.
   startMove(p) {
     const stroke = this.editor.newStroke();
     if (!stroke) return null;
@@ -759,7 +728,6 @@ export class Controller {
     };
   }
 
-  // Arrow keys with the Move pixels tool: shift 1 px (or 8 px with Shift) as a single step.
   push(dx, dy) {
     if (this.active) return;
     const a = this.startMove({ x: 0, y: 0 });

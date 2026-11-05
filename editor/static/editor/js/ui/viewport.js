@@ -23,8 +23,6 @@ export class Viewport {
     this.adjusted = false;
     this.offscreen = document.createElement('canvas');
     this.onionCanvas = document.createElement('canvas');
-    // Onion skin layers (previous and next frames) and extra overlays drawn above the matrix (slices, tile grid):
-    // overlays are functions (ctx, X, Y, zoom, dpr) registered by feature modules.
     this.onionLayers = [];
     this.overlays = [];
     this.colors = {};
@@ -145,7 +143,6 @@ export class Viewport {
     this.invalidate();
   }
 
-  // Guide line of the multi-click tools (lasso, polygon, curve): [x, y] pixel points joined through their centers.
   setGuide(points, closed = false) {
     this.guide = points && points.length ? { points, closed } : null;
     this.request();
@@ -197,8 +194,6 @@ export class Viewport {
     this.dirty = false;
   }
 
-  // Onion skin: up to 3 previous and 3 next frames, fading with distance; "tint" mode colors the previous
-  // frames red and the next ones blue. With the 2.0.0 defaults (1 previous, normal) it draws exactly as before.
   compositeOnion(doc, q) {
     const { onionPrev = 1, onionNext = 0, onionMode = 'normal' } = this.editor.state;
     const offsets = [];
@@ -269,7 +264,6 @@ export class Viewport {
     ctx.fillRect(this.panX, this.panY, L, A);
     ctx.imageSmoothingEnabled = false;
     if (state.tile) {
-      // Tile mode: repeats the frame 3×3 around the matrix, faded, to check the seams.
       ctx.globalAlpha = 0.55;
       for (let ty = -1; ty <= 1; ty++) {
         for (let tx = -1; tx <= 1; tx++) {
@@ -345,7 +339,6 @@ export class Viewport {
     if (this.cursor && !state.playing && !['move', 'movePixels'].includes(state.tool)) this.drawCursor(X, Y);
   }
 
-  // Selection: dashed two-color rectangle that "walks" (marching ants), visible over any background.
   drawSelection(X, Y) {
     const { ctx, dpr } = this;
     const r = this.editor.selection;
@@ -369,7 +362,6 @@ export class Viewport {
     ctx.restore();
   }
 
-  // Non-rectangular selection: marching ants along the outline of the mask.
   drawMaskOutline(r, X, Y) {
     const { ctx, dpr } = this;
     if (this.edgesFor !== r) {
@@ -431,7 +423,6 @@ export class Viewport {
       ctx.stroke();
     }
     if (state.tool === 'spray') {
-      // Spray: circle of the radius around the pointer.
       const z = X(1) - X(0);
       for (const [color, offset] of [[this.colors.darkCursor, 1], [this.colors.cursor, 0]]) {
         ctx.beginPath();

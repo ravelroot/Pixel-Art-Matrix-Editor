@@ -207,7 +207,6 @@ export function luminance(c) {
   return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
 }
 
-// HSV with h in [0, 360) and s, v in [0, 1]. Used by the color picker (saturation/value square + hue strip).
 export function rgbToHsv(r, g, b) {
   r /= 255;
   g /= 255;

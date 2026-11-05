@@ -1,10 +1,7 @@
-// Document color modes: 'rgba' (free colors), 'indexed' (every pixel is a palette color) and 'grayscale'.
-// Pure functions on Uint32Array matrices (packed RGBA); the alpha of each pixel is always kept.
 import { unpack, pack, rgbToOklab, oklabToRgb, clamp } from './colors.js';
 
 export const COLOR_MODES = ['rgba', 'indexed', 'grayscale'];
 
-// 4×4 Bayer thresholds (0..15) for the ordered dithering of the indexed conversion.
 const BAYER_4 = [
   [0, 8, 2, 10],
   [12, 4, 14, 6],
@@ -12,12 +9,10 @@ const BAYER_4 = [
   [15, 7, 13, 5],
 ];
 
-// A document without the field (2.0.0 files) is RGBA.
 export function colorModeOf(doc) {
   return COLOR_MODES.includes(doc?.colorMode) ? doc.colorMode : 'rgba';
 }
 
-// Opaque, unique (by RGB) palette colors with their OKLab coordinates, ready for nearest-color searches.
 export function preparePalette(colors) {
   const seen = new Set();
   const prepared = [];
@@ -46,7 +41,6 @@ function closest(r, g, b, prepared) {
   return best;
 }
 
-// Nearest palette color (Euclidean distance in OKLab), keeping the alpha of `color`. Transparent stays as is.
 export function nearestColor(color, palette) {
   const prepared = Array.isArray(palette) && palette[0]?.lab ? palette : preparePalette(palette);
   if (!(color >>> 24) || !prepared.length) return color >>> 0;
@@ -54,7 +48,6 @@ export function nearestColor(color, palette) {
   return (closest(r, g, b, prepared).rgb | (color & 0xff000000)) >>> 0;
 }
 
-// Gray with the same perceived lightness (OKLab L), the same formula as the "Tons de cinza" filter.
 export function grayOf(color) {
   const [r, g, b, a] = unpack(color);
   if (!a) return color >>> 0;
@@ -81,8 +74,6 @@ export function toGrayscalePixels(pixels) {
   return out;
 }
 
-// Maps every opaque pixel to the nearest palette color. With `dither`, a 4×4 ordered (Bayer) offset is added
-// to the RGB before the search, so flat areas between two palette colors become a pattern of both.
 export function toIndexedPixels(pixels, width, colors, { dither = false, amount = 0.5 } = {}) {
   const prepared = preparePalette(colors);
   const out = pixels.slice();
@@ -112,21 +103,18 @@ export function toIndexedPixels(pixels, width, colors, { dither = false, amount 
   return out;
 }
 
-// Converts a matrix to a mode ('rgba' leaves the pixels alone).
 export function convertPixels(pixels, width, mode, colors, options = {}) {
   if (mode === 'indexed') return toIndexedPixels(pixels, width, colors, options);
   if (mode === 'grayscale') return toGrayscalePixels(pixels);
   return pixels.slice();
 }
 
-// The color a drawing tool may use in a mode: the nearest palette color (indexed) or its gray (grayscale).
 export function snapColor(color, mode, colors) {
   if (mode === 'indexed') return nearestColor(color, colors);
   if (mode === 'grayscale') return grayOf(color);
   return color >>> 0;
 }
 
-// Keeps only the pixels that changed between `before` and `after` inside the mode (used after adjustments).
 export function constrainPixels(before, after, mode, colors) {
   if (mode !== 'indexed' && mode !== 'grayscale') return after;
   const prepared = mode === 'indexed' ? preparePalette(colors) : null;
@@ -139,9 +127,6 @@ export function constrainPixels(before, after, mode, colors) {
   return out;
 }
 
-// Palette edit → pixel remap. `origins[j]` is the index in `oldColors` the new entry j came from (-1 if new).
-// Returns a Map of old RGB → new RGB: edited entries map to their new color, removed entries to the nearest
-// color left in the new palette. Unchanged colors are not in the map.
 export function paletteRemap(oldColors, newColors, origins) {
   const map = new Map();
   const prepared = preparePalette(newColors);
@@ -161,7 +146,6 @@ export function paletteRemap(oldColors, newColors, origins) {
   return map;
 }
 
-// Applies a Map of RGB → RGB to a matrix, keeping the alpha. Returns a new matrix and how many pixels changed.
 export function remapPixels(pixels, map) {
   const out = pixels.slice();
   let changed = 0;
@@ -177,7 +161,6 @@ export function remapPixels(pixels, map) {
   return { pixels: out, changed };
 }
 
-// Every distinct pixel matrix of the document: cels (linked cels share one array, visited once) and tileset tiles.
 export function documentMatrices(doc) {
   const seen = new Set();
   const list = [];
@@ -198,12 +181,10 @@ function countDifferences(a, b) {
   return n;
 }
 
-// Converts every cel (and tile) of the document in place. Returns the number of pixels changed.
 export function convertDocument(doc, mode, colors, options = {}) {
   let changed = 0;
   const cells = new Set(doc.cells.values());
   for (const px of documentMatrices(doc)) {
-    // Tiles are small and repeat across the map: they are never dithered, so equal tiles stay equal.
     const width = cells.has(px) ? doc.width : Math.max(1, Math.round(Math.sqrt(px.length)));
     const out = convertPixels(px, width, mode, colors, cells.has(px) ? options : { ...options, dither: false });
     changed += countDifferences(px, out);
@@ -212,7 +193,6 @@ export function convertDocument(doc, mode, colors, options = {}) {
   return changed;
 }
 
-// Applies a palette remap (see paletteRemap) to every cel and tile of the document, in place.
 export function remapDocument(doc, map) {
   let changed = 0;
   if (!map.size) return 0;

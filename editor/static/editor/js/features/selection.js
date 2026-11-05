@@ -1,5 +1,3 @@
-// Feature module: selection (Seleção menu, mask-aware commands, selection and drawing tool options,
-// custom brush and Transformar seleção). See main.js (app) for the extension points.
 import {
   extractRegion,
   pasteRegion,
@@ -37,7 +35,6 @@ export function install(app) {
   const notify = (...args) => app.notify(...args);
   const docSize = () => [editor.doc.width, editor.doc.height];
 
-  // --- selection commands -------------------------------------------------------------------------------
   const commands = {
     reselect: {
       label: 'Reselecionar',
@@ -65,14 +62,11 @@ export function install(app) {
   app.addShortcut({ key: 'd', ctrl: true, shift: true, run: () => app.execute('reselect') });
   app.addShortcut({ key: 'i', ctrl: true, shift: true, run: () => app.execute('invertSelection') });
   app.addShortcut({ key: 'b', ctrl: true, run: () => app.execute('brushFromSelection') });
-  // Second tools of each group (Aseprite style): Shift + letter.
   for (const t of TOOLS) {
     const m = /^Shift\+([A-Z])$/.exec(t.shortcut);
     if (m) app.addShortcut({ key: m[1].toLowerCase(), shift: true, run: () => editor.setState('tool', t.id) });
   }
 
-  // Masks reach copy, cut, Delete, filters, gradient and bucket through core/selection.js; paste and flip of a
-  // non-rectangular selection need their own versions (rectangles keep the 2.0.0 commands).
   const originalPaste = app.commands.paste.fn;
   app.commands.paste.fn = () => (editor.clipboard?.mask ? pasteMasked() : originalPaste());
   for (const [id, axis] of [['flipH', 'horizontal'], ['flipV', 'vertical']]) {
@@ -157,7 +151,6 @@ export function install(app) {
     if (!r) notify('A cor primária não aparece nesta camada.', 'info');
   }
 
-  // --- custom brush ---------------------------------------------------------------------------------------
   function setBrush(b) {
     editor.brush = b;
     editor.emit('state', { key: 'brush', value: Boolean(b) });
@@ -181,7 +174,6 @@ export function install(app) {
     notify(`Pincel personalizado: ${b.width} × ${b.height} px. Use "Pincel padrão" para voltar.`, 'success');
   }
 
-  // --- transform dialog -----------------------------------------------------------------------------------
   async function transformDialog() {
     if (!editor.canEditLayer()) return;
     const d = editor.doc;
@@ -242,7 +234,6 @@ export function install(app) {
     g.drawImage(tmp, ox, oy, t.width * z, t.height * z);
   }
 
-  // --- options bar ----------------------------------------------------------------------------------------
   const range = (key, min, max, label, unit) => {
     const r = el('input', { type: 'range', min, max, value: editor.state[key], 'aria-label': label });
     const o = el('output', { class: 'mono' }, `${editor.state[key]}${unit}`);

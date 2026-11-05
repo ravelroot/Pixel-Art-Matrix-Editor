@@ -1,5 +1,3 @@
-// Animated GIF encoder (GIF89a) with no dependencies: global palette, transparency and LZW compression.
-// Pixel art usually has few colors, so the palette is exact; above 255 colors it falls back to a 6×7×6 cube.
 
 const ALPHA_THRESHOLD = 128;
 
@@ -83,8 +81,6 @@ export function lzw(indices, minSize) {
   return Uint8Array.from(output);
 }
 
-// frames: list of Uint32Array (packed RGBA, R in the low byte) of the same size.
-// delays: duration of each frame in milliseconds. loop: 0 = forever.
 export function encodeGIF(frames, width, height, { delays = [], loop = 0 } = {}) {
   if (!frames.length) throw new Error('Nenhum quadro para exportar.');
   const exact = globalPalette(frames);

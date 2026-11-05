@@ -77,7 +77,6 @@ export function importPalette(text, fileName = 'paleta.txt') {
   const content = text.replace(/^﻿/, '');
   if (extension === 'json' || /^\s*[[{]/.test(content)) {
     const data = JSON.parse(content);
-    // Crivo 1.x exported palettes as { nome, cores }; both spellings are accepted.
     const list = Array.isArray(data) ? data : data.colors || data.cores || data.palette || data.paleta || [];
     if (!Array.isArray(data) && (data.name || data.nome)) name = data.name || data.nome;
     for (const c of list) add(typeof c === 'string' ? hexToColor(c) : null);

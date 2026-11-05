@@ -13,13 +13,8 @@ import java.util.Map;
 
 public final class Project {
 
-    /** Newest version of the .crivo format this tool reads. Version 1 files (Crivo 1.x) are converted on load. */
     public static final int FORMAT_VERSION = 2;
 
-    /**
-     * A layer. The fields after {@code opacity} are the optional 2.1 keys: blend mode, kind ("image", "group" or
-     * "tilemap"), id of the containing group (null at the top level) and whether it is a reference layer.
-     */
     public record Layer(String id, String name, boolean visible, int opacity, String blendMode, String kind, String parent, boolean reference) {
 
         public Layer(String id, String name, boolean visible, int opacity) {
@@ -34,15 +29,12 @@ public final class Project {
     public record Frame(String id, Integer duration) {
     }
 
-    /** A frame tag (2.1): frames {@code from} to {@code to} (ids), played forward, reverse or pingpong. */
     public record Tag(String id, String name, String from, String to, String direction, int repeat, String color) {
     }
 
-    /** A slice (2.1): a named rectangle of the canvas. */
     public record Slice(String id, String name, int x, int y, int width, int height) {
     }
 
-    /** A tileset (2.1): tile size and number of tiles (tile 0 is the empty tile). */
     public record Tileset(String id, String name, int tileWidth, int tileHeight, int tileCount) {
     }
 
@@ -56,12 +48,10 @@ public final class Project {
     public final int fps;
     public final List<Layer> layers = new ArrayList<>();
     public final List<Frame> frames = new ArrayList<>();
-    /** Color mode (2.1), or null when the file does not say (an RGBA project). */
     public final String colorMode;
     public final List<Tag> tags = new ArrayList<>();
     public final List<Slice> slices = new ArrayList<>();
     public final List<Tileset> tilesets = new ArrayList<>();
-    /** Linked cels (2.1): "frame:layer" of a cel to the id of the frame whose cel it shares. */
     public final Map<String, String> links = new HashMap<>();
     private final Map<String, int[]> cells = new HashMap<>();
 
@@ -153,7 +143,6 @@ public final class Project {
         return v == null || "".equals(v) ? fallback : String.valueOf(v);
     }
 
-    /** Position (0-based) of the frame with this id, or -1. */
     public int frameIndex(String id) {
         for (int i = 0; i < frames.size(); i++) {
             if (frames.get(i).id().equals(id)) {
@@ -163,7 +152,6 @@ public final class Project {
         return -1;
     }
 
-    /** Nesting depth of a layer: 0 at the top level, 1 inside a group, and so on. */
     public int depth(Layer layer) {
         Map<String, Layer> byId = new HashMap<>();
         for (Layer l : layers) {
@@ -189,16 +177,11 @@ public final class Project {
         return new Project(document);
     }
 
-    /** A project from an already parsed .crivo document (format v1 or v2). */
     @SuppressWarnings("unchecked")
     static Project of(Map<String, Object> document) {
         return new Project(document.containsKey("formato") ? upgrade(document) : document);
     }
 
-    /**
-     * Converts a format v1 document (Portuguese keys, written by Crivo 1.x) to format v2 (English keys).
-     * Only keys that are present are copied, so missing values keep their usual defaults.
-     */
     static Map<String, Object> upgrade(Map<String, Object> v1) {
         Map<String, Object> v2 = new LinkedHashMap<>();
         v2.put("format", v1.get("formato"));
@@ -226,7 +209,6 @@ public final class Project {
         }
     }
 
-    /** Renames the keys of each object in a v1 list; {@code keys} holds pairs of old and new names. */
     @SuppressWarnings("unchecked")
     private static Object upgradeList(Object list, String... keys) {
         if (!(list instanceof List<?> items)) {
@@ -248,21 +230,12 @@ public final class Project {
         return result;
     }
 
-    /** The rendered frame: groups, blend modes and opacity applied; hidden and reference layers left out. */
     public int[] compose(int frameIndex) {
         return compose(frameIndex, false);
     }
 
-    /** Groups nested deeper than this are skipped, as in the editor. */
     private static final int MAX_GROUP_DEPTH = 32;
 
-    /**
-     * Renders a frame exactly like the editor (PixelDocument.composite in core/document.js). A layer whose parent
-     * does not exist is drawn at the top level. A group in normal mode at 100% passes its children straight through
-     * onto the layers below it; any other group is isolated: its children are composited into a transparent buffer,
-     * which is then blended with the group's mode and opacity. A hidden group hides its children. Without groups,
-     * blend modes or reference layers this is exactly the 2.0 rendering.
-     */
     public int[] compose(int frameIndex, boolean includeReference) {
         java.util.Set<String> ids = new java.util.HashSet<>();
         for (Layer l : layers) {

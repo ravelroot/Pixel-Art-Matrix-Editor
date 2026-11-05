@@ -16,8 +16,6 @@ const WHITE = pack(255, 255, 255);
 const BACK = pack(200, 100, 50);
 const FRONT = pack(100, 150, 200);
 
-// ---- blend math --------------------------------------------------------------------------------------------
-
 test('blend: separable modes match hand-computed values (opaque over opaque)', () => {
   const cases = {
     multiply: [78, 59, 39],
@@ -59,8 +57,6 @@ test('blend: opacity, transparent backdrop and the exact normal path', () => {
   assert.equal(BLEND_MODES.length, 19);
   for (const mode of BLEND_MODES) assert.equal(blendPixel(mode, 0, 0), 0, mode);
 });
-
-// ---- groups ------------------------------------------------------------------------------------------------
 
 function docWithGroup() {
   const doc = new PixelDocument(2, 1);
@@ -112,12 +108,10 @@ test('groups: move in and out, nested groups, duplicate and delete with children
   const { doc, base, group, child } = docWithGroup();
   const inner = doc.addGroup('Interno', doc.layerIndex(child.id) + 1, group.id);
   assert.equal(doc.depth(inner.id), 1);
-  // The base layer sits right below the expanded group G: moving it up enters G as its bottom child.
   assert.ok(doc.moveLayer(base.id, 1));
   assert.equal(base.parent, group.id, 'entered the group from below');
   assert.ok(doc.moveLayer(base.id, -1));
   assert.equal(base.parent, null, 'left the group at its bottom');
-  // The expanded inner group is the sibling above the child: moving up enters it, moving up again leaves it.
   assert.ok(doc.moveLayer(child.id, 1));
   assert.equal(child.parent, inner.id);
   assert.ok(doc.moveLayer(child.id, 1));
@@ -142,8 +136,6 @@ test('groups: a group can only be removed while an image layer remains elsewhere
   assert.equal(doc.removeLayer(doc.layers[0].id), false);
 });
 
-// ---- blend modes in merge, reference layers -----------------------------------------------------------------
-
 test('reference layers show only when asked and mergeDown honors the blend mode', () => {
   const doc = new PixelDocument(1, 1);
   const q = doc.frames[0].id;
@@ -161,8 +153,6 @@ test('reference layers show only when asked and mergeDown honors the blend mode'
   doc.mergeDown(ref.id);
   assert.equal(doc.cell(q, doc.layers[0].id)[0], expected);
 });
-
-// ---- linked cels -------------------------------------------------------------------------------------------
 
 test('linked cels share pixels, survive history, unlink and frame removal', () => {
   const doc = new PixelDocument(2, 2);
@@ -191,8 +181,6 @@ test('linked cels share pixels, survive history, unlink and frame removal', () =
   assert.equal(doc.cell(b.id, layer), doc.cell(d.id, layer), 'geometry keeps linked cels shared');
 });
 
-// ---- tags and playback -------------------------------------------------------------------------------------
-
 test('tags: playback order for forward, reverse and ping-pong', () => {
   assert.deepEqual(tagSequence(1, 3, 'forward'), { frames: [1, 2, 3], loop: true });
   assert.deepEqual(tagSequence(1, 3, 'reverse'), { frames: [3, 2, 1], loop: true });
@@ -218,8 +206,6 @@ test('tags: playback loops inside the tag of the current frame', () => {
   assert.ok(doc.removeFrame(doc.frames[1].id));
   assert.equal(doc.frameIndex(tag.from), 1, 'removing the first frame of a tag moves its start');
 });
-
-// ---- tilemaps ------------------------------------------------------------------------------------------------
 
 function tilemapDoc() {
   const doc = new PixelDocument(4, 2);
@@ -250,8 +236,6 @@ test('tilemaps: placing tiles renders pixels and pixel edits update every instan
   assert.equal(tileGrid(doc, q, layer.id).length, 3);
   assert.equal(doc.cell(q, layer.id)[0], GREEN, 'pixels re-rendered after resize');
 });
-
-// ---- .crivo round trip ----------------------------------------------------------------------------------------
 
 test('.crivo: every 2.1.0 field survives a round trip and history snapshots', () => {
   const { doc, layer, t1, q } = tilemapDoc();
@@ -288,7 +272,6 @@ test('.crivo: every 2.1.0 field survives a round trip and history snapshots', ()
   assert.equal(cel.link, q0);
   assert.ok(cel.rle, 'linked cels still carry their own pixels for 2.0.0 readers');
   assert.ok(data.cells.some((c) => c.tiles));
-  // History: undo/redo of a structural change brings every new field back.
   const h = new History();
   const before = back.snapshot();
   back.tags = [];

@@ -16,7 +16,6 @@ RUN pip install -r requirements.txt
 COPY manage.py VERSION ./
 COPY crivo ./crivo
 COPY editor ./editor
-# The key below only exists during the build (collectstatic does not use it); the production key comes from .env.
 RUN CRIVO_SECRET_KEY=build-only-key-for-collecting-static-files-0000 python manage.py collectstatic --noinput && chown -R crivo:crivo /app
 
 USER crivo
