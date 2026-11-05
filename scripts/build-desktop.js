@@ -21,19 +21,23 @@ async function pointerPixels() {
   if (!svg.includes(`viewBox="0 0 ${LOGO_GRID} ${LOGO_GRID}"`)) throw new Error('logo.svg changed: the grid is no longer 25×25.');
   const path = svg.match(/<path[^>]*\sd="([^"]+)"/);
   if (!path) throw new Error('logo.svg changed: the generator did not find the pointer drawing.');
+  const shift = svg.match(/<path[^>]*\stransform="translate\(([\d.]+) ([\d.]+)\)"/);
+  if (!shift) throw new Error('logo.svg changed: the generator did not find the pointer position.');
   const pixels = [];
   for (const [, x, y, width] of path[1].matchAll(/M(\d+) (\d+)h(\d+)v1h-\d+z/g)) {
     for (let i = 0; i < Number(width); i++) pixels.push([Number(x) + i, Number(y)]);
   }
   const width = Math.max(...pixels.map(([x]) => x)) + 1;
   const height = Math.max(...pixels.map(([, y]) => y)) + 1;
-  return { pixels, width, height };
+  const offsetX = Number(shift[1]) - (LOGO_GRID - width) / 2;
+  const offsetY = Number(shift[2]) - (LOGO_GRID - height) / 2;
+  return { pixels, width, height, offsetX, offsetY };
 }
 
 function draw(pointer, side) {
   const scale = Math.max(1, Math.round(side / LOGO_GRID));
-  const x0 = Math.floor((side - pointer.width * scale) / 2);
-  const y0 = Math.floor((side - pointer.height * scale) / 2);
+  const x0 = Math.floor((side - pointer.width * scale) / 2) + Math.round(pointer.offsetX * scale);
+  const y0 = Math.floor((side - pointer.height * scale) / 2) + Math.round(pointer.offsetY * scale);
   const rgba = Buffer.alloc(side * side * 4, 0xff);
   for (const [px, py] of pointer.pixels) {
     for (let dy = 0; dy < scale; dy++) {

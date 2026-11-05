@@ -122,14 +122,17 @@ export function bitmapPath(bitmap) {
   return d;
 }
 
+const OPTICAL_SHIFT = { logo: [1, 0] };
+
 export function icon(name, size = 20, label = '') {
   const bitmap = BITMAPS[name];
   if (!bitmap) return '';
   const l = Math.max(...bitmap.map((r) => r.length));
   const a = bitmap.length;
   const side = Math.max(l, a) + 2;
-  const ox = (side - l) / 2;
-  const oy = (side - a) / 2;
+  const [dx, dy] = OPTICAL_SHIFT[name] || [0, 0];
+  const ox = (side - l) / 2 + dx;
+  const oy = (side - a) / 2 + dy;
   const safe = String(label).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   const aria = label ? `role="img" aria-label="${safe}"` : 'aria-hidden="true"';
   return `<svg class="icon" width="${size}" height="${size}" viewBox="${-ox} ${-oy} ${side} ${side}" shape-rendering="crispEdges" ${aria}><path fill="currentColor" d="${bitmapPath(bitmap)}"/></svg>`;

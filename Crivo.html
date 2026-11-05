@@ -2,12 +2,12 @@
 <html lang="pt-BR" data-theme="light">
   <head>
     <meta charset="utf-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-fkbIE/HUINULN1okgBO4fQAxlfIjVF5qdNL4lhF8vPg='; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-FVHNttfsSwao9hvLOtr9vGzv9TUtEYzMfmlBo3JyNt8='; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Crivo</title>
     <meta name="description" content="Crivo: editor de pixel art baseado em matrizes, com camadas, animação, histórico ilimitado e exportação para jogos.">
     <meta name="color-scheme" content="light dark">
-    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNyAxNyIgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHNoYXBlLXJlbmRlcmluZz0iY3Jpc3BFZGdlcyI+PHJlY3Qgd2lkdGg9IjE3IiBoZWlnaHQ9IjE3IiBmaWxsPSIjZmZmZmZmIi8+PHBhdGggdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNC41IDIpIiBmaWxsPSIjMDAwMDAwIiBkPSJNMCAwaDF2MWgtMXpNMCAxaDJ2MWgtMnpNMCAyaDN2MWgtM3pNMCAzaDR2MWgtNHpNMCA0aDV2MWgtNXpNMCA1aDZ2MWgtNnpNMCA2aDd2MWgtN3pNMCA3aDh2MWgtOHpNMCA4aDR2MWgtNHpNMCA5aDJ2MWgtMnpNMyA5aDJ2MWgtMnpNMCAxMGgxdjFoLTF6TTMgMTBoMnYxaC0yek00IDExaDJ2MWgtMnpNNCAxMmgydjFoLTJ6Ii8+PC9zdmc+Cg==" type="image/svg+xml">
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNyAxNyIgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHNoYXBlLXJlbmRlcmluZz0iY3Jpc3BFZGdlcyI+PHJlY3Qgd2lkdGg9IjE3IiBoZWlnaHQ9IjE3IiBmaWxsPSIjZmZmZmZmIi8+PHBhdGggdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNS41IDIpIiBmaWxsPSIjMDAwMDAwIiBkPSJNMCAwaDF2MWgtMXpNMCAxaDJ2MWgtMnpNMCAyaDN2MWgtM3pNMCAzaDR2MWgtNHpNMCA0aDV2MWgtNXpNMCA1aDZ2MWgtNnpNMCA2aDd2MWgtN3pNMCA3aDh2MWgtOHpNMCA4aDR2MWgtNHpNMCA5aDJ2MWgtMnpNMyA5aDJ2MWgtMnpNMCAxMGgxdjFoLTF6TTMgMTBoMnYxaC0yek00IDExaDJ2MWgtMnpNNCAxMmgydjFoLTJ6Ii8+PC9zdmc+Cg==" type="image/svg+xml">
     <style>
 :root {
   --wine: #5d1c16;
@@ -8886,14 +8886,17 @@ function bitmapPath(bitmap) {
   return d;
 }
 
+const OPTICAL_SHIFT = { logo: [1, 0] };
+
 function icon(name, size = 20, label = '') {
   const bitmap = BITMAPS[name];
   if (!bitmap) return '';
   const l = Math.max(...bitmap.map((r) => r.length));
   const a = bitmap.length;
   const side = Math.max(l, a) + 2;
-  const ox = (side - l) / 2;
-  const oy = (side - a) / 2;
+  const [dx, dy] = OPTICAL_SHIFT[name] || [0, 0];
+  const ox = (side - l) / 2 + dx;
+  const oy = (side - a) / 2 + dy;
   const safe = String(label).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   const aria = label ? `role="img" aria-label="${safe}"` : 'aria-hidden="true"';
   return `<svg class="icon" width="${size}" height="${size}" viewBox="${-ox} ${-oy} ${side} ${side}" shape-rendering="crispEdges" ${aria}><path fill="currentColor" d="${bitmapPath(bitmap)}"/></svg>`;
